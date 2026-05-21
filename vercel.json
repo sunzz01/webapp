@@ -9,6 +9,12 @@
 
   "framework": "vite",
 
+  "functions": {
+    "api/**/*.ts": {
+      "runtime": "@vercel/node@5"
+    }
+  },
+
   "rewrites": [
     {
       "source": "/api/(.*)",
@@ -29,11 +35,5 @@
         { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }
       ]
     }
-  ],
-
-  "functions": {
-    "api/**/*.ts": {
-      "runtime": "@vercel/node@3"
-    }
-  }
+  ]
 }
