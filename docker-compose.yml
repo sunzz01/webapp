@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  webapp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: webapp-dev
+    ports:
+      - "8081:8080"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    env_file:
+      - .env
+    environment:
+      - WATCHPACK_POLLING=true # Use polling for file watching (better for Windows/Docker)
+      - CHOKIDAR_USEPOLLING=true # Ensure Vite picks up changes
+    stdin_open: true # Support interactive mode
+    tty: true

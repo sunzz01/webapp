@@ -1,0 +1,7 @@
+{
+  "name": "PicSeller",
+  "description": "An AI-powered platform for e-commerce sellers to generate high-quality product images including covers, infographics, and lifestyle shots using Gemini API.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
