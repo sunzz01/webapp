@@ -35,12 +35,5 @@
     "api/**/*.ts": {
       "runtime": "@vercel/node@3"
     }
-  },
-
-  "env": {
-    "GCP_PROJECT_ID": "@gcp-project-id",
-    "GCP_LOCATION": "us-central1",
-    "GCP_SERVICE_ACCOUNT": "@gcp-service-account",
-    "VITE_USE_VERTEX_AI": "true"
   }
 }
