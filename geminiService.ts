@@ -49,9 +49,11 @@ export const MODEL_REGISTRY = {
    * imagen-3.0-generate-001        = Imagen 3 Standard (ใช้ generateImages API แยก)
    */
   image: [
-    'gemini-2.5-flash-image',
     'gemini-3.1-flash-image-preview',
+    'gemini-2.5-flash-image',
     'gemini-3-pro-image-preview',
+    'imagen-3.0-generate-002',       // Imagen 3 Standard (ใช้ generateImages API — fallback ท้ายสุด)
+    'imagen-3.0-fast-generate-001',  // Imagen 3 Fast
   ],
 };
 
@@ -1251,32 +1253,52 @@ Use the provided source images to ensure the product looks accurate and consiste
   try {
     return await smartRetry(async (modelName, ai) => {
       console.log(`[generateProductImage] Using model: ${modelName}`);
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents: {
-          parts: [
-            ...imageParts,
-            { text: prompt }
-          ],
-        },
-        config: {
-          responseModalities: ['Text', 'Image'],
-          generationConfig: {
-            responseModalities: ['Text', 'Image'],
-          } as any,
-        } as any,
-      });
-
-      let geminiTextResponse = '';
       let imageUrl = '';
+      let geminiTextResponse = '';
 
-      if (response.candidates && response.candidates[0]?.content?.parts) {
-        for (const part of response.candidates[0].content.parts) {
-          if (part.inlineData) {
-            imageUrl = `data:image/png;base64,${part.inlineData.data}`;
+      if (modelName.startsWith('imagen-')) {
+        // ─── Imagen 3 API (Direct Mode) ───────────────────────────────────
+        const response = await ai.models.generateImages({
+          model: modelName,
+          prompt: prompt,
+          config: {
+            numberOfImages: 1,
+            aspectRatio: aspectRatio as any,
+          },
+        });
+
+        if (response.generatedImages && response.generatedImages.length > 0) {
+          const img = response.generatedImages[0].image;
+          if (img?.imageBytes) {
+            imageUrl = `data:image/png;base64,${img.imageBytes}`;
           }
-          if (part.text) {
-            geminiTextResponse = part.text;
+        }
+      } else {
+        // ─── Gemini Multimodal Content Gen (Direct Mode) ───────────────────
+        const response = await ai.models.generateContent({
+          model: modelName,
+          contents: {
+            parts: [
+              ...imageParts,
+              { text: prompt }
+            ],
+          },
+          config: {
+            responseModalities: ['Text', 'Image'],
+            generationConfig: {
+              responseModalities: ['Text', 'Image'],
+            } as any,
+          } as any,
+        });
+
+        if (response.candidates && response.candidates[0]?.content?.parts) {
+          for (const part of response.candidates[0].content.parts) {
+            if (part.inlineData) {
+              imageUrl = `data:image/png;base64,${part.inlineData.data}`;
+            }
+            if (part.text) {
+              geminiTextResponse = part.text;
+            }
           }
         }
       }
