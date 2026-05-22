@@ -11,11 +11,13 @@ import {
 //  MODE DETECTION — Vertex AI (API) vs Direct Gemini (Dev)
 // ═══════════════════════════════════════════════════════════════
 /**
- * When VITE_API_BASE_URL is set (or in production on Vercel),
+ * In production, all AI calls go through serverless API routes.
+ * In development, set VITE_USE_VERTEX_AI=true or VITE_API_BASE_URL to test that path.
  * all AI calls go through our serverless API → Vertex AI (secure).
  * When not set, falls back to direct Gemini API key mode (development).
  */
 const USE_VERTEX_AI = !!(
+  import.meta.env.PROD ||
   import.meta.env.VITE_API_BASE_URL ||
   import.meta.env.VITE_USE_VERTEX_AI === 'true'
 );

@@ -32,6 +32,42 @@ export const MODEL_REGISTRY = {
 
 let _ai: GoogleGenAI | null = null;
 
+type ServiceAccountCredentials = {
+  client_email?: string;
+  private_key?: string;
+  project_id?: string;
+};
+
+function parseServiceAccountCredentials(value: string): ServiceAccountCredentials {
+  const trimmed = value.trim();
+  const jsonText = trimmed.startsWith('{')
+    ? trimmed
+    : Buffer.from(trimmed, 'base64').toString('utf-8');
+
+  try {
+    const credentials = JSON.parse(jsonText) as ServiceAccountCredentials;
+    if (!credentials.client_email || !credentials.private_key) {
+      throw new Error('Service account JSON must include client_email and private_key');
+    }
+    return credentials;
+  } catch (error: any) {
+    throw new Error(`Invalid GCP_SERVICE_ACCOUNT. Expected base64-encoded service account JSON or raw JSON. ${error.message || ''}`.trim());
+  }
+}
+
+export function getVertexConfigStatus() {
+  const projectId = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT;
+  const location = process.env.GCP_LOCATION || process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
+  const serviceAccount = process.env.GCP_SERVICE_ACCOUNT;
+
+  return {
+    hasProjectId: Boolean(projectId),
+    hasServiceAccount: Boolean(serviceAccount),
+    location,
+    serviceAccountLooksJson: Boolean(serviceAccount?.trim().startsWith('{')),
+  };
+}
+
 /**
  * Returns a singleton GoogleGenAI instance configured for Vertex AI.
  *
@@ -43,12 +79,12 @@ let _ai: GoogleGenAI | null = null;
 export function getVertexAI(): GoogleGenAI {
   if (_ai) return _ai;
 
-  const projectId = process.env.GCP_PROJECT_ID;
-  const location = process.env.GCP_LOCATION || 'us-central1';
+  const projectId = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT;
+  const location = process.env.GCP_LOCATION || process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
   const saBase64 = process.env.GCP_SERVICE_ACCOUNT;
 
   if (!projectId) {
-    throw new Error('Missing GCP_PROJECT_ID environment variable');
+    throw new Error('Missing GCP_PROJECT_ID environment variable. Set it in Vercel Project Settings.');
   }
   if (!saBase64) {
     throw new Error(
@@ -59,10 +95,7 @@ export function getVertexAI(): GoogleGenAI {
     );
   }
 
-  // Decode service account credentials
-  const credentials = JSON.parse(
-    Buffer.from(saBase64, 'base64').toString('utf-8')
-  );
+  const credentials = parseServiceAccountCredentials(saBase64);
 
   _ai = new GoogleGenAI({
     vertexai: true,
@@ -70,8 +103,9 @@ export function getVertexAI(): GoogleGenAI {
     location,
     googleAuthOptions: {
       credentials,
+      scopes: ['https://www.googleapis.com/auth/cloud-platform'],
     },
-  } as any);
+  });
 
   console.log(`[VertexAI] Initialized: project=${projectId}, location=${location}`);
   return _ai;
