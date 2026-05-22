@@ -19,8 +19,7 @@
  *   { imageUrl: string, promptUsed: string, model: string }
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { smartRetry, MODEL_REGISTRY, getVertexAI } from './_lib/vertex.js';
-import { GenerativeModel } from '@google-cloud/vertexai';
+import { MODEL_REGISTRY, getVertexAI, getVertexAccessToken, getVertexEnvironment } from './_lib/vertex.js';
 
 // Aspect ratio descriptions for prompt enhancement
 const RATIO_DESCRIPTIONS: Record<string, string> = {
@@ -30,6 +29,55 @@ const RATIO_DESCRIPTIONS: Record<string, string> = {
   '16:9': 'landscape widescreen format (16:9 aspect ratio)',
   '3:4': 'portrait format (3:4 aspect ratio)',
 };
+
+function extractVertexTextAndImage(response: any) {
+  let imageUrl = '';
+  let text = '';
+  const parts = response?.response?.candidates?.[0]?.content?.parts || [];
+
+  for (const part of parts) {
+    if (part.inlineData?.data) {
+      imageUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
+    }
+    if (part.text) text += part.text;
+  }
+
+  return { imageUrl, text: text.trim() };
+}
+
+async function generateImagenImage(modelName: string, prompt: string, aspectRatio: string) {
+  const { projectId, location } = getVertexEnvironment();
+  const accessToken = await getVertexAccessToken();
+  const endpoint = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${modelName}:predict`;
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      instances: [{ prompt }],
+      parameters: {
+        sampleCount: 1,
+        aspectRatio,
+      },
+    }),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = payload?.error?.message || response.statusText || 'Imagen request failed';
+    throw new Error(`Imagen ${modelName}: ${message}`);
+  }
+
+  const base64 = payload?.predictions?.[0]?.bytesBase64Encoded;
+  if (!base64) {
+    throw new Error(`Imagen ${modelName}: no image data returned`);
+  }
+
+  return `data:image/png;base64,${base64}`;
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS
@@ -98,50 +146,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           // Check if this is an Imagen model or Gemini model
           if (modelName.startsWith('imagen-')) {
             // ─── Imagen 3 API ───────────────────────────────────
-            const vertexAI = getVertexAI();
-            const response = await vertexAI.images.generateImages({
-              prompt: finalPrompt,
-              numberOfImages: 1,
-              aspectRatio: aspectRatio as any,
-            });
-
-            if (response.generatedImages && response.generatedImages.length > 0) {
-              const img = response.generatedImages[0].image;
-              if (img?.imageBytes) {
-                imageUrl = `data:image/png;base64,${img.imageBytes}`;
-                usedModel = modelName;
-                success = true;
-                break;
-              }
-            }
+            imageUrl = await generateImagenImage(modelName, finalPrompt, aspectRatio);
+            usedModel = modelName;
+            success = true;
+            break;
           } else {
             // ─── Gemini Native Image Generation ─────────────────
-            const generativeModel = new GenerativeModel({
+            const vertexAI = getVertexAI();
+            const generativeModel = vertexAI.getGenerativeModel({
               model: modelName,
               generationConfig: {
-                responseModalities: ['Text', 'Image'],
-              },
+                responseModalities: ['TEXT', 'IMAGE'] as any,
+              } as any,
             });
 
             const contents = {
-              parts: [
-                ...imageParts,
-                { text: finalPrompt },
-              ],
+              contents: [{ role: 'user', parts: [...imageParts, { text: finalPrompt }] }],
             };
 
             const response = await generativeModel.generateContent(contents);
-
-            if (response.candidates && response.candidates[0]?.content?.parts) {
-              for (const part of response.candidates[0].content.parts) {
-                if (part.inlineData) {
-                  imageUrl = `data:image/png;base64,${part.inlineData.data}`;
-                }
-                if (part.text) {
-                  geminiTextResponse = part.text;
-                }
-              }
-            }
+            const extracted = extractVertexTextAndImage(response);
+            imageUrl = extracted.imageUrl;
+            geminiTextResponse = extracted.text;
 
             if (imageUrl) {
               usedModel = modelName;

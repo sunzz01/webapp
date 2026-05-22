@@ -15,7 +15,13 @@
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { smartRetry, MODEL_REGISTRY } from './_lib/vertex.js';
-import { GenerativeModel } from '@google-cloud/vertexai';
+
+function extractVertexText(response: any): string {
+  return response?.response?.candidates?.[0]?.content?.parts
+    ?.map((part: any) => part.text || '')
+    .join('')
+    .trim() || '';
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS
@@ -82,12 +88,12 @@ Output strictly the summary text.`,
 
     const result = await smartRetry(async (model, ai) => {
       console.log(`[summarize] Using model: ${model}`);
-      const generativeModel = new GenerativeModel({
-        model: model,
-      });
+      const generativeModel = ai.getGenerativeModel({ model });
 
-      const response = await generativeModel.generateContent({ parts });
-      return response.text || '';
+      const response = await generativeModel.generateContent({
+        contents: [{ role: 'user', parts }],
+      });
+      return extractVertexText(response);
     }, MODEL_REGISTRY.text);
 
     return res.status(200).json({ summary: result });

@@ -10,8 +10,19 @@
  *   { name, summary, features, visualDescription }
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { smartRetry, Type, MODEL_REGISTRY } from './_lib/vertex.js';
-import { GenerativeModel } from '@google-cloud/vertexai';
+import { smartRetry, MODEL_REGISTRY } from './_lib/vertex.js';
+
+function extractVertexText(response: any): string {
+  return response?.response?.candidates?.[0]?.content?.parts
+    ?.map((part: any) => part.text || '')
+    .join('')
+    .trim() || '';
+}
+
+function parseJsonResponse(text: string) {
+  const cleaned = text.replace(/```json|```/g, '').trim();
+  return JSON.parse(cleaned || '{}');
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS headers
@@ -52,31 +63,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       text: `Analyze this Shopee product based on the provided ${images?.length ? 'images and ' : ''}description.
 Product Info: ${productInfo || 'No text description provided, please analyze the images.'}
 Extract 3-5 key selling points (features) and a concise visual description of the product for image generation.
-Return as JSON with keys: "name", "summary", "features" (array of strings), "visualDescription".`,
+Return valid JSON only. Do not include markdown fences.
+JSON keys: "name", "summary", "features" (array of strings), "visualDescription".`,
     });
 
     const result = await smartRetry(async (model, ai) => {
       console.log(`[analyze] Using model: ${model}`);
-      const generativeModel = new GenerativeModel({
-        model: model,
+      const generativeModel = ai.getGenerativeModel({
+        model,
         generationConfig: {
           responseMimeType: 'application/json',
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              name: { type: Type.STRING },
-              summary: { type: Type.STRING },
-              features: { type: Type.ARRAY, items: { type: Type.STRING } },
-              visualDescription: { type: Type.STRING },
-            },
-            required: ['name', 'summary', 'features', 'visualDescription'],
-          },
         },
       });
 
-      const response = await generativeModel.generateContent({ parts });
-      const text = response.text || '{}';
-      return JSON.parse(text);
+      const response = await generativeModel.generateContent({
+        contents: [{ role: 'user', parts }],
+      });
+      return parseJsonResponse(extractVertexText(response));
     }, MODEL_REGISTRY.text);
 
     return res.status(200).json(result);

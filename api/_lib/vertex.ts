@@ -6,7 +6,8 @@
  * ╚══════════════════════════════════════════════════════════════════╝
  */
 import { VertexAI } from '@google-cloud/vertexai';
-import { GenerativeModel, GenerateContentRequest, Content, Part, GenerateContentResponse } from '@google-cloud/vertexai';
+import type { GenerativeModel } from '@google-cloud/vertexai';
+import { GoogleAuth } from 'google-auth-library';
 
 // ═══════════════════════════════════════════════════════════════
 //  MODEL REGISTRY — Vertex AI model names
@@ -32,6 +33,7 @@ export const MODEL_REGISTRY = {
 
 let _vertexAI: VertexAI | null = null;
 let _geminiModel: GenerativeModel | null = null;
+let _credentials: ServiceAccountCredentials | null = null;
 
 type ServiceAccountCredentials = {
   client_email?: string;
@@ -54,6 +56,51 @@ function parseServiceAccountCredentials(value: string): ServiceAccountCredential
   } catch (error: any) {
     throw new Error(`Invalid GCP_SERVICE_ACCOUNT. Expected base64-encoded service account JSON or raw JSON. ${error.message || ''}`.trim());
   }
+}
+
+function getProjectId() {
+  return process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT;
+}
+
+export function getVertexEnvironment() {
+  const projectId = getProjectId();
+  const location = process.env.GCP_LOCATION || process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
+
+  if (!projectId) {
+    throw new Error('Missing GCP_PROJECT_ID environment variable. Set it in Vercel Project Settings.');
+  }
+
+  return { projectId, location };
+}
+
+export function getServiceAccountCredentials() {
+  if (_credentials) return _credentials;
+
+  const saBase64 = process.env.GCP_SERVICE_ACCOUNT;
+  if (!saBase64) {
+    throw new Error(
+      'Missing GCP_SERVICE_ACCOUNT environment variable.\n' +
+      'Set it to a base64-encoded GCP service account JSON key.\n' +
+      'Encode with: cat service-account.json | base64 (Linux/Mac)\n' +
+      'Or: [Convert]::ToBase64String([IO.File]::ReadAllBytes("service-account.json")) (PowerShell)'
+    );
+  }
+
+  _credentials = parseServiceAccountCredentials(saBase64);
+  return _credentials;
+}
+
+export async function getVertexAccessToken() {
+  const auth = new GoogleAuth({
+    credentials: getServiceAccountCredentials(),
+    scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+  });
+  const client = await auth.getClient();
+  const token = await client.getAccessToken();
+  if (!token.token) {
+    throw new Error('Unable to get Vertex AI access token from service account.');
+  }
+  return token.token;
 }
 
 export function getVertexConfigStatus() {
@@ -80,23 +127,8 @@ export function getVertexConfigStatus() {
 export function getVertexAI(): VertexAI {
   if (_vertexAI) return _vertexAI;
 
-  const projectId = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT;
-  const location = process.env.GCP_LOCATION || process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
-  const saBase64 = process.env.GCP_SERVICE_ACCOUNT;
-
-  if (!projectId) {
-    throw new Error('Missing GCP_PROJECT_ID environment variable. Set it in Vercel Project Settings.');
-  }
-  if (!saBase64) {
-    throw new Error(
-      'Missing GCP_SERVICE_ACCOUNT environment variable.\n' +
-      'Set it to a base64-encoded GCP service account JSON key.\n' +
-      'Encode with: cat service-account.json | base64 (Linux/Mac)\n' +
-      'Or: [Convert]::ToBase64String([IO.File]::ReadAllBytes("service-account.json")) (PowerShell)'
-    );
-  }
-
-  const credentials = parseServiceAccountCredentials(saBase64);
+  const { projectId, location } = getVertexEnvironment();
+  const credentials = getServiceAccountCredentials();
 
   _vertexAI = new VertexAI({
     project: projectId,
@@ -142,7 +174,7 @@ const isRetryable = (m: string) =>
  * Tries each model in order; retries on 503, skips on 404, throws on others.
  */
 export async function smartRetry<T>(
-  callFn: (model: string, ai: VertexAI | GenerativeModel) => Promise<T>,
+  callFn: (model: string, ai: VertexAI) => Promise<T>,
   models: string[],
   maxRetries: number = 2,
 ): Promise<T> {
