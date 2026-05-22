@@ -51,7 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Add images if available
     if (images && images.length > 0) {
-      for (const img of images.slice(0, 5)) {
+      for (const img of images.slice(0, 3)) {
         const base64Data = img.includes('base64,') ? img.split('base64,')[1] : img;
         parts.push({
           inlineData: {

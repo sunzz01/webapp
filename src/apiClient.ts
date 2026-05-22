@@ -20,8 +20,8 @@ import { auth } from './firebase';
  * - In development: set VITE_API_BASE_URL in .env (e.g., "http://localhost:3000")
  */
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
-const MAX_API_IMAGE_BYTES = 650_000;
-const MAX_API_PAYLOAD_BYTES = 3_400_000;
+const MAX_API_IMAGE_BYTES = 360_000;
+const MAX_API_PAYLOAD_BYTES = 1_850_000;
 
 // ═══════════════════════════════════════════════════════════════
 //  Types (mirror server-side interfaces)
@@ -78,14 +78,14 @@ async function shrinkImageForApi(
   return canvas.toDataURL('image/jpeg', qualitySteps[qualitySteps.length - 1] ?? 0.42);
 }
 
-async function prepareImagesForApi(images?: string[]): Promise<string[] | undefined> {
+async function prepareImagesForApi(images?: string[], maxImages: number = 4): Promise<string[] | undefined> {
   if (!images?.length) return undefined;
-  const sourceImages = images.filter(Boolean);
+  const sourceImages = images.filter(Boolean).slice(0, maxImages);
   const compressionProfiles = [
-    { maxEdge: 1024, qualitySteps: [0.78, 0.68, 0.58, 0.48] },
-    { maxEdge: 768, qualitySteps: [0.7, 0.6, 0.5, 0.42] },
-    { maxEdge: 640, qualitySteps: [0.62, 0.52, 0.44, 0.36] },
-    { maxEdge: 512, qualitySteps: [0.54, 0.46, 0.38, 0.32] },
+    { maxEdge: 900, qualitySteps: [0.72, 0.62, 0.52, 0.44] },
+    { maxEdge: 720, qualitySteps: [0.64, 0.54, 0.46, 0.38] },
+    { maxEdge: 560, qualitySteps: [0.56, 0.48, 0.4, 0.34] },
+    { maxEdge: 420, qualitySteps: [0.48, 0.4, 0.34, 0.28] },
   ];
 
   let bestEffort: string[] = [];
@@ -162,7 +162,7 @@ export async function analyzeProduct(
   productInfo: string,
   images?: string[],
 ): Promise<ProductAnalysis> {
-  const apiImages = await prepareImagesForApi(images);
+  const apiImages = await prepareImagesForApi(images, 4);
   return apiPost<ProductAnalysis>('/api/analyze', {
     productInfo,
     images: apiImages,
@@ -197,7 +197,7 @@ export async function generateProductImage(
     );
   }
 
-  const apiImages = await prepareImagesForApi(productData.images);
+  const apiImages = await prepareImagesForApi(productData.images, 3);
   const result = await apiPost<{
     imageUrl: string;
     promptUsed: string;
@@ -236,7 +236,7 @@ export async function summarizeProductDescription(
   images?: string[],
   summaryLength: 'short' | 'medium' | 'long' = 'medium',
 ): Promise<string> {
-  const apiImages = await prepareImagesForApi(images);
+  const apiImages = await prepareImagesForApi(images, 3);
   const result = await apiPost<{ summary: string }>('/api/summarize', {
     currentDesc,
     images: apiImages,
