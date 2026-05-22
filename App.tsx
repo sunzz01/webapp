@@ -1340,14 +1340,110 @@ const App: React.FC = () => {
           ))}
         </nav>
 
-        {/* ปุ่มสลับธีม */}
-        <button
-          onClick={toggleTheme}
-          className={`p-2 rounded-xl ${theme === 'dark' ? 'bg-gray-700 text-yellow-300 hover:bg-gray-600' : 'bg-slate-100 text-gray-700 hover:bg-slate-200'} transition-colors`}
-          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-        >
-          {theme === 'dark' ? <Sun className="w-6 h-6" /> : <Moon className="w-6 h-6" />}
-        </button>
+        {/* ส่วน User Profile + Theme Toggle + Logout */}
+        <div className="flex items-center gap-3">
+          {/* ปุ่มสลับธีม */}
+          <button
+            onClick={toggleTheme}
+            className={`p-2 rounded-xl ${theme === 'dark' ? 'bg-gray-700 text-yellow-300 hover:bg-gray-600' : 'bg-slate-100 text-gray-700 hover:bg-slate-200'} transition-colors`}
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          </button>
+
+          {/* User Avatar + Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+              className={`flex items-center gap-3 p-2 pr-4 rounded-2xl transition-all ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-slate-100 hover:bg-slate-200'} ${showProfileDropdown ? (theme === 'dark' ? 'bg-gray-600' : 'bg-slate-200') : ''}`}
+            >
+              <div className="w-9 h-9 rounded-xl overflow-hidden bg-orange-500 flex items-center justify-center text-white font-black text-sm shadow-lg shadow-orange-500/20">
+                {user.avatar ? (
+                  <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                ) : (
+                  user.name.charAt(0).toUpperCase()
+                )}
+              </div>
+              <div className="hidden md:block text-left">
+                <p className={`text-xs font-black leading-tight ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>{user.name}</p>
+                <p className={`text-[9px] font-bold uppercase tracking-wider ${theme === 'dark' ? 'text-gray-400' : 'text-slate-400'}`}>
+                  {user.tier === 'free' ? 'Free' : user.tier === 'starter' ? 'Starter' : user.tier === 'pro' ? 'Pro' : 'Enterprise'} • {user.credits} credits
+                </p>
+              </div>
+              <ChevronDown className={`w-4 h-4 transition-transform ${showProfileDropdown ? 'rotate-180' : ''} ${theme === 'dark' ? 'text-gray-400' : 'text-slate-400'}`} />
+            </button>
+
+            {/* Dropdown Menu */}
+            {showProfileDropdown && (
+              <>
+                {/* Backdrop */}
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setShowProfileDropdown(false)}
+                />
+                {/* Menu */}
+                <div className={`absolute right-0 top-full mt-2 w-64 z-50 rounded-2xl shadow-2xl border overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-slate-100'}`}>
+                  {/* User Info Header */}
+                  <div className={`px-5 py-4 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-slate-100'}`}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl overflow-hidden bg-orange-500 flex items-center justify-center text-white font-black text-lg shadow-lg shadow-orange-500/20">
+                        {user.avatar ? (
+                          <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                        ) : (
+                          user.name.charAt(0).toUpperCase()
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-black truncate ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{user.name}</p>
+                        <p className={`text-xs font-bold truncate ${theme === 'dark' ? 'text-gray-400' : 'text-slate-400'}`}>{user.email}</p>
+                      </div>
+                    </div>
+                    <div className={`mt-3 flex items-center gap-2 px-3 py-2 rounded-xl ${theme === 'dark' ? 'bg-gray-700' : 'bg-slate-50'}`}>
+                      <Zap className="w-4 h-4 text-orange-500" />
+                      <span className={`text-xs font-black ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>{user.credits} credits</span>
+                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ml-auto ${theme === 'dark' ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-50 text-orange-600'}`}>
+                        {user.tier.toUpperCase()}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Menu Items */}
+                  <div className="py-2">
+                    <button
+                      onClick={() => { setShowProfileDropdown(false); }}
+                      className={`w-full flex items-center gap-3 px-5 py-3 text-sm font-bold transition-colors ${theme === 'dark' ? 'text-gray-300 hover:bg-gray-700 hover:text-white' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+                    >
+                      <User className="w-4 h-4" />
+                      โปรไฟล์ของฉัน
+                    </button>
+                    <button
+                      onClick={() => { setShowProfileDropdown(false); setShowSettings(true); }}
+                      className={`w-full flex items-center gap-3 px-5 py-3 text-sm font-bold transition-colors ${theme === 'dark' ? 'text-gray-300 hover:bg-gray-700 hover:text-white' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+                    >
+                      <Settings className="w-4 h-4" />
+                      ตั้งค่า
+                    </button>
+                  </div>
+
+                  {/* Logout Button */}
+                  <div className={`px-3 pb-3`}>
+                    <button
+                      onClick={() => { setShowProfileDropdown(false); logout(); }}
+                      className={`w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-black transition-all ${
+                        theme === 'dark'
+                          ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20'
+                          : 'bg-red-50 text-red-500 hover:bg-red-100 border border-red-100'
+                      }`}
+                    >
+                      <LogOut className="w-4 h-4" />
+                      ออกจากระบบ
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       </header>
 
       <main className="flex-1 max-w-7xl mx-auto w-full p-6">
