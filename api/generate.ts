@@ -19,7 +19,7 @@
  *   { imageUrl: string, promptUsed: string, model: string }
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { smartRetry, MODEL_REGISTRY, getVertexAI } from './_lib/vertex';
+import { smartRetry, MODEL_REGISTRY, getVertexAI } from './_lib/vertex.js';
 
 // Aspect ratio descriptions for prompt enhancement
 const RATIO_DESCRIPTIONS: Record<string, string> = {

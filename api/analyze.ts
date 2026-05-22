@@ -10,7 +10,7 @@
  *   { name, summary, features, visualDescription }
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { smartRetry, Type, MODEL_REGISTRY } from './_lib/vertex';
+import { smartRetry, Type, MODEL_REGISTRY } from './_lib/vertex.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS headers

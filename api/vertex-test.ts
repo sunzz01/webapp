@@ -12,7 +12,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const vertex = await import('./_lib/vertex');
+    const vertex = await import('./_lib/vertex.js');
     return res.status(200).json({
       ok: true,
       node: process.version,

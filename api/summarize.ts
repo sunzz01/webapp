@@ -14,7 +14,7 @@
  *   { summary: string }
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { smartRetry, MODEL_REGISTRY } from './_lib/vertex';
+import { smartRetry, MODEL_REGISTRY } from './_lib/vertex.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS
