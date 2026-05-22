@@ -22,9 +22,10 @@ export const MODEL_REGISTRY = {
   ],
   /** Image generation models (Vertex AI) */
   image: [
-    'gemini-2.5-flash-image',        // Gemini image generation — supports product reference images
-    'gemini-3.1-flash-image-preview',
-    'gemini-3-pro-image-preview',
+    'gemini-3.1-flash-image-preview', // Nano Banana 2
+    'gemini-3.1-flash-image',         // Nano Banana 2 alias used in some Vertex catalogs
+    'gemini-3-pro-image-preview',     // Nano Banana Pro
+    'gemini-2.5-flash-image',         // Nano Banana original
     'imagen-3.0-generate-002',       // Imagen 3 — text-to-image fallback
     'imagen-3.0-fast-generate-001',  // Imagen 3 — fast text-to-image fallback
   ],

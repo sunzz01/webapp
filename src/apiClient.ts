@@ -224,6 +224,7 @@ export async function generateProductImage(
     imageUrl: result.imageUrl,
     promptUsed: result.promptUsed,
     thaiTexts,
+    modelUsed: result.model,
   };
 }
 

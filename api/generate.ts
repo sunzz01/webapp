@@ -51,8 +51,28 @@ function isImagenModel(modelName: string) {
   return modelName.startsWith('imagen-');
 }
 
+function isNanoBananaOriginal(modelName: string) {
+  return modelName === 'gemini-2.5-flash-image';
+}
+
+function isNanoBanana2OrHigher(modelName: string) {
+  return (
+    modelName.includes('gemini-3.1-flash-image') ||
+    modelName.includes('gemini-3-pro-image')
+  );
+}
+
 function buildImageModelChain(selectedModel: string, hasReferenceImages: boolean) {
   const uniqueModels = [selectedModel, ...MODEL_REGISTRY.image.filter((m) => m !== selectedModel)];
+
+  if (isNanoBanana2OrHigher(selectedModel)) {
+    const highModels = uniqueModels.filter(isNanoBanana2OrHigher);
+    return highModels.length ? highModels : [selectedModel];
+  }
+
+  if (isNanoBananaOriginal(selectedModel)) {
+    return uniqueModels.filter((m) => !isImagenModel(m));
+  }
 
   if (!hasReferenceImages) return uniqueModels;
 
@@ -188,6 +208,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const selectedModel = model || MODEL_REGISTRY.image[0];
     const modelChain = buildImageModelChain(selectedModel, hasReferenceImages);
     const allowTextOnlyImagenFallback = !hasReferenceImages || isImagenModel(selectedModel);
+    const allowGeminiApiFallback = !isNanoBanana2OrHigher(selectedModel);
 
     // Try with smart retry across models
     let imageUrl = '';
@@ -257,6 +278,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (!imageUrl) {
+      if (!allowGeminiApiFallback) {
+        throw new Error(
+          `Selected image model "${selectedModel}" did not return an image and fallback to lower models is disabled.\n` +
+          `Tried: ${modelChain.join(', ')}\n` +
+          `Last error: ${lastError?.message || 'No image data returned'}`
+        );
+      }
+
       console.warn('[generate] Vertex image generation failed, trying Gemini API fallback:', lastError?.message || lastError);
       const fallback = await generateGeminiImage(finalPrompt, imageParts, aspectRatio);
       imageUrl = fallback.imageUrl;

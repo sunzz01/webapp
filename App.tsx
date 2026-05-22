@@ -237,7 +237,7 @@ const GEMINI_IMAGE_MODELS = [
   {
     id: 'gemini-3.1-flash-image-preview',
     name: 'Gemini 3.1 Flash Image Preview',
-    badge: '🔥 NEW',
+    badge: 'Nano Banana 2',
     badgeColor: 'bg-gradient-to-r from-red-500 to-orange-400',
     desc: 'Gen ข้อความภาษาไทยไม่เพี้ยน ล่าสุด!',
     borderColor: 'border-orange-500',
@@ -248,9 +248,9 @@ const GEMINI_IMAGE_MODELS = [
   {
     id: 'gemini-2.5-flash-image',
     name: 'Gemini 2.5 Flash Image',
-    badge: 'Default',
+    badge: 'Nano Banana 1',
     badgeColor: 'bg-gray-600',
-    desc: 'รุ่นเดิม ภาพสวย ครีเอทีฟสูง',
+    desc: 'รุ่นเดิม ใช้เมื่อไม่ต้องการบังคับ Nano Banana 2',
     borderColor: 'border-blue-500',
     glowColor: 'shadow-blue-500/40',
     textColor: 'text-blue-400',
@@ -259,7 +259,7 @@ const GEMINI_IMAGE_MODELS = [
   {
     id: 'gemini-3-pro-image-preview',
     name: 'Gemini 3 Pro Image Preview',
-    badge: 'PRO',
+    badge: 'Nano Banana Pro',
     badgeColor: 'bg-gradient-to-r from-purple-600 to-violet-500',
     desc: 'SOTA Image Gen คุณภาพสูงสุด (Paid)',
     borderColor: 'border-purple-500',
@@ -883,7 +883,7 @@ const App: React.FC = () => {
           styleIdx = parseInt(val) || undefined;
         }
         const result = await generateProductImage(cat, productData, selectedStyle, customPromptForTutorial, selectedImageModel, imageAspectRatios[cat] || selectedAspectRatio, styleIdx);
-        setGeneratedImages(prev => prev.map(p => p.category === cat ? { ...p, url: result.imageUrl, status: 'completed', thaiTexts: result.thaiTexts, promptUsed: result.promptUsed } : p));
+        setGeneratedImages(prev => prev.map(p => p.category === cat ? { ...p, url: result.imageUrl, status: 'completed', thaiTexts: result.thaiTexts, promptUsed: result.promptUsed, modelUsed: result.modelUsed } : p));
         successCount++;
       } catch (err) {
         setGeneratedImages(prev => prev.map(p => p.category === cat ? { ...p, status: 'error', error: err instanceof Error ? err.message : 'Unknown error' } : p));
@@ -964,7 +964,8 @@ const App: React.FC = () => {
           url: result.imageUrl,
           status: 'completed',
           thaiTexts: result.thaiTexts,
-          promptUsed: result.promptUsed
+          promptUsed: result.promptUsed,
+          modelUsed: result.modelUsed
         } : img
       ));
     } catch (err) {
@@ -2288,6 +2289,11 @@ const App: React.FC = () => {
                             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end p-10">
                               <div className="flex flex-col gap-4 w-full">
                                 <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/20">
+                                  {img.modelUsed && (
+                                    <p className="text-emerald-200 text-[10px] font-black uppercase tracking-widest mb-2">
+                                      MODEL USED: {img.modelUsed}
+                                    </p>
+                                  )}
                                   <p className="text-white text-[10px] font-black uppercase tracking-widest mb-1">PROMPT USED</p>
                                   {!editingPrompt[catKey] ? (
                                     <>

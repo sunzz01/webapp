@@ -37,6 +37,7 @@ export interface GeneratedImage {
   status: 'idle' | 'generating' | 'completed' | 'error';
   thaiTexts?: string[];    // ข้อความภาษาไทยที่ควรปรากฏในภาพ (สำหรับอ้างอิงแก้ไขใน Photoshop)
   promptUsed?: string;     // prompt ที่ใช้สร้างภาพจริง
+  modelUsed?: string;      // โมเดลจริงที่ backend ใช้ หลัง fallback
   error?: string;          // ข้อความแสดงข้อผิดพลาดถ้ามี
 }
 
@@ -45,6 +46,7 @@ export interface ImageGenerationResult {
   imageUrl: string;
   promptUsed: string;
   thaiTexts: string[];
+  modelUsed?: string;
 }
 
 // Image Strategy Structure for Platforms
