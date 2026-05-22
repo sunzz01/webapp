@@ -135,19 +135,39 @@ async function apiPost<T>(path: string, body: any): Promise<T> {
     body: JSON.stringify(body),
   });
 
+  const contentType = response.headers.get('content-type') || '';
+  const rawBody = await response.text();
+  const looksLikeHtml = rawBody.trim().startsWith('<!DOCTYPE') || rawBody.trim().startsWith('<html');
+  const parseJsonBody = () => {
+    try {
+      return rawBody ? JSON.parse(rawBody) : {};
+    } catch {
+      return null;
+    }
+  };
+
   if (!response.ok) {
     let errorMsg = `API error ${response.status}`;
-    try {
-      const errBody = await response.json();
+    const errBody = parseJsonBody();
+    if (errBody) {
       errorMsg = errBody.error || errorMsg;
-    } catch { /* ignore */ }
+    } else if (looksLikeHtml) {
+      errorMsg = 'API ส่งหน้าเว็บกลับมาแทน JSON กรุณาตรวจ Vercel API route, Root Directory และค่า VITE_API_BASE_URL';
+    } else if (rawBody.trim()) {
+      errorMsg = rawBody.slice(0, 300);
+    }
     if (response.status === 413) {
       errorMsg = 'รูปภาพที่ส่งไปยัง AI มีขนาดใหญ่เกินไป กรุณาลองใช้รูปน้อยลงหรือรูปที่เล็กลง';
     }
     throw new Error(errorMsg);
   }
 
-  return response.json();
+  const data = parseJsonBody();
+  if (!data || looksLikeHtml || !contentType.includes('application/json')) {
+    throw new Error('API ส่งหน้าเว็บกลับมาแทน JSON กรุณาตรวจว่า Vercel deploy มีโฟลเดอร์ api และไม่ได้ตั้ง VITE_API_BASE_URL ไปผิดโปรเจกต์');
+  }
+
+  return data as T;
 }
 
 // ═══════════════════════════════════════════════════════════════

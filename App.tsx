@@ -775,7 +775,13 @@ const App: React.FC = () => {
     try {
       const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(productUrl as string)}`;
       const response = await fetch(proxyUrl);
-      const data = await response.json() as any;
+      const rawBody = await response.text();
+      let data: any;
+      try {
+        data = JSON.parse(rawBody);
+      } catch {
+        throw new Error('Shopee proxy ส่งข้อมูลกลับมาไม่ใช่ JSON กรุณาลองอัปโหลดรูปสินค้าเองแทนการดึงจากลิงก์');
+      }
       const html = data.contents;
       const foundImages: string[] = [];
       const imgRegex = /https:\/\/cf\.shopee\.co\.th\/file\/[a-z0-9]+/gi;
