@@ -235,6 +235,17 @@ const STYLES = [
 // โมเดล Gemini ที่ใช้สำหรับสร้างภาพ
 const GEMINI_IMAGE_MODELS = [
   {
+    id: 'product-recontext-v1',
+    name: '2-Stage Product Recontext',
+    badge: 'Recommended',
+    badgeColor: 'bg-gradient-to-r from-emerald-600 to-teal-500',
+    desc: 'Gemini 2.5 Flash วิเคราะห์สินค้าและเขียน prompt จากนั้น Imagen Product Recontext เปลี่ยนฉากโดยคงสินค้าจริง',
+    borderColor: 'border-emerald-500',
+    glowColor: 'shadow-emerald-500/40',
+    textColor: 'text-emerald-400',
+    iconBg: 'from-emerald-500 to-teal-400',
+  },
+  {
     id: 'gemini-3.1-flash-image-preview',
     name: 'Gemini 3.1 Flash Image Preview',
     badge: 'Nano Banana 2',
@@ -244,6 +255,28 @@ const GEMINI_IMAGE_MODELS = [
     glowColor: 'shadow-orange-500/40',
     textColor: 'text-orange-400',
     iconBg: 'from-red-500 to-orange-400',
+  },
+  {
+    id: 'imagen-4.0-generate-001',
+    name: 'Imagen 4 Generate',
+    badge: 'Imagen 4',
+    badgeColor: 'bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-bold',
+    desc: 'ภาพสวยระดับ Imagen 4 จาก prompt ที่ Gemini 2.5 Flash ช่วยออกแบบ',
+    borderColor: 'border-amber-500',
+    glowColor: 'shadow-amber-500/40',
+    textColor: 'text-amber-400',
+    iconBg: 'from-amber-500 to-yellow-400',
+  },
+  {
+    id: 'imagen-4.0-fast-generate-001',
+    name: 'Imagen 4 Fast',
+    badge: 'Imagen 4 Fast',
+    badgeColor: 'bg-blue-600 text-white font-bold',
+    desc: 'Imagen 4 เวอร์ชันเร็ว เหมาะกับ preview/ทดลองหลายภาพ',
+    borderColor: 'border-blue-500',
+    glowColor: 'shadow-blue-500/40',
+    textColor: 'text-blue-400',
+    iconBg: 'from-blue-500 to-cyan-400',
   },
   {
     id: 'gemini-2.5-flash-image',
@@ -332,7 +365,7 @@ const App: React.FC = () => {
   const [summaryLength, setSummaryLength] = useState<'short' | 'medium' | 'long'>('medium');
   const [isSavingToFolder, setIsSavingToFolder] = useState(false);
   const [selectedStyle, setSelectedStyle] = useState<string>('aliexpress');
-  const [selectedImageModel, setSelectedImageModel] = useState<string>('gemini-3.1-flash-image-preview'); // โมเดลสำหรับสร้างภาพ
+  const [selectedImageModel, setSelectedImageModel] = useState<string>('product-recontext-v1'); // โมเดลสำหรับสร้างภาพ
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [isScrapingOnly, setIsScrapingOnly] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);

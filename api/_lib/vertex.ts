@@ -24,6 +24,8 @@ export const MODEL_REGISTRY = {
   image: [
     'gemini-3.1-flash-image-preview', // Nano Banana 2
     'gemini-3-pro-image-preview',     // Nano Banana Pro
+    'imagen-4.0-generate-001',
+    'imagen-4.0-fast-generate-001',
     'gemini-2.5-flash-image',         // Nano Banana original
     'imagen-3.0-generate-002',       // Imagen 3 — text-to-image fallback
     'imagen-3.0-fast-generate-001',  // Imagen 3 — fast text-to-image fallback

@@ -203,6 +203,7 @@ export async function generateProductImage(
     promptUsed: string;
     model: string;
     textResponse?: string;
+    thaiTextPlan?: string[];
   }>('/api/generate', {
     prompt,
     images: apiImages,
@@ -218,6 +219,11 @@ export async function generateProductImage(
   const thaiTexts = extractThaiTexts(productData, category, style);
   if (result.textResponse) {
     thaiTexts.push(`AI อธิบาย: ${result.textResponse.substring(0, 300)}`);
+  }
+  if (Array.isArray(result.thaiTextPlan)) {
+    result.thaiTextPlan.forEach((text, index) => {
+      thaiTexts.push(`ข้อความไทยแนะนำ ${index + 1}: ${text}`);
+    });
   }
 
   return {
