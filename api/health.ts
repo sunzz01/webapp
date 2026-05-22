@@ -19,5 +19,8 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
       location: process.env.GCP_LOCATION || process.env.GOOGLE_CLOUD_LOCATION || 'us-central1',
       serviceAccountLooksJson: Boolean(process.env.GCP_SERVICE_ACCOUNT?.trim().startsWith('{')),
     },
+    geminiFallback: {
+      hasApiKey: Boolean(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY),
+    },
   });
 }

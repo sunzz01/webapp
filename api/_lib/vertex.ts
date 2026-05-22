@@ -31,6 +31,7 @@ export const MODEL_REGISTRY = {
 // ═══════════════════════════════════════════════════════════════
 
 let _ai: GoogleGenAI | null = null;
+let _geminiAi: GoogleGenAI | null = null;
 
 type ServiceAccountCredentials = {
   client_email?: string;
@@ -66,6 +67,18 @@ export function getVertexConfigStatus() {
     location,
     serviceAccountLooksJson: Boolean(serviceAccount?.trim().startsWith('{')),
   };
+}
+
+export function getServerGeminiAI(): GoogleGenAI {
+  if (_geminiAi) return _geminiAi;
+
+  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  if (!apiKey) {
+    throw new Error('Missing GEMINI_API_KEY fallback environment variable');
+  }
+
+  _geminiAi = new GoogleGenAI({ apiKey });
+  return _geminiAi;
 }
 
 /**
@@ -169,11 +182,27 @@ export async function smartRetry<T>(
   }
 
   const detail = lastError?.message || 'Unknown error';
+  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  if (apiKey) {
+    const geminiAi = getServerGeminiAI();
+    for (const model of models) {
+      try {
+        console.log(`[SmartRetry] Gemini API fallback model="${model}"`);
+        return await callFn(model, geminiAi);
+      } catch (err: any) {
+        lastError = err;
+        const msg = err?.message || String(err);
+        if (isModelNotFound(msg) || isQuotaError(msg)) continue;
+        throw err;
+      }
+    }
+  }
+
   throw new Error(
     `Vertex AI: ลองแล้ว ${tried.length} ครั้ง ไม่สำเร็จ\n` +
     `Models: ${models.join(', ')}\n` +
-    `Error: ${detail}\n\n` +
-    `💡 ตรวจสอบ GCP quotas ที่ https://console.cloud.google.com/iam-admin/quotas`,
+    `Error: ${lastError?.message || detail}\n\n` +
+    `💡 ตรวจสอบ GCP project, Vertex AI access, region, quotas หรือ set GEMINI_API_KEY เป็น backend fallback`,
   );
 }
 
