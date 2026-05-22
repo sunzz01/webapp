@@ -77,7 +77,7 @@ export async function analyzeProduct(
 
 /**
  * Generate product image using Vertex AI.
- * Calls POST /api/generate-image
+ * Calls POST /api/generate
  */
 export async function generateProductImage(
   category: ImageCategory,
@@ -104,7 +104,7 @@ export async function generateProductImage(
     promptUsed: string;
     model: string;
     textResponse?: string;
-  }>('/api/generate-image', {
+  }>('/api/generate', {
     prompt,
     images: productData.images,
     model: imageModel,

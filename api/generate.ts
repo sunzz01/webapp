@@ -1,5 +1,5 @@
 /**
- * POST /api/generate-image
+ * POST /api/generate
  * 
  * Generate product images using Vertex AI (Imagen 3 or Gemini native image gen).
  * 
@@ -94,7 +94,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       let success = false;
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
-          console.log(`[generate-image] model="${modelName}" attempt=${attempt + 1}`);
+          console.log(`[generate] model="${modelName}" attempt=${attempt + 1}`);
 
           // Check if this is an Imagen model or Gemini model
           if (modelName.startsWith('imagen-')) {
@@ -154,7 +154,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         } catch (err: any) {
           lastError = err;
           const msg = err?.message || String(err);
-          console.warn(`[generate-image] Error: ${msg}`);
+          console.warn(`[generate] Error: ${msg}`);
 
           if (/404|NOT_FOUND|does not exist|INVALID_ARGUMENT/i.test(msg)) {
             break; // skip to next model
@@ -189,7 +189,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       textResponse: geminiTextResponse || undefined,
     });
   } catch (error: any) {
-    console.error('[api/generate-image] Error:', error);
+    console.error('[api/generate] Error:', error);
     return res.status(500).json({ error: error.message || 'Internal server error' });
   }
 }

@@ -45,7 +45,7 @@ import { useTheme } from './src/contexts/ThemeContext'; // นำเข้า ho
 import { useNotification } from './src/contexts/NotificationContext';
 import NotificationSystem from './src/components/NotificationSystem';
 import { useAuth } from './src/contexts/AuthContext';
-import { saveToDB, loadFromDB } from './src/utils/storage'; // Persistence
+import { saveToDB, loadFromDB, clearDB } from './src/utils/storage'; // Persistence
 import { ImageEditorModal } from './src/components/ImageEditorModal';
 import LoginPage from './src/components/LoginPage';
 
@@ -568,6 +568,23 @@ const App: React.FC = () => {
   ]);
 
   // ==========================================
+  // CLEAR DB HANDLER
+  // ==========================================
+  const handleClearDB = async () => {
+    if (window.confirm('คุณแน่ใจหรือไม่ที่จะลบข้อมูลทั้งหมดที่เก็บไว้ในเบราว์เซอร์? ข้อมูลที่ถูกลบจะไม่สามารถกู้คืนได้')) {
+      try {
+        await clearDB();
+        addNotification('success', 'ลบข้อมูลสำเร็จ', 'ข้อมูลทั้งหมดถูกลบแล้ว');
+        // Reload the page to clear any in-memory state
+        window.location.reload();
+      } catch (error) {
+        console.error('Error clearing DB:', error);
+        addNotification('error', 'ลบข้อมูลล้มเหลว', 'ไม่สามารถลบข้อมูลได้');
+      }
+    }
+  };
+
+  // ==========================================
   // AUTHENTICATION HANDLERS
   // ==========================================
   const handleAuthSubmit = async (e: React.FormEvent) => {
@@ -867,8 +884,13 @@ const App: React.FC = () => {
         setGeneratedImages(prev => prev.map(p => p.category === cat ? { ...p, url: result.imageUrl, status: 'completed', thaiTexts: result.thaiTexts, promptUsed: result.promptUsed } : p));
         successCount++;
       } catch (err) {
-        setGeneratedImages(prev => prev.map(p => p.category === cat ? { ...p, status: 'error' } : p));
-        addNotification('error', 'สร้างภาพล้มเหลว', `เกิดข้อผิดพลาดในการสร้างภาพหมวดหมู่: ${IMAGE_CATEGORIES_METADATA[cat]?.title || cat}`);
+        setGeneratedImages(prev => prev.map(p => p.category === cat ? { ...p, status: 'error', error: err instanceof Error ? err.message : 'Unknown error' } : p));
+        const errMsg = err instanceof Error ? err.message : '';
+        const isQuota = errMsg.includes('429') || errMsg.includes('quota') || errMsg.includes('QUOTA') || errMsg.includes('RESOURCE_EXHAUSTED');
+        const userMsg = isQuota
+          ? `🚨 โควต้า API Key หมด! กรุณาสร้าง Key ใหม่ที่ https://aistudio.google.com/apikey หรือรอ 1 นาที`
+          : `เกิดข้อผิดพลาดในการสร้างภาพหมวดหมู่: ${IMAGE_CATEGORIES_METADATA[cat]?.title || cat}`;
+        addNotification('error', 'สร้างภาพล้มเหลว', userMsg);
       }
     }
 
@@ -1057,7 +1079,7 @@ const App: React.FC = () => {
     }
   };
 
-  // ฟังก์ชั่นบันทึกไฟล์ลงโฟลเดอร์โดยตรง (ไม่ต้องแตก ZIP)
+  // ฟังก์ชันบันทึกไฟล์ลงโฟลเดอร์โดยตรง (ไม่ต้องแตก ZIP)
   const handleDownloadToFolder = async () => {
     // ตรวจว่า browser รองรับ File System Access API
     if (!('showDirectoryPicker' in window)) {
@@ -1083,7 +1105,7 @@ const App: React.FC = () => {
       thaiTextContent += `  สำหรับแก้ไขข้อความที่เพี้ยนในภาพ AI ด้วย Photoshop\n`;
       thaiTextContent += `═══════════════════════════════════════════════════════\n\n`;
       thaiTextContent += `📦 ชื่อสินค้า: ${productName || 'ไม่ระบุ'}\n`;
-      thaiTextContent += `🎨 แพล็ตฟอร์ม/สไตล์: ${platformName}\n`;
+      thaiTextContent += `🎨 แพลตฟอร์ม/สไตล์: ${platformName}\n`;
       thaiTextContent += `📝 รายละเอียด (ย่อ): ${shortDesc}\n\n`;
       thaiTextContent += `───────────────────────────────────────────────────────\n`;
       thaiTextContent += `  ข้อความที่ควรปรากฏในแต่ละภาพ\n`;
@@ -1229,6 +1251,11 @@ const App: React.FC = () => {
   // ฟังก์ชัน Remove Background โดยใช้ remove.bg API
   const removeBackground = async (imageSrc: string, index: number, isScraped: boolean) => {
     try {
+      const apiKey = removeBgKey.trim();
+      if (!apiKey) {
+        throw new Error("กรุณาใส่ Remove.bg API Key ในหน้าตั้งค่าก่อนใช้งาน");
+      }
+
       // แปลง data URL เป็น Blob
       const response = await fetch(imageSrc);
       const blob = await response.blob();
@@ -1241,7 +1268,7 @@ const App: React.FC = () => {
       const apiResponse = await fetch('https://api.remove.bg/v1.0/removebg', {
         method: 'POST',
         headers: {
-          'X-Api-Key': (import.meta as any).env.VITE_REMOVE_BG_API_KEY || 'QXnQtJFLb4JJ2uM74xnpR17N' // ใช้ env variable ถ้ามี ไม่งั้นใช้ค่าเดิม
+          'X-Api-Key': apiKey
         },
         body: formData
       });
@@ -1282,6 +1309,11 @@ const App: React.FC = () => {
   // Extract inner removeBg logic into a pure function for Modal to use without state bindings
   const callRemoveBgApi = async (dataUrl: string): Promise<string | null> => {
     try {
+      const apiKey = removeBgKey.trim();
+      if (!apiKey) {
+        throw new Error("กรุณาใส่ Remove.bg API Key ในหน้าตั้งค่าก่อนใช้งาน");
+      }
+
       const response = await fetch(dataUrl);
       const blob = await response.blob();
       const formData = new FormData();
@@ -1289,7 +1321,7 @@ const App: React.FC = () => {
       const apiResponse = await fetch('https://api.remove.bg/v1.0/removebg', {
         method: 'POST',
         headers: {
-          'X-Api-Key': (import.meta as any).env.VITE_REMOVE_BG_API_KEY || 'QXnQtJFLb4JJ2uM74xnpR17N'
+          'X-Api-Key': apiKey
         },
         body: formData
       });
@@ -1408,6 +1440,16 @@ const App: React.FC = () => {
             aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           >
             {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          </button>
+
+          {/* ปุ่มล้างข้อมูลเซสชัน */}
+          <button
+            onClick={handleClearDB}
+            className={`p-2 rounded-xl ${theme === 'dark' ? 'bg-gray-700 text-red-400 hover:bg-gray-600' : 'bg-slate-100 text-red-500 hover:bg-slate-200'} transition-colors flex items-center gap-2`}
+            aria-label="ล้างข้อมูลเซสชัน"
+          >
+            <Trash2 className="w-5 h-5" />
+            <span className="hidden sm:inline text-xs font-black">ล้างข้อมูล</span>
           </button>
 
           {/* User Avatar + Dropdown */}
@@ -2435,7 +2477,7 @@ const App: React.FC = () => {
                                 )}
                                 {/* Per-image Aspect Ratio Selector */}
                                 <div className="mb-3 bg-white/10 backdrop-blur-md p-3 rounded-2xl border border-white/20">
-                                  <p className="text-white text-[9px] font-black uppercase tracking-wider mb-2 flex items-center gap-1">
+                                  <p className="text-white text-[9px] font-black uppercase tracking-widest mb-2 flex items-center gap-1">
                                     <LayoutGrid className="w-3 h-3" />
                                     Ratio ภาพนี้ {imageAspectRatios[catKey] && imageAspectRatios[catKey] !== selectedAspectRatio ? <span className="text-orange-300 ml-1">(Override)</span> : ''}
                                   </p>
@@ -2468,7 +2510,7 @@ const App: React.FC = () => {
                                     <Download className="w-5 h-5" /> บันทึกภาพ
                                   </button>
                                   <button
-                                    onClick={() => {
+                                    onClick={(e) => {
                                       // คำนวณ styleIndex สำหรับหมวดที่รองรับการเลือกสไตล์
                                       let styleIdx: number | undefined;
                                       if (catKey === 'INFOGRAPHIC') {

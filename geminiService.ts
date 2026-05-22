@@ -424,15 +424,27 @@ async function smartRetry<T>(
 
   // ทุก combination ล้มเหลว
   const detail = lastError?.message || 'Unknown error';
+  
+  // ตรวจสอบว่าเป็น quota error หรือไม่
+  const isQuota = isQuotaError(detail);
+  
   throw new Error(
     `ลองแล้ว ${tried.length} ครั้ง ไม่สำเร็จ\n` +
     `Models: ${models.join(', ')}\n` +
     `Keys: ${keys.length} ตัว\n` +
     `Error: ${detail}\n\n` +
-    `💡 วิธีแก้:\n` +
-    `• เพิ่ม API Key ใหม่ในการตั้งค่า (⚙️)\n` +
-    `• ตรวจสอบโควต้าที่ https://ai.google.dev/gemini-api/docs/rate-limits\n` +
-    `• รอ 1 นาทีแล้วลองใหม่`
+    (isQuota
+      ? `🚨 โควต้า API KEY หมด!\n\n` +
+        `🔑 วิธีแก้:\n` +
+        `   1. ไปที่ https://aistudio.google.com/apikey 🔗\n` +
+        `   2. สร้าง API Key ใหม่ (ฟรี)\n` +
+        `   3. เพิ่ม Key ใหม่ที่ Settings ⚙️\n\n` +
+        `⏱️ หรือรอประมาณ 1 นาที แล้วลองใหม่ (cooldown)\n` +
+        `📱 โควต้าฟรี Google: ~500 ภาพ/วัน\n`
+      : `💡 วิธีแก้:\n` +
+        `• เพิ่ม API Key ใหม่ในการตั้งค่า (⚙️)\n` +
+        `• ตรวจสอบโควต้าที่ https://ai.google.dev/gemini-api/docs/rate-limits\n` +
+        `• รอ 1 นาทีแล้วลองใหม่`)
   );
 }
 
