@@ -19,7 +19,7 @@
  *   { imageUrl: string, promptUsed: string, model: string }
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { MODEL_REGISTRY, getVertexAI, getVertexAccessToken, getVertexEnvironment } from './_lib/vertex.js';
+import { MODEL_REGISTRY, getVertexAIForLocation, getVertexAccessToken, getVertexEnvironment } from './_lib/vertex.js';
 import { generateGeminiImage } from './_lib/geminiFallback.js';
 import { requireFirebaseUser } from './_lib/firebaseAdmin.js';
 
@@ -60,6 +60,10 @@ function isNanoBanana2OrHigher(modelName: string) {
     modelName.includes('gemini-3.1-flash-image') ||
     modelName.includes('gemini-3-pro-image')
   );
+}
+
+function getGeminiImageLocation() {
+  return process.env.GCP_IMAGE_LOCATION || process.env.GEMINI_IMAGE_LOCATION || 'global';
 }
 
 function buildImageModelChain(selectedModel: string, hasReferenceImages: boolean) {
@@ -235,7 +239,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             break;
           } else {
             // ─── Gemini Native Image Generation ─────────────────
-            const vertexAI = getVertexAI();
+            const vertexAI = getVertexAIForLocation(getGeminiImageLocation());
             const generativeModel = vertexAI.getGenerativeModel({
               model: modelName,
               generationConfig: {

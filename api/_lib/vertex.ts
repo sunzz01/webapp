@@ -23,7 +23,6 @@ export const MODEL_REGISTRY = {
   /** Image generation models (Vertex AI) */
   image: [
     'gemini-3.1-flash-image-preview', // Nano Banana 2
-    'gemini-3.1-flash-image',         // Nano Banana 2 alias used in some Vertex catalogs
     'gemini-3-pro-image-preview',     // Nano Banana Pro
     'gemini-2.5-flash-image',         // Nano Banana original
     'imagen-3.0-generate-002',       // Imagen 3 — text-to-image fallback
@@ -36,6 +35,7 @@ export const MODEL_REGISTRY = {
 // ═══════════════════════════════════════════════════════════════
 
 let _vertexAI: VertexAI | null = null;
+const _vertexAIByLocation = new Map<string, VertexAI>();
 let _geminiModel: GenerativeModel | null = null;
 let _credentials: ServiceAccountCredentials | null = null;
 
@@ -145,6 +145,29 @@ export function getVertexAI(): VertexAI {
 
   console.log(`[VertexAI] Initialized: project=${projectId}, location=${location}`);
   return _vertexAI;
+}
+
+export function getVertexAIForLocation(locationOverride: string): VertexAI {
+  const { projectId } = getVertexEnvironment();
+  const credentials = getServiceAccountCredentials();
+  const location = locationOverride || getVertexEnvironment().location;
+  const cacheKey = `${projectId}:${location}`;
+
+  const cached = _vertexAIByLocation.get(cacheKey);
+  if (cached) return cached;
+
+  const vertexAI = new VertexAI({
+    project: projectId,
+    location,
+    googleAuthOptions: {
+      credentials,
+      scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+    },
+  });
+
+  _vertexAIByLocation.set(cacheKey, vertexAI);
+  console.log(`[VertexAI] Initialized: project=${projectId}, location=${location}`);
+  return vertexAI;
 }
 
 /**
