@@ -349,6 +349,11 @@ const App: React.FC = () => {
   // เพิ่ม state สำหรับเลือก Social Proof Variant สำหรับ Regenerate
   const [selectedSocialProof, setSelectedSocialProof] = useState<{ [key: string]: string }>({});
 
+  // Style override states สำหรับ INFOGRAPHIC, SIZE_CHART, TUTORIAL
+  const [selectedInfographicStyle, setSelectedInfographicStyle] = useState<{ [key: string]: string }>({});
+  const [selectedSizeChartStyle, setSelectedSizeChartStyle] = useState<{ [key: string]: string }>({});
+  const [selectedTutorialStyle, setSelectedTutorialStyle] = useState<{ [key: string]: string }>({});
+
   // เพิ่ม state สำหรับเลือกหมวดหมู่ที่ต้องการ generate
   const [selectedCategories, setSelectedCategories] = useState<Set<ImageCategory>>(new Set(Object.keys(IMAGE_CATEGORIES_METADATA) as ImageCategory[]));
   const [isSummarizing, setIsSummarizing] = useState(false); // New state for summarization loading
@@ -389,6 +394,37 @@ const App: React.FC = () => {
     { id: 'just-arrived', name: 'Just Arrived', desc: 'สินค้าเพิ่งส่งถึงบ้าน' },
     { id: 'happy-customer', name: 'Happy Customer', desc: 'ลูกค้าถือสินค้าด้วยความสุข' },
     { id: 'in-use-lifestyle', name: 'In-use Lifestyle', desc: 'การใช้งานจริงในชีวิตประจำวัน' },
+  ];
+
+  // ─── Style Options สำหรับหมวดที่สุ่ม prompt ──────────────────────
+  const INFOGRAPHIC_STYLE_OPTIONS = [
+    { id: '0', name: '🎲 สุ่มอัตโนมัติ', desc: 'ระบบจะสุ่มสไตล์ให้' },
+    { id: '1', name: 'Modern Flat', desc: 'พื้นหลัง gradient + icon แบน' },
+    { id: '2', name: 'Dark Premium', desc: 'พื้นดำ + accent สีทอง/นีออน' },
+    { id: '3', name: 'Magazine/Editorial', desc: 'สไตล์นิตยสารหรู' },
+    { id: '4', name: 'Isometric 3D', desc: 'สไตล์ isometric มุมสูง' },
+    { id: '5', name: 'Split Color Block', desc: 'แบ่งซีกสี 2 สี' },
+    { id: '6', name: 'Minimalist Data', desc: 'มินิมอล เน้นข้อมูล' },
+  ];
+
+  const SIZE_CHART_STYLE_OPTIONS = [
+    { id: '0', name: '🎲 สุ่มอัตโนมัติ', desc: 'ระบบจะสุ่มสไตล์ให้' },
+    { id: '1', name: 'Clean Comparison Grid', desc: 'ตารางเทียบขนาดสะอาดตา' },
+    { id: '2', name: 'Lifestyle Scale Shot', desc: 'ถ่ายเทียบขนาดในชีวิตจริง' },
+    { id: '3', name: 'Technical Blueprint', desc: 'สเก็ตช์เทคนิคสไตล์พิมพ์เขียว' },
+    { id: '4', name: 'Fun Comparison', desc: 'เทียบขนาดสนุกๆ กับของรอบข้าง' },
+    { id: '5', name: 'Size Variants', desc: 'แสดงหลายขนาด S/M/L' },
+    { id: '6', name: 'Flat Lay with Ruler', desc: 'ถ่ายมุมบนพร้อมไม้บรรทัด' },
+  ];
+
+  const TUTORIAL_STYLE_OPTIONS = [
+    { id: '0', name: '🎲 สุ่มอัตโนมัติ', desc: 'ระบบจะสุ่มสไตล์ให้' },
+    { id: '1', name: '2×2 Grid', desc: 'ตาราง 2x2 คลาสสิก' },
+    { id: '2', name: 'Horizontal Timeline', desc: 'Timeline แนวนอน' },
+    { id: '3', name: 'Magazine Spread', desc: 'สไตล์นิตยสาร' },
+    { id: '4', name: 'Dark Tech', desc: 'สไตล์เทคโนโลยีมืด' },
+    { id: '5', name: 'Hand-drawn / Sketch', desc: 'สไตล์วาดมือ/สเก็ตช์' },
+    { id: '6', name: 'Vertical Scroll Story', desc: 'สไตล์ Story/Reels แนวตั้ง' },
   ];
 
   const { theme, toggleTheme } = useTheme(); // ใช้ hook สำหรับจัดการธีม
@@ -804,7 +840,19 @@ const App: React.FC = () => {
         const customPromptForTutorial = cat === ImageCategory.TUTORIAL
           ? JSON.stringify(tutorialStepPrompts)
           : undefined;
-        const result = await generateProductImage(cat, productData, selectedStyle, customPromptForTutorial, selectedImageModel, imageAspectRatios[cat] || selectedAspectRatio);
+        // คำนวณ styleIndex สำหรับหมวดที่รองรับการเลือกสไตล์
+        let styleIdx: number | undefined;
+        if (cat === ImageCategory.INFOGRAPHIC) {
+          const val = selectedInfographicStyle[cat] || '0';
+          styleIdx = parseInt(val) || undefined;
+        } else if (cat === ImageCategory.SIZE_CHART) {
+          const val = selectedSizeChartStyle[cat] || '0';
+          styleIdx = parseInt(val) || undefined;
+        } else if (cat === ImageCategory.TUTORIAL) {
+          const val = selectedTutorialStyle[cat] || '0';
+          styleIdx = parseInt(val) || undefined;
+        }
+        const result = await generateProductImage(cat, productData, selectedStyle, customPromptForTutorial, selectedImageModel, imageAspectRatios[cat] || selectedAspectRatio, styleIdx);
         setGeneratedImages(prev => prev.map(p => p.category === cat ? { ...p, url: result.imageUrl, status: 'completed', thaiTexts: result.thaiTexts, promptUsed: result.promptUsed } : p));
         successCount++;
       } catch (err) {
@@ -823,7 +871,7 @@ const App: React.FC = () => {
   };
 
   // ฟังก์ชัน Regenerate สำหรับภาพเดี่ยว
-  const regenerateImage = async (category: ImageCategory, customPrompt?: string, styleOverride?: string) => {
+  const regenerateImage = async (category: ImageCategory, customPrompt?: string, styleOverride?: string, styleIndex?: number) => {
     // อัปเดตจำนวนครั้งที่พยายามสร้างใหม่
     setRegenerationAttempts(prev => ({
       ...prev,
@@ -872,7 +920,7 @@ const App: React.FC = () => {
       const attemptCount = regenerationAttempts[category] || 1;
       const styleToUse = styleOverride || selectedStyle;
       const ratio = imageAspectRatios[category] || selectedAspectRatio;
-      const result = await generateProductImage(category, productData, styleToUse, customPrompt, selectedImageModel, ratio);
+      const result = await generateProductImage(category, productData, styleToUse, customPrompt, selectedImageModel, ratio, styleIndex);
 
       // อัปเดตเฉพาะภาพที่เลือก
       setGeneratedImages(prev => prev.map(img =>
@@ -2263,6 +2311,66 @@ const App: React.FC = () => {
                                   </div>
                                 )}
 
+                                {/* Infographic Style Dropdown - แสดงเฉพาะ INFOGRAPHIC */}
+                                {catKey === 'INFOGRAPHIC' && (
+                                  <div className="mb-2">
+                                    <select
+                                      value={selectedInfographicStyle[catKey] || '0'}
+                                      onChange={(e) => setSelectedInfographicStyle(prev => ({
+                                        ...prev,
+                                        [catKey]: e.target.value
+                                      }))}
+                                      className="w-full text-[10px] p-2 rounded-xl bg-white/20 text-white border border-white/30 backdrop-blur-md font-bold"
+                                    >
+                                      {INFOGRAPHIC_STYLE_OPTIONS.map(opt => (
+                                        <option key={opt.id} value={opt.id} className="bg-slate-800 text-white">
+                                          {opt.name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                )}
+
+                                {/* Size Chart Style Dropdown - แสดงเฉพาะ SIZE_CHART */}
+                                {catKey === 'SIZE_CHART' && (
+                                  <div className="mb-2">
+                                    <select
+                                      value={selectedSizeChartStyle[catKey] || '0'}
+                                      onChange={(e) => setSelectedSizeChartStyle(prev => ({
+                                        ...prev,
+                                        [catKey]: e.target.value
+                                      }))}
+                                      className="w-full text-[10px] p-2 rounded-xl bg-white/20 text-white border border-white/30 backdrop-blur-md font-bold"
+                                    >
+                                      {SIZE_CHART_STYLE_OPTIONS.map(opt => (
+                                        <option key={opt.id} value={opt.id} className="bg-slate-800 text-white">
+                                          {opt.name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                )}
+
+                                {/* Tutorial Style Dropdown - แสดงเฉพาะ TUTORIAL (ก่อน Step Editor) */}
+                                {catKey === 'TUTORIAL' && (
+                                  <div className="mb-2">
+                                    <select
+                                      value={selectedTutorialStyle[catKey] || '0'}
+                                      onChange={(e) => setSelectedTutorialStyle(prev => ({
+                                        ...prev,
+                                        [catKey]: e.target.value
+                                      }))}
+                                      className="w-full text-[10px] p-2 rounded-xl bg-white/20 text-white border border-white/30 backdrop-blur-md font-bold"
+                                    >
+                                      {TUTORIAL_STYLE_OPTIONS.map(opt => (
+                                        <option key={opt.id} value={opt.id} className="bg-slate-800 text-white">
+                                          {opt.name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                )}
+
                                 {/* Lifestyle Dropdown - แสดงเฉพาะ Lifestyle categories */}
                                 {catKey.startsWith('LIFESTYLE_') && (
                                   <div className="mb-2">
@@ -2349,13 +2457,29 @@ const App: React.FC = () => {
                                     <Download className="w-5 h-5" /> บันทึกภาพ
                                   </button>
                                   <button
-                                    onClick={() => regenerateImage(
-                                      catKey.startsWith('LIFESTYLE_')
-                                        ? (selectedLifestyle[catKey] || catKey) as ImageCategory
-                                        : catKey as ImageCategory,
-                                      undefined,
-                                      catKey === 'COVER' ? (selectedCoverStyle || selectedStyle) : (catKey === 'SOCIAL_PROOF' ? (selectedSocialProof[catKey] || 'unboxing-moment') : undefined)
-                                    )}
+                                    onClick={() => {
+                                      // คำนวณ styleIndex สำหรับหมวดที่รองรับการเลือกสไตล์
+                                      let styleIdx: number | undefined;
+                                      if (catKey === 'INFOGRAPHIC') {
+                                        const val = selectedInfographicStyle[catKey] || '0';
+                                        styleIdx = parseInt(val) || undefined;
+                                      } else if (catKey === 'SIZE_CHART') {
+                                        const val = selectedSizeChartStyle[catKey] || '0';
+                                        styleIdx = parseInt(val) || undefined;
+                                      } else if (catKey === 'TUTORIAL') {
+                                        const val = selectedTutorialStyle[catKey] || '0';
+                                        styleIdx = parseInt(val) || undefined;
+                                      }
+
+                                      regenerateImage(
+                                        catKey.startsWith('LIFESTYLE_')
+                                          ? (selectedLifestyle[catKey] || catKey) as ImageCategory
+                                          : catKey as ImageCategory,
+                                        catKey === 'TUTORIAL' ? JSON.stringify(tutorialStepPrompts) : undefined,
+                                        catKey === 'COVER' ? (selectedCoverStyle || selectedStyle) : (catKey === 'SOCIAL_PROOF' ? (selectedSocialProof[catKey] || 'unboxing-moment') : undefined),
+                                        styleIdx
+                                      );
+                                    }}
                                     className="p-4 bg-blue-500 hover:bg-blue-600 text-white font-black rounded-2xl text-[12px] shadow-2xl flex items-center justify-center transition-all active:scale-95"
                                     title={`Regenerate (${imageAspectRatios[catKey] || selectedAspectRatio})`}
                                   >

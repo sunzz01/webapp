@@ -73,6 +73,14 @@ function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+/** เลือก style จาก index (0=random, 1-N=specific) */
+function pickStyle<T>(arr: T[], styleIndex?: number): T {
+  if (styleIndex && styleIndex >= 1 && styleIndex <= arr.length) {
+    return arr[styleIndex - 1];
+  }
+  return pickRandom(arr);
+}
+
 // ─── INFOGRAPHIC Variations (6 สไตล์) ────────────────────────────
 const INFOGRAPHIC_VARIATIONS = [
   // 1. Modern Flat — พื้นหลัง gradient สดใส + icon แบน
@@ -1038,12 +1046,13 @@ export const generateProductImage = async (
   style: string,
   customPrompt?: string,  // เพิ่มพารามิเตอร์สำหรับ custom prompt
   imageModel: string = 'gemini-2.5-flash-image',  // รองรับการเลือกโมเดล (Nano Banana default)
-  aspectRatio: string = '1:1'  // อัตราส่วนภาพ default 1:1
+  aspectRatio: string = '1:1',  // อัตราส่วนภาพ default 1:1
+  styleIndex?: number  // สไตล์เจาะจง (0=random, 1-6=specific variation)
 ): Promise<ImageGenerationResult> => {
   // ─── Vertex AI Mode: call serverless API ────────────────────
   if (USE_VERTEX_AI) {
     console.log('[generateProductImage] Using Vertex AI API route');
-    return apiGenerateProductImage(category, productData, style, customPrompt, imageModel, aspectRatio);
+    return apiGenerateProductImage(category, productData, style, customPrompt, imageModel, aspectRatio, styleIndex);
   }
 
   // ─── Direct Gemini API Mode (Development) ───────────────────
@@ -1072,7 +1081,7 @@ LOCALIZATION (TH):
       }
       break;
     case ImageCategory.INFOGRAPHIC:
-      promptSuffix = pickRandom(INFOGRAPHIC_VARIATIONS)(productData.features);
+      promptSuffix = pickStyle(INFOGRAPHIC_VARIATIONS, styleIndex)(productData.features);
       break;
     case ImageCategory.CLOSE_UP:
       promptSuffix = `Macro extreme close-up shot of the exact product shown in the reference image. Focus strictly on material texture and high-quality details WITHOUT altering the physical structure, shape, or placement of components (like screws, details, text). The product's anatomy and mechanical parts must remain 100% identical to the reference. Soft bokeh background, professional studio lighting.`;
@@ -1102,7 +1111,7 @@ LOCALIZATION (TH):
       promptSuffix = `Lifestyle photography of the product in a local Thai restaurant. Small family-owned restaurant, simple interior, tables with Thai food dishes, daily business atmosphere, authentic local dining environment, warm realistic lighting. realistic, candid, unstaged, real usage, no studio setup, no luxury kitchen, no showroom, no stock photo look`;
       break;
     case ImageCategory.SIZE_CHART:
-      promptSuffix = pickRandom(SIZE_CHART_VARIATIONS)(productData.name);
+      promptSuffix = pickStyle(SIZE_CHART_VARIATIONS, styleIndex)(productData.name);
       break;
     case ImageCategory.SOCIAL_PROOF:
       // แบ่งเป็น 4 sub-categories สำหรับ A/B testing
@@ -1193,7 +1202,7 @@ LOCALIZATION (TH):
           console.warn("Failed to parse tutorial prompts, using defaults");
         }
       }
-      promptSuffix = pickRandom(TUTORIAL_VARIATIONS)(tutorialSteps);
+      promptSuffix = pickStyle(TUTORIAL_VARIATIONS, styleIndex)(tutorialSteps);
       break;
   }
 

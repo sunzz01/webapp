@@ -86,6 +86,7 @@ export async function generateProductImage(
   customPrompt?: string,
   imageModel?: string,
   aspectRatio: string = '1:1',
+  styleIndex?: number,
 ): Promise<ImageGenerationResult> {
   // Construct prompt based on category (simplified — full prompt construction
   // happens on client side using the same logic as before)
@@ -95,7 +96,7 @@ export async function generateProductImage(
     prompt = customPrompt;
   } else {
     // Build category-specific prompt
-    prompt = buildCategoryPrompt(category, productData, style);
+    prompt = buildCategoryPrompt(category, productData, style, styleIndex);
   }
 
   const result = await apiPost<{
@@ -154,6 +155,14 @@ function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+/** เลือก style จาก index (0=random, 1-N=specific) */
+function pickStyle<T>(arr: T[], styleIndex?: number): T {
+  if (styleIndex && styleIndex >= 1 && styleIndex <= arr.length) {
+    return arr[styleIndex - 1];
+  }
+  return pickRandom(arr);
+}
+
 // ─── INFOGRAPHIC Variations (6 สไตล์) ────────────────────────────
 const INFOGRAPHIC_VARIATIONS_API = [
   (features: string[]) => `A modern flat-design product infographic. Bold gradient background (deep purple→electric blue, coral→sunrise orange, or emerald→lime). Product center-left (40%). Right: ${features.length} feature callout boxes with flat icons. Features: ${features.join(' | ')}. Flat design, no shadows, bold geometric shapes, vibrant accent colors. Thin decorative lines connecting icons. Bottom-right: "Quality Guaranteed" badge. Pure vector/flat aesthetic.`,
@@ -196,12 +205,13 @@ function buildCategoryPrompt(
   category: ImageCategory,
   productData: ProductData,
   style: string,
+  styleIndex?: number,
 ): string {
   switch (category) {
     case ImageCategory.COVER:
       return `Generate a new COVER image for "${productData.name}". Product Description: ${productData.description}. Style: ${style}. Professional product photography, high quality, commercial grade.`;
     case ImageCategory.INFOGRAPHIC:
-      return pickRandom(INFOGRAPHIC_VARIATIONS_API)(productData.features);
+      return pickStyle(INFOGRAPHIC_VARIATIONS_API, styleIndex)(productData.features);
     case ImageCategory.CLOSE_UP:
       return `Macro extreme close-up shot of the product. Focus on material texture and high-quality details. Soft bokeh background, professional studio lighting.`;
     case ImageCategory.LIFESTYLE_A:
@@ -211,11 +221,11 @@ function buildCategoryPrompt(
     case ImageCategory.LIFESTYLE_C:
       return `Lifestyle photography of the product in a professional urban setting. Modern architecture, clean lines, corporate background.`;
     case ImageCategory.SIZE_CHART:
-      return pickRandom(SIZE_CHART_VARIATIONS_API)(productData.name);
+      return pickStyle(SIZE_CHART_VARIATIONS_API, styleIndex)(productData.name);
     case ImageCategory.SOCIAL_PROOF:
       return pickRandom(SOCIAL_PROOF_VARIATIONS_API)(productData.name);
     case ImageCategory.TUTORIAL:
-      return pickRandom(TUTORIAL_VARIATIONS_API)(['Unboxing/Prepare', 'Setup/Install', 'Usage', 'Result']);
+      return pickStyle(TUTORIAL_VARIATIONS_API, styleIndex)(['Unboxing/Prepare', 'Setup/Install', 'Usage', 'Result']);
     default:
       return `Generate a product image for "${productData.name}". ${productData.description}. Professional quality.`;
   }
