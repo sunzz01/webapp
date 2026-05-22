@@ -16,6 +16,7 @@ export interface SaaSUser {
   email: string;
   tier: 'free' | 'starter' | 'pro' | 'enterprise';
   credits: number;
+  unlimitedCredits: boolean;
   avatar: string;
 }
 
@@ -52,6 +53,9 @@ const parseAllowedList = (value?: string) =>
 
 const allowedEmails = parseAllowedList(import.meta.env.VITE_ALLOWED_EMAILS);
 const allowedDomains = parseAllowedList(import.meta.env.VITE_ALLOWED_DOMAINS);
+const unlimitedCreditEmails = parseAllowedList(import.meta.env.VITE_UNLIMITED_CREDIT_EMAILS);
+const unlimitedCreditDomains = parseAllowedList(import.meta.env.VITE_UNLIMITED_CREDIT_DOMAINS);
+const unlimitedCreditsForAll = String(import.meta.env.VITE_UNLIMITED_CREDITS || '').toLowerCase() === 'true';
 
 function isAllowedEmail(email?: string | null) {
   const normalizedEmail = (email || '').toLowerCase();
@@ -60,6 +64,17 @@ function isAllowedEmail(email?: string | null) {
 
   const domain = normalizedEmail.split('@')[1] || '';
   return Boolean(domain && allowedDomains.includes(domain));
+}
+
+function hasUnlimitedCredits(email?: string | null) {
+  if (unlimitedCreditsForAll) return true;
+
+  const normalizedEmail = (email || '').toLowerCase();
+  if (!normalizedEmail) return false;
+  if (unlimitedCreditEmails.includes(normalizedEmail)) return true;
+
+  const domain = normalizedEmail.split('@')[1] || '';
+  return Boolean(domain && unlimitedCreditDomains.includes(domain));
 }
 
 function getCreditStorageKey(uid: string) {
@@ -87,8 +102,9 @@ function mapFirebaseUser(firebaseUser: FirebaseUser, nameOverride?: string): Saa
     id: firebaseUser.uid,
     name,
     email: firebaseUser.email || '',
-    tier: meta.tier || 'free',
+    tier: hasUnlimitedCredits(firebaseUser.email) ? 'enterprise' : meta.tier || 'free',
     credits: typeof meta.credits === 'number' ? meta.credits : 5,
+    unlimitedCredits: hasUnlimitedCredits(firebaseUser.email),
     avatar:
       firebaseUser.photoURL ||
       `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name)}`,
@@ -198,6 +214,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const deductCredit = (amount: number): boolean => {
     if (!user) return false;
+    if (user.unlimitedCredits) return true;
     if (user.credits < amount) return false;
 
     const updatedUser = {

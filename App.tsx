@@ -812,7 +812,7 @@ const App: React.FC = () => {
     }
 
     if (user) {
-      if (user.credits < 1) {
+      if (!user.unlimitedCredits && user.credits < 1) {
         addNotification('error', 'เครดิตไม่เพียงพอ', 'กรุณาอัปเกรดแพ็กเกจหรือเติมเครดิตเพื่อวิเคราะห์สินค้า (ใช้ 1 เครดิต)');
         return;
       }
@@ -833,7 +833,7 @@ const App: React.FC = () => {
       if (user) {
         const success = deductCredit(1);
         if (success) {
-          addNotification('success', 'วิเคราะห์สินค้าสำเร็จ', 'หักเครดิตสำหรับการประมวลผล 1 เครดิต');
+          addNotification('success', 'วิเคราะห์สินค้าสำเร็จ', user.unlimitedCredits ? 'บัญชีทดลอง Unlimited ไม่ถูกหักเครดิต' : 'หักเครดิตสำหรับการประมวลผล 1 เครดิต');
         }
       } else {
         addNotification('success', 'วิเคราะห์สินค้าสำเร็จ', 'AI วิเคราะห์ข้อมูลสินค้าเสร็จเรียบร้อยแล้ว');
@@ -859,9 +859,15 @@ const App: React.FC = () => {
 
     const categoriesToGenerate = sortedCategories.filter(cat => selectedCategories.has(cat));
     const requiredCredits = categoriesToGenerate.length;
+    const allImages = [...localImages, ...scrapedImages];
+
+    if (allImages.length === 0) {
+      addNotification('warning', 'ต้องมีรูปสินค้าก่อน', 'Pipeline Product Recontext ต้องใช้รูปสินค้าต้นฉบับอย่างน้อย 1 รูป กรุณาอัปโหลดรูปหรือดึงข้อมูลสินค้าก่อนสร้างภาพ');
+      return;
+    }
 
     if (user) {
-      if (user.credits < requiredCredits) {
+      if (!user.unlimitedCredits && user.credits < requiredCredits) {
         addNotification('error', 'เครดิตไม่เพียงพอ', `ต้องการ ${requiredCredits} เครดิตสำหรับสร้างภาพ ${requiredCredits} หมวดหมู่ (คุณมีอยู่ ${user.credits} เครดิต)`);
         return;
       }
@@ -881,11 +887,18 @@ const App: React.FC = () => {
     addNotification('info', 'กำลังประมวลผลรูปภาพ', `เตรียมความพร้อมและปรับภาพเป็น Base64 สำหรับส่งให้ AI Gemini...`);
 
     console.log("Processing images for AI...");
-    const allImages = [...localImages, ...scrapedImages];
     const processedImages = await Promise.all(
       allImages.map(url => imageUrlToBase64(url))
     );
     const validImages = processedImages.filter(img => img && img !== "");
+
+    if (validImages.length === 0) {
+      addNotification('error', 'อ่านรูปสินค้าไม่ได้', 'ระบบไม่สามารถแปลงรูปสินค้าเป็นไฟล์สำหรับส่งให้ AI ได้ กรุณาอัปโหลดรูปใหม่หรือใช้รูปที่มีขนาดเล็กลง');
+      setGeneratedImages([]);
+      setIsGenerating(false);
+      setStep(2);
+      return;
+    }
 
     const productData: ProductData = {
       name: productName || "สินค้าใหม่",
@@ -924,14 +937,14 @@ const App: React.FC = () => {
         const isQuota = errMsg.includes('429') || errMsg.includes('quota') || errMsg.includes('QUOTA') || errMsg.includes('RESOURCE_EXHAUSTED');
         const userMsg = isQuota
           ? `🚨 โควต้า API Key หมด! กรุณาสร้าง Key ใหม่ที่ https://aistudio.google.com/apikey หรือรอ 1 นาที`
-          : `เกิดข้อผิดพลาดในการสร้างภาพหมวดหมู่: ${IMAGE_CATEGORIES_METADATA[cat]?.title || cat}`;
+          : errMsg || `เกิดข้อผิดพลาดในการสร้างภาพหมวดหมู่: ${IMAGE_CATEGORIES_METADATA[cat]?.title || cat}`;
         addNotification('error', 'สร้างภาพล้มเหลว', userMsg);
       }
     }
 
     if (user && successCount > 0) {
       deductCredit(successCount);
-      addNotification('success', 'สร้างภาพเสร็จสิ้น', `ระบบหัก ${successCount} เครดิตสำหรับการสร้างภาพสำเร็จ ${successCount} ภาพ`);
+      addNotification('success', 'สร้างภาพเสร็จสิ้น', user.unlimitedCredits ? `บัญชีทดลอง Unlimited สร้างสำเร็จ ${successCount} ภาพ โดยไม่ถูกหักเครดิต` : `ระบบหัก ${successCount} เครดิตสำหรับการสร้างภาพสำเร็จ ${successCount} ภาพ`);
     } else if (successCount > 0) {
       addNotification('success', 'สร้างภาพเสร็จสิ้น', `สร้างภาพเสร็จเรียบร้อยทั้งหมด ${successCount} ภาพ`);
     }
@@ -1504,7 +1517,7 @@ const App: React.FC = () => {
               <div className="hidden md:block text-left">
                 <p className={`text-xs font-black leading-tight ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>{user.name}</p>
                 <p className={`text-[9px] font-bold uppercase tracking-wider ${theme === 'dark' ? 'text-gray-400' : 'text-slate-400'}`}>
-                  {user.tier === 'free' ? 'Free' : user.tier === 'starter' ? 'Starter' : user.tier === 'pro' ? 'Pro' : 'Enterprise'} • {user.credits} credits
+                  {user.unlimitedCredits ? 'Trial Unlimited' : user.tier === 'free' ? 'Free' : user.tier === 'starter' ? 'Starter' : user.tier === 'pro' ? 'Pro' : 'Enterprise'} • {user.unlimitedCredits ? 'Unlimited credits' : `${user.credits} credits`}
                 </p>
               </div>
               <ChevronDown className={`w-4 h-4 transition-transform ${showProfileDropdown ? 'rotate-180' : ''} ${theme === 'dark' ? 'text-gray-400' : 'text-slate-400'}`} />
@@ -1537,9 +1550,9 @@ const App: React.FC = () => {
                     </div>
                     <div className={`mt-3 flex items-center gap-2 px-3 py-2 rounded-xl ${theme === 'dark' ? 'bg-gray-700' : 'bg-slate-50'}`}>
                       <Zap className="w-4 h-4 text-orange-500" />
-                      <span className={`text-xs font-black ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>{user.credits} credits</span>
+                      <span className={`text-xs font-black ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>{user.unlimitedCredits ? 'Unlimited credits' : `${user.credits} credits`}</span>
                       <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ml-auto ${theme === 'dark' ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-50 text-orange-600'}`}>
-                        {user.tier.toUpperCase()}
+                        {user.unlimitedCredits ? 'TRIAL' : user.tier.toUpperCase()}
                       </span>
                     </div>
                   </div>
