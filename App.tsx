@@ -601,19 +601,19 @@ const App: React.FC = () => {
     setIsSubmittingAuth(true);
     try {
       if (authTab === 'login') {
-        const success = await login(authEmail, authPassword);
-        if (success) {
-          addNotification('success', 'เข้าสู่ระบบสำเร็จ', 'ยินดีต้อนรับกลับสู่ PicSeller!');
+        const result = await login(authEmail, authPassword);
+        if (result.success) {
+          addNotification('success', 'เข้าสู่ระบบสำเร็จ', result.message);
         } else {
-          addNotification('error', 'เข้าสู่ระบบล้มเหลว', 'อีเมลหรือรหัสผ่านไม่ถูกต้อง');
+          addNotification('error', 'เข้าสู่ระบบล้มเหลว', result.message);
         }
       } else {
-        const success = await register(authEmail, authPassword, authName);
-        if (success) {
-          addNotification('success', 'ลงทะเบียนสำเร็จ', 'สร้างบัญชีผู้ใช้งานใหม่เรียบร้อยแล้ว!');
+        const result = await register(authEmail, authPassword, authName);
+        if (result.success) {
+          addNotification('success', 'ลงทะเบียนสำเร็จ', result.message);
           setAuthTab('login');
         } else {
-          addNotification('error', 'ลงทะเบียนล้มเหลว', 'อีเมลนี้ถูกใช้งานแล้ว หรือรหัสผ่านไม่ตรงตามเงื่อนไข');
+          addNotification('error', 'ลงทะเบียนล้มเหลว', result.message);
         }
       }
     } catch (err: any) {
@@ -626,9 +626,11 @@ const App: React.FC = () => {
   const handleSocialLogin = async (provider: 'google' | 'facebook' | 'apple') => {
     setIsSubmittingAuth(true);
     try {
-      const success = await loginWithSocial(provider);
-      if (success) {
-        addNotification('success', 'เชื่อมต่อสำเร็จ', `เข้าสู่ระบบผ่าน ${provider.toUpperCase()} เรียบร้อยแล้ว`);
+      const result = await loginWithSocial(provider);
+      if (result.success) {
+        addNotification('success', 'เชื่อมต่อสำเร็จ', result.message);
+      } else {
+        addNotification('error', 'เชื่อมต่อล้มเหลว', result.message);
       }
     } catch (err: any) {
       addNotification('error', 'เชื่อมต่อล้มเหลว', `ไม่สามารถเข้าสู่ระบบผ่าน ${provider} ได้`);

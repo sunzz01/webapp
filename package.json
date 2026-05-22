@@ -15,6 +15,8 @@
     "@google-cloud/vertexai": "^1.12.0",
     "@google/genai": "^1.38.0",
     "clsx": "^2.1.1",
+    "firebase": "^12.13.0",
+    "firebase-admin": "^13.10.0",
     "framer-motion": "^12.39.0",
     "google-auth-library": "^10.5.0",
     "jszip": "^3.10.1",

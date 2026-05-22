@@ -8,6 +8,7 @@
  */
 
 import { ImageCategory, ImageGenerationResult, ProductData } from '../types';
+import { auth } from './firebase';
 
 // ═══════════════════════════════════════════════════════════════
 //  Config
@@ -119,10 +120,18 @@ async function prepareImagesForApi(images?: string[]): Promise<string[] | undefi
 async function apiPost<T>(path: string, body: any): Promise<T> {
   const url = `${API_BASE}${path}`;
   console.log(`[ApiClient] POST ${url}`);
+  const token = await auth.currentUser?.getIdToken();
+
+  if (!token) {
+    throw new Error('กรุณาเข้าสู่ระบบก่อนใช้งาน AI');
+  }
 
   const response = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify(body),
   });
 
@@ -178,10 +187,14 @@ export async function generateProductImage(
   let prompt = '';
 
   if (customPrompt) {
-    prompt = customPrompt;
+    prompt = buildGroundedProductPrompt(customPrompt, category, productData);
   } else {
     // Build category-specific prompt
-    prompt = buildCategoryPrompt(category, productData, style, styleIndex);
+    prompt = buildGroundedProductPrompt(
+      buildCategoryPrompt(category, productData, style, styleIndex),
+      category,
+      productData,
+    );
   }
 
   const apiImages = await prepareImagesForApi(productData.images);
@@ -198,6 +211,7 @@ export async function generateProductImage(
     category,
     style,
     customPrompt,
+    productData,
   });
 
   // Build thaiTexts for reference
@@ -248,6 +262,22 @@ function pickStyle<T>(arr: T[], styleIndex?: number): T {
     return arr[styleIndex - 1];
   }
   return pickRandom(arr);
+}
+
+function buildGroundedProductPrompt(
+  taskPrompt: string,
+  category: ImageCategory,
+  productData: ProductData,
+): string {
+  const features = productData.features?.filter(Boolean).slice(0, 8) || [];
+  return [
+    `Create a ${category} ecommerce image for this exact product.`,
+    `Product name: ${productData.name || 'Unknown product'}`,
+    productData.description ? `Product description: ${productData.description}` : '',
+    features.length ? `Key product features: ${features.join(' | ')}` : '',
+    'Use the attached product reference images as the source of truth. Preserve the same product identity, shape, color, materials, logos/labels, and visible details. Improve only the scene, lighting, background, composition, and sales presentation. Do not invent a different product.',
+    `Image task: ${taskPrompt}`,
+  ].filter(Boolean).join('\n\n');
 }
 
 // ─── INFOGRAPHIC Variations (6 สไตล์) ────────────────────────────

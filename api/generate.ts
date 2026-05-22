@@ -21,6 +21,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { MODEL_REGISTRY, getVertexAI, getVertexAccessToken, getVertexEnvironment } from './_lib/vertex.js';
 import { generateGeminiImage } from './_lib/geminiFallback.js';
+import { requireFirebaseUser } from './_lib/firebaseAdmin.js';
 
 // Aspect ratio descriptions for prompt enhancement
 const RATIO_DESCRIPTIONS: Record<string, string> = {
@@ -44,6 +45,39 @@ function extractVertexTextAndImage(response: any) {
   }
 
   return { imageUrl, text: text.trim() };
+}
+
+function isImagenModel(modelName: string) {
+  return modelName.startsWith('imagen-');
+}
+
+function buildImageModelChain(selectedModel: string, hasReferenceImages: boolean) {
+  const uniqueModels = [selectedModel, ...MODEL_REGISTRY.image.filter((m) => m !== selectedModel)];
+
+  if (!hasReferenceImages) return uniqueModels;
+
+  const geminiModels = uniqueModels.filter((m) => !isImagenModel(m));
+  const imagenModels = uniqueModels.filter(isImagenModel);
+  return [...geminiModels, ...imagenModels];
+}
+
+function buildProductContext(productData: any) {
+  if (!productData || typeof productData !== 'object') return '';
+
+  const name = String(productData.name || '').trim();
+  const description = String(productData.description || '').trim();
+  const features = Array.isArray(productData.features)
+    ? productData.features.filter(Boolean).map(String).slice(0, 8)
+    : [];
+
+  const lines = [
+    'PRODUCT CONTEXT:',
+    name ? `- Product name: ${name}` : '',
+    description ? `- Description: ${description}` : '',
+    features.length ? `- Key features: ${features.join(' | ')}` : '',
+  ].filter(Boolean);
+
+  return lines.length > 1 ? lines.join('\n') : '';
 }
 
 async function generateImagenImage(modelName: string, prompt: string, aspectRatio: string) {
@@ -84,7 +118,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -94,12 +128,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    await requireFirebaseUser(req);
+
     const {
       prompt,
       images,
       model,
       aspectRatio = '1:1',
       customPrompt,
+      productData,
     } = req.body;
 
     if (!prompt && !customPrompt) {
@@ -108,9 +145,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const ratioDesc = RATIO_DESCRIPTIONS[aspectRatio] || RATIO_DESCRIPTIONS['1:1'];
 
-    // Build the final prompt with aspect ratio instruction
-    const finalPrompt = (customPrompt || prompt) +
-      `\n\nIMPORTANT: Generate this image in ${ratioDesc}. The canvas must be ${aspectRatio} ratio.`;
+    const productContext = buildProductContext(productData);
 
     // Build image parts from source images
     const imageParts: any[] = [];
@@ -128,9 +163,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
+    const hasReferenceImages = imageParts.length > 0;
+    const referenceInstruction = hasReferenceImages
+      ? [
+          'REFERENCE IMAGE RULES:',
+          '- The attached images are the source product. Keep the same product identity, shape, proportions, color, logos/labels, materials, and visible details.',
+          '- You may improve lighting, background, composition, and ecommerce styling, but do not invent a different product.',
+          '- If a requested scene requires usage context, place this exact product into the scene instead of replacing it.',
+        ].join('\n')
+      : [
+          'NO REFERENCE IMAGE WAS PROVIDED:',
+          '- Generate from the product context only. Avoid inventing brand logos, labels, or features not listed.',
+        ].join('\n');
+
+    // Build the final prompt with product grounding and aspect ratio instruction.
+    const finalPrompt = [
+      productContext,
+      prompt || customPrompt,
+      referenceInstruction,
+      `IMPORTANT: Generate this image in ${ratioDesc}. The canvas must be ${aspectRatio} ratio.`,
+    ].filter(Boolean).join('\n\n');
+
     // Determine model chain
     const selectedModel = model || MODEL_REGISTRY.image[0];
-    const modelChain = [selectedModel, ...MODEL_REGISTRY.image.filter((m) => m !== selectedModel)];
+    const modelChain = buildImageModelChain(selectedModel, hasReferenceImages);
+    const allowTextOnlyImagenFallback = !hasReferenceImages || isImagenModel(selectedModel);
 
     // Try with smart retry across models
     let imageUrl = '';
@@ -145,7 +202,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           console.log(`[generate] model="${modelName}" attempt=${attempt + 1}`);
 
           // Check if this is an Imagen model or Gemini model
-          if (modelName.startsWith('imagen-')) {
+          if (isImagenModel(modelName)) {
+            if (!allowTextOnlyImagenFallback) {
+              console.warn(`[generate] Skipping text-only model "${modelName}" because product reference images were provided`);
+              break;
+            }
             // ─── Imagen 3 API ───────────────────────────────────
             imageUrl = await generateImagenImage(modelName, finalPrompt, aspectRatio);
             usedModel = modelName;
@@ -211,6 +272,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   } catch (error: any) {
     console.error('[api/generate] Error:', error);
-    return res.status(500).json({ error: error.message || 'Internal server error' });
+    return res.status(error.statusCode || 500).json({ error: error.message || 'Internal server error' });
   }
 }

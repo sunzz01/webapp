@@ -16,6 +16,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { smartRetry, MODEL_REGISTRY } from './_lib/vertex.js';
 import { generateGeminiText } from './_lib/geminiFallback.js';
+import { requireFirebaseUser } from './_lib/firebaseAdmin.js';
 
 function extractVertexText(response: any): string {
   return response?.response?.candidates?.[0]?.content?.parts
@@ -28,7 +29,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -38,6 +39,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    await requireFirebaseUser(req);
+
     const { currentDesc, images, summaryLength = 'medium' } = req.body;
 
     if (!currentDesc && (!images || images.length === 0)) {
@@ -106,6 +109,6 @@ Output strictly the summary text.`,
     return res.status(200).json({ summary: result });
   } catch (error: any) {
     console.error('[api/summarize] Error:', error);
-    return res.status(500).json({ error: error.message || 'Internal server error' });
+    return res.status(error.statusCode || 500).json({ error: error.message || 'Internal server error' });
   }
 }

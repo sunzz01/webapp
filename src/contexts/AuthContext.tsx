@@ -1,4 +1,14 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
+import {
+  User as FirebaseUser,
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signOut,
+  updateProfile,
+} from 'firebase/auth';
+import { auth, googleProvider } from '../firebase';
 
 export interface SaaSUser {
   id: string;
@@ -34,207 +44,169 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+const parseAllowedList = (value?: string) =>
+  (value || '')
+    .split(',')
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
+
+const allowedEmails = parseAllowedList(import.meta.env.VITE_ALLOWED_EMAILS);
+const allowedDomains = parseAllowedList(import.meta.env.VITE_ALLOWED_DOMAINS);
+
+function isAllowedEmail(email?: string | null) {
+  const normalizedEmail = (email || '').toLowerCase();
+  if (!allowedEmails.length && !allowedDomains.length) return true;
+  if (allowedEmails.includes(normalizedEmail)) return true;
+
+  const domain = normalizedEmail.split('@')[1] || '';
+  return Boolean(domain && allowedDomains.includes(domain));
+}
+
+function getCreditStorageKey(uid: string) {
+  return `saas_user_meta_${uid}`;
+}
+
+function loadUserMeta(uid: string) {
+  try {
+    const raw = localStorage.getItem(getCreditStorageKey(uid));
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveUserMeta(uid: string, meta: Partial<Pick<SaaSUser, 'credits' | 'tier'>>) {
+  localStorage.setItem(getCreditStorageKey(uid), JSON.stringify(meta));
+}
+
+function mapFirebaseUser(firebaseUser: FirebaseUser, nameOverride?: string): SaaSUser {
+  const meta = loadUserMeta(firebaseUser.uid);
+  const name = nameOverride || firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'PicSeller User';
+
+  return {
+    id: firebaseUser.uid,
+    name,
+    email: firebaseUser.email || '',
+    tier: meta.tier || 'free',
+    credits: typeof meta.credits === 'number' ? meta.credits : 5,
+    avatar:
+      firebaseUser.photoURL ||
+      `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name)}`,
+  };
+}
+
+function getFirebaseAuthMessage(error: any) {
+  const code = error?.code || '';
+  if (code === 'auth/invalid-credential' || code === 'auth/wrong-password') return 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
+  if (code === 'auth/user-not-found') return 'ไม่พบบัญชีนี้ใน Firebase';
+  if (code === 'auth/email-already-in-use') return 'อีเมลนี้ถูกใช้งานแล้ว';
+  if (code === 'auth/weak-password') return 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร';
+  if (code === 'auth/popup-closed-by-user') return 'หน้าต่าง Google Login ถูกปิดก่อนเข้าสู่ระบบสำเร็จ';
+  if (code === 'auth/operation-not-allowed') return 'ยังไม่ได้เปิด provider นี้ใน Firebase Authentication';
+  return error?.message || 'เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์';
+}
+
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<SaaSUser | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Load session on startup
   useEffect(() => {
-    const restoreSession = () => {
+    return onAuthStateChanged(auth, async (firebaseUser) => {
       try {
-        const savedUser = localStorage.getItem('saas_current_user');
-        if (savedUser) {
-          setUser(JSON.parse(savedUser));
+        if (!firebaseUser) {
+          setUser(null);
+          return;
         }
-      } catch (error) {
-        console.error('Failed to parse saved user session:', error);
+
+        if (!isAllowedEmail(firebaseUser.email)) {
+          await signOut(auth);
+          setUser(null);
+          return;
+        }
+
+        setUser(mapFirebaseUser(firebaseUser));
       } finally {
         setIsLoading(false);
       }
-    };
-    restoreSession();
+    });
   }, []);
-
-  // Helper: Get users database from localStorage
-  const getStoredUsers = (): Record<string, any> => {
-    try {
-      const raw = localStorage.getItem('saas_simulated_db');
-      return raw ? JSON.parse(raw) : {};
-    } catch {
-      return {};
-    }
-  };
-
-  // Helper: Save users database to localStorage
-  const saveStoredUsers = (users: Record<string, any>) => {
-    localStorage.setItem('saas_simulated_db', JSON.stringify(users));
-  };
 
   const login = async (email: string, password: string): Promise<{ success: boolean; message: string }> => {
     setIsLoading(true);
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 800));
-
-    const db = getStoredUsers();
-    const formattedEmail = email.trim().toLowerCase();
-
-    if (!db[formattedEmail]) {
+    try {
+      const credential = await signInWithEmailAndPassword(auth, email.trim(), password);
+      if (!isAllowedEmail(credential.user.email)) {
+        await signOut(auth);
+        return { success: false, message: 'บัญชีนี้ยังไม่ได้รับอนุญาตให้ใช้งาน PicSeller' };
+      }
+      setUser(mapFirebaseUser(credential.user));
+      return { success: true, message: 'เข้าสู่ระบบสำเร็จ ยินดีต้อนรับกลับ!' };
+    } catch (error: any) {
+      return { success: false, message: getFirebaseAuthMessage(error) };
+    } finally {
       setIsLoading(false);
-      return { success: false, message: 'ไม่พบอีเมลนี้ในระบบ กรุณาสมัครสมาชิก' };
     }
-
-    if (db[formattedEmail].password !== password) {
-      setIsLoading(false);
-      return { success: false, message: 'รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง' };
-    }
-
-    const userData: SaaSUser = {
-      id: db[formattedEmail].id,
-      name: db[formattedEmail].name,
-      email: db[formattedEmail].email,
-      tier: db[formattedEmail].tier || 'free',
-      credits: db[formattedEmail].credits ?? 5,
-      avatar: db[formattedEmail].avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${db[formattedEmail].name}`
-    };
-
-    setUser(userData);
-    localStorage.setItem('saas_current_user', JSON.stringify(userData));
-    setIsLoading(false);
-
-    return { success: true, message: 'เข้าสู่ระบบสำเร็จ ยินดีต้อนรับกลับ!' };
   };
 
   const register = async (email: string, password: string, name: string): Promise<{ success: boolean; message: string }> => {
     setIsLoading(true);
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    try {
+      const credential = await createUserWithEmailAndPassword(auth, email.trim(), password);
+      await updateProfile(credential.user, { displayName: name.trim() });
 
-    const db = getStoredUsers();
-    const formattedEmail = email.trim().toLowerCase();
+      if (!isAllowedEmail(credential.user.email)) {
+        await signOut(auth);
+        return { success: false, message: 'สร้างบัญชีแล้ว แต่บัญชีนี้ยังไม่ได้รับอนุญาตให้ใช้งาน PicSeller' };
+      }
 
-    if (db[formattedEmail]) {
+      const userData = mapFirebaseUser(credential.user, name.trim());
+      setUser(userData);
+      saveUserMeta(credential.user.uid, { credits: userData.credits, tier: userData.tier });
+      return { success: true, message: 'สมัครสมาชิกสำเร็จ! ได้รับสิทธิ์ฟรี 5 เครดิตสำหรับการทดลองใช้' };
+    } catch (error: any) {
+      return { success: false, message: getFirebaseAuthMessage(error) };
+    } finally {
       setIsLoading(false);
-      return { success: false, message: 'อีเมลนี้ถูกใช้งานแล้วในระบบ' };
     }
-
-    const newUserId = `usr-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const avatar = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name.trim())}`;
-    
-    // Write new user to DB
-    db[formattedEmail] = {
-      id: newUserId,
-      name: name.trim(),
-      email: formattedEmail,
-      password: password,
-      tier: 'free',
-      credits: 5, // 5 free starter credits
-      avatar
-    };
-
-    saveStoredUsers(db);
-
-    const userData: SaaSUser = {
-      id: newUserId,
-      name: name.trim(),
-      email: formattedEmail,
-      tier: 'free',
-      credits: 5,
-      avatar
-    };
-
-    setUser(userData);
-    localStorage.setItem('saas_current_user', JSON.stringify(userData));
-    setIsLoading(false);
-
-    return { success: true, message: 'สมัครสมาชิกสำเร็จ! ได้รับสิทธิ์ฟรี 5 เครดิตสำหรับการทดลองใช้' };
   };
 
   const loginWithSocial = async (provider: 'google' | 'facebook' | 'apple'): Promise<{ success: boolean; message: string }> => {
-    setIsLoading(true);
-    
-    // Simulate social login popup delay
-    await new Promise((resolve) => setTimeout(resolve, 1200));
-
-    const providerName = provider.charAt(0).toUpperCase() + provider.slice(1);
-    const mockName = `${providerName} Customer`;
-    const mockEmail = `customer.${provider}@${provider}.com`;
-    const avatar = provider === 'google' 
-      ? 'https://api.dicebear.com/7.x/bottts/svg?seed=google'
-      : provider === 'facebook'
-      ? 'https://api.dicebear.com/7.x/pixel-art/svg?seed=facebook'
-      : 'https://api.dicebear.com/7.x/identicon/svg?seed=apple';
-
-    const db = getStoredUsers();
-    
-    let userData: SaaSUser;
-    if (db[mockEmail]) {
-      // Existing social user
-      userData = {
-        id: db[mockEmail].id,
-        name: db[mockEmail].name,
-        email: db[mockEmail].email,
-        tier: db[mockEmail].tier || 'free',
-        credits: db[mockEmail].credits ?? 5,
-        avatar: db[mockEmail].avatar || avatar
-      };
-    } else {
-      // Create new social user
-      const newUserId = `usr-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      db[mockEmail] = {
-        id: newUserId,
-        name: mockName,
-        email: mockEmail,
-        tier: 'free',
-        credits: 5,
-        avatar
-      };
-      saveStoredUsers(db);
-      
-      userData = {
-        id: newUserId,
-        name: mockName,
-        email: mockEmail,
-        tier: 'free',
-        credits: 5,
-        avatar
-      };
+    if (provider !== 'google') {
+      return { success: false, message: 'ตอนนี้เปิดใช้งานเฉพาะ Google Login' };
     }
 
-    setUser(userData);
-    localStorage.setItem('saas_current_user', JSON.stringify(userData));
-    setIsLoading(false);
-
-    return { success: true, message: `ล็อกอินผ่าน ${providerName} สำเร็จ!` };
+    setIsLoading(true);
+    try {
+      const credential = await signInWithPopup(auth, googleProvider);
+      if (!isAllowedEmail(credential.user.email)) {
+        await signOut(auth);
+        return { success: false, message: 'บัญชี Google นี้ยังไม่ได้รับอนุญาตให้ใช้งาน PicSeller' };
+      }
+      setUser(mapFirebaseUser(credential.user));
+      return { success: true, message: 'ล็อกอินผ่าน Google สำเร็จ!' };
+    } catch (error: any) {
+      return { success: false, message: getFirebaseAuthMessage(error) };
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('saas_current_user');
+    void signOut(auth);
   };
 
   const deductCredit = (amount: number): boolean => {
     if (!user) return false;
-
-    if (user.credits < amount) {
-      return false;
-    }
+    if (user.credits < amount) return false;
 
     const updatedUser = {
       ...user,
-      credits: user.credits - amount
+      credits: user.credits - amount,
     };
 
     setUser(updatedUser);
-    localStorage.setItem('saas_current_user', JSON.stringify(updatedUser));
-
-    // Update DB
-    const db = getStoredUsers();
-    const formattedEmail = user.email.trim().toLowerCase();
-    if (db[formattedEmail]) {
-      db[formattedEmail].credits = updatedUser.credits;
-      saveStoredUsers(db);
-    }
-
+    saveUserMeta(user.id, { credits: updatedUser.credits, tier: updatedUser.tier });
     return true;
   };
 
@@ -244,36 +216,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const updatedUser = {
       ...user,
       credits: user.credits + amount,
-      tier: newTier || user.tier
+      tier: newTier || user.tier,
     };
 
     setUser(updatedUser);
-    localStorage.setItem('saas_current_user', JSON.stringify(updatedUser));
-
-    // Update DB
-    const db = getStoredUsers();
-    const formattedEmail = user.email.trim().toLowerCase();
-    if (db[formattedEmail]) {
-      db[formattedEmail].credits = updatedUser.credits;
-      if (newTier) db[formattedEmail].tier = newTier;
-      saveStoredUsers(db);
-    }
+    saveUserMeta(user.id, { credits: updatedUser.credits, tier: updatedUser.tier });
   };
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isLoading,
-        login,
-        register,
-        loginWithSocial,
-        logout,
-        deductCredit,
-        addCredits
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo(
+    () => ({
+      user,
+      isLoading,
+      login,
+      register,
+      loginWithSocial,
+      logout,
+      deductCredit,
+      addCredits,
+    }),
+    [user, isLoading],
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

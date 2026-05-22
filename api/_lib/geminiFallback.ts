@@ -72,10 +72,14 @@ export async function generateGeminiText(parts: any[], json = false) {
 export async function generateGeminiImage(prompt: string, imageParts: any[], aspectRatio: string) {
   const ai = getGeminiClient();
   let lastError: any;
+  const hasReferenceImages = imageParts.length > 0;
 
   for (const model of IMAGE_MODELS) {
     try {
       if (model.startsWith('imagen-')) {
+        if (hasReferenceImages) {
+          continue;
+        }
         const response = await ai.models.generateImages({
           model,
           prompt,

@@ -22,8 +22,11 @@ export const MODEL_REGISTRY = {
   ],
   /** Image generation models (Vertex AI) */
   image: [
-    'imagen-3.0-generate-002',       // Imagen 3 — highest quality
-    'imagen-3.0-fast-generate-001',  // Imagen 3 — fast
+    'gemini-2.5-flash-image',        // Gemini image generation — supports product reference images
+    'gemini-3.1-flash-image-preview',
+    'gemini-3-pro-image-preview',
+    'imagen-3.0-generate-002',       // Imagen 3 — text-to-image fallback
+    'imagen-3.0-fast-generate-001',  // Imagen 3 — fast text-to-image fallback
   ],
 };
 
