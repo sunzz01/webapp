@@ -20,6 +20,7 @@
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { MODEL_REGISTRY, getVertexAI, getVertexAccessToken, getVertexEnvironment } from './_lib/vertex.js';
+import { generateGeminiImage } from './_lib/geminiFallback.js';
 
 // Aspect ratio descriptions for prompt enhancement
 const RATIO_DESCRIPTIONS: Record<string, string> = {
@@ -195,15 +196,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (!imageUrl) {
-      throw new Error(
-        `Image generation failed with all models.\n` +
-        `Tried: ${modelChain.join(', ')}\n` +
-        `Last error: ${lastError?.message || 'No image data returned'}\n\n` +
-        `💡 Tips:\n` +
-        `• Check GCP quotas at https://console.cloud.google.com/iam-admin/quotas\n` +
-        `• Ensure Vertex AI API is enabled for your project\n` +
-        `• Verify service account has "Vertex AI User" role`
-      );
+      console.warn('[generate] Vertex image generation failed, trying Gemini API fallback:', lastError?.message || lastError);
+      const fallback = await generateGeminiImage(finalPrompt, imageParts, aspectRatio);
+      imageUrl = fallback.imageUrl;
+      usedModel = fallback.model;
+      geminiTextResponse = fallback.text || geminiTextResponse;
     }
 
     return res.status(200).json({

@@ -11,6 +11,7 @@
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { smartRetry, MODEL_REGISTRY } from './_lib/vertex.js';
+import { generateGeminiText } from './_lib/geminiFallback.js';
 
 function extractVertexText(response: any): string {
   return response?.response?.candidates?.[0]?.content?.parts
@@ -67,20 +68,26 @@ Return valid JSON only. Do not include markdown fences.
 JSON keys: "name", "summary", "features" (array of strings), "visualDescription".`,
     });
 
-    const result = await smartRetry(async (model, ai) => {
-      console.log(`[analyze] Using model: ${model}`);
-      const generativeModel = ai.getGenerativeModel({
-        model,
-        generationConfig: {
-          responseMimeType: 'application/json',
-        },
-      });
+    let result: any;
+    try {
+      result = await smartRetry(async (model, ai) => {
+        console.log(`[analyze] Using Vertex model: ${model}`);
+        const generativeModel = ai.getGenerativeModel({
+          model,
+          generationConfig: {
+            responseMimeType: 'application/json',
+          },
+        });
 
-      const response = await generativeModel.generateContent({
-        contents: [{ role: 'user', parts }],
-      });
-      return parseJsonResponse(extractVertexText(response));
-    }, MODEL_REGISTRY.text);
+        const response = await generativeModel.generateContent({
+          contents: [{ role: 'user', parts }],
+        });
+        return parseJsonResponse(extractVertexText(response));
+      }, MODEL_REGISTRY.text);
+    } catch (vertexError: any) {
+      console.warn('[analyze] Vertex failed, trying Gemini API fallback:', vertexError?.message || vertexError);
+      result = parseJsonResponse(await generateGeminiText(parts, true));
+    }
 
     return res.status(200).json(result);
   } catch (error: any) {
