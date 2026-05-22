@@ -47,6 +47,7 @@ import NotificationSystem from './src/components/NotificationSystem';
 import { useAuth } from './src/contexts/AuthContext';
 import { saveToDB, loadFromDB } from './src/utils/storage'; // Persistence
 import { ImageEditorModal } from './src/components/ImageEditorModal';
+import LoginPage from './src/components/LoginPage';
 
 const STYLES = [
   {
@@ -1290,6 +1291,23 @@ const App: React.FC = () => {
 
 
   const selectedStyleName = STYLES.find(s => s.id === selectedStyle)?.name || 'Available Style';
+
+  // ==========================================
+  // LOGIN SCREEN — Show when user is not authenticated
+  // ==========================================
+  if (!user) {
+    return (
+      <>
+        <LoginPage
+          onLogin={login}
+          onRegister={register}
+          onGoogleLogin={() => loginWithSocial('google')}
+          isLoading={authLoading}
+        />
+        <NotificationSystem notifications={notifications} removeNotification={removeNotification} />
+      </>
+    );
+  }
 
   return (
     <div className={`min-h-screen flex flex-col ${theme === 'dark' ? 'bg-gray-900 text-white' : 'bg-[#F8FAFC] text-slate-900'}`}>
