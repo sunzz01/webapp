@@ -20,6 +20,7 @@
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { smartRetry, MODEL_REGISTRY, getVertexAI } from './_lib/vertex.js';
+import { GenerativeModel } from '@google-cloud/vertexai';
 
 // Aspect ratio descriptions for prompt enhancement
 const RATIO_DESCRIPTIONS: Record<string, string> = {
@@ -82,8 +83,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const selectedModel = model || MODEL_REGISTRY.image[0];
     const modelChain = [selectedModel, ...MODEL_REGISTRY.image.filter((m) => m !== selectedModel)];
 
-    const ai = getVertexAI();
-
     // Try with smart retry across models
     let imageUrl = '';
     let usedModel = selectedModel;
@@ -99,13 +98,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           // Check if this is an Imagen model or Gemini model
           if (modelName.startsWith('imagen-')) {
             // ─── Imagen 3 API ───────────────────────────────────
-            const response = await ai.models.generateImages({
-              model: modelName,
+            const vertexAI = getVertexAI();
+            const response = await vertexAI.images.generateImages({
               prompt: finalPrompt,
-              config: {
-                numberOfImages: 1,
-                aspectRatio: aspectRatio as any,
-              },
+              numberOfImages: 1,
+              aspectRatio: aspectRatio as any,
             });
 
             if (response.generatedImages && response.generatedImages.length > 0) {
@@ -119,20 +116,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
           } else {
             // ─── Gemini Native Image Generation ─────────────────
-            const contents: any = {
+            const generativeModel = new GenerativeModel({
+              model: modelName,
+              generationConfig: {
+                responseModalities: ['Text', 'Image'],
+              },
+            });
+
+            const contents = {
               parts: [
                 ...imageParts,
                 { text: finalPrompt },
               ],
             };
 
-            const response = await ai.models.generateContent({
-              model: modelName,
-              contents,
-              config: {
-                responseModalities: ['Text', 'Image'],
-              },
-            });
+            const response = await generativeModel.generateContent(contents);
 
             if (response.candidates && response.candidates[0]?.content?.parts) {
               for (const part of response.candidates[0].content.parts) {

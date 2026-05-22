@@ -1395,7 +1395,7 @@ const App: React.FC = () => {
           onGoogleLogin={() => loginWithSocial('google')}
           isLoading={authLoading}
         />
-        <NotificationSystem notifications={notifications} removeNotification={removeNotification} />
+        <NotificationSystem notifications={notifications} onRemove={removeNotification} />
       </>
     );
   }

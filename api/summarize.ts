@@ -15,6 +15,7 @@
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { smartRetry, MODEL_REGISTRY } from './_lib/vertex.js';
+import { GenerativeModel } from '@google-cloud/vertexai';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS
@@ -81,10 +82,11 @@ Output strictly the summary text.`,
 
     const result = await smartRetry(async (model, ai) => {
       console.log(`[summarize] Using model: ${model}`);
-      const response = await ai.models.generateContent({
-        model,
-        contents: { parts },
+      const generativeModel = new GenerativeModel({
+        model: model,
       });
+
+      const response = await generativeModel.generateContent({ parts });
       return response.text || '';
     }, MODEL_REGISTRY.text);
 
