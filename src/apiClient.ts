@@ -19,6 +19,8 @@ import { ImageCategory, ImageGenerationResult, ProductData } from '../types';
  * - In development: set VITE_API_BASE_URL in .env (e.g., "http://localhost:3000")
  */
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+const MAX_API_IMAGE_BYTES = 650_000;
+const MAX_API_PAYLOAD_BYTES = 3_400_000;
 
 // ═══════════════════════════════════════════════════════════════
 //  Types (mirror server-side interfaces)
@@ -29,6 +31,85 @@ export interface ProductAnalysis {
   summary: string;
   features: string[];
   visualDescription: string;
+}
+
+const estimateBase64Bytes = (value: string): number => Math.ceil((value.length * 3) / 4);
+
+async function shrinkImageForApi(
+  dataUrl: string,
+  maxEdge: number,
+  qualitySteps: number[],
+): Promise<string> {
+  if (!dataUrl.startsWith('data:image/')) return dataUrl;
+
+  const approximateBytes = estimateBase64Bytes(dataUrl);
+  if (approximateBytes <= MAX_API_IMAGE_BYTES && maxEdge >= 1024) return dataUrl;
+
+  const image = new Image();
+  image.decoding = 'async';
+  const loaded = new Promise<void>((resolve, reject) => {
+    image.onload = () => resolve();
+    image.onerror = () => reject(new Error('Unable to load image for compression'));
+  });
+  image.src = dataUrl;
+  await loaded;
+
+  const scale = Math.min(1, maxEdge / Math.max(image.naturalWidth, image.naturalHeight));
+  const width = Math.max(1, Math.round(image.naturalWidth * scale));
+  const height = Math.max(1, Math.round(image.naturalHeight * scale));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return dataUrl;
+
+  ctx.drawImage(image, 0, 0, width, height);
+
+  for (const quality of qualitySteps) {
+    const compressed = canvas.toDataURL('image/jpeg', quality);
+    const compressedBytes = estimateBase64Bytes(compressed);
+    if (compressedBytes <= MAX_API_IMAGE_BYTES || quality === qualitySteps[qualitySteps.length - 1]) {
+      return compressed;
+    }
+  }
+
+  return canvas.toDataURL('image/jpeg', qualitySteps[qualitySteps.length - 1] ?? 0.42);
+}
+
+async function prepareImagesForApi(images?: string[]): Promise<string[] | undefined> {
+  if (!images?.length) return undefined;
+  const sourceImages = images.filter(Boolean);
+  const compressionProfiles = [
+    { maxEdge: 1024, qualitySteps: [0.78, 0.68, 0.58, 0.48] },
+    { maxEdge: 768, qualitySteps: [0.7, 0.6, 0.5, 0.42] },
+    { maxEdge: 640, qualitySteps: [0.62, 0.52, 0.44, 0.36] },
+    { maxEdge: 512, qualitySteps: [0.54, 0.46, 0.38, 0.32] },
+  ];
+
+  let bestEffort: string[] = [];
+  for (const profile of compressionProfiles) {
+    const prepared = await Promise.all(
+      sourceImages.map((image) => shrinkImageForApi(image, profile.maxEdge, profile.qualitySteps)),
+    );
+    const totalBytes = prepared.reduce((sum, image) => sum + estimateBase64Bytes(image), 0);
+    bestEffort = prepared;
+
+    if (totalBytes <= MAX_API_PAYLOAD_BYTES) {
+      return prepared;
+    }
+  }
+
+  const packed: string[] = [];
+  let totalBytes = 0;
+  for (const image of bestEffort) {
+    const imageBytes = estimateBase64Bytes(image);
+    if (packed.length > 0 && totalBytes + imageBytes > MAX_API_PAYLOAD_BYTES) break;
+    packed.push(image);
+    totalBytes += imageBytes;
+  }
+
+  return packed.length ? packed : undefined;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -51,6 +132,9 @@ async function apiPost<T>(path: string, body: any): Promise<T> {
       const errBody = await response.json();
       errorMsg = errBody.error || errorMsg;
     } catch { /* ignore */ }
+    if (response.status === 413) {
+      errorMsg = 'รูปภาพที่ส่งไปยัง AI มีขนาดใหญ่เกินไป กรุณาลองใช้รูปน้อยลงหรือรูปที่เล็กลง';
+    }
     throw new Error(errorMsg);
   }
 
@@ -69,9 +153,10 @@ export async function analyzeProduct(
   productInfo: string,
   images?: string[],
 ): Promise<ProductAnalysis> {
+  const apiImages = await prepareImagesForApi(images);
   return apiPost<ProductAnalysis>('/api/analyze', {
     productInfo,
-    images,
+    images: apiImages,
   });
 }
 
@@ -99,6 +184,7 @@ export async function generateProductImage(
     prompt = buildCategoryPrompt(category, productData, style, styleIndex);
   }
 
+  const apiImages = await prepareImagesForApi(productData.images);
   const result = await apiPost<{
     imageUrl: string;
     promptUsed: string;
@@ -106,7 +192,7 @@ export async function generateProductImage(
     textResponse?: string;
   }>('/api/generate', {
     prompt,
-    images: productData.images,
+    images: apiImages,
     model: imageModel,
     aspectRatio,
     category,
@@ -136,9 +222,10 @@ export async function summarizeProductDescription(
   images?: string[],
   summaryLength: 'short' | 'medium' | 'long' = 'medium',
 ): Promise<string> {
+  const apiImages = await prepareImagesForApi(images);
   const result = await apiPost<{ summary: string }>('/api/summarize', {
     currentDesc,
-    images,
+    images: apiImages,
     summaryLength,
   });
   return result.summary;
