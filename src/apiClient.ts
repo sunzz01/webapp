@@ -225,6 +225,9 @@ export async function generateProductImage(
     model: string;
     textResponse?: string;
     thaiTextPlan?: string[];
+    requestedModel?: string;
+    fallbackNotice?: string;
+    fallbackEvents?: Array<{ model: string; success: boolean; message?: string }>;
   }>('/api/generate', {
     prompt,
     images: apiImages,
@@ -252,6 +255,9 @@ export async function generateProductImage(
     promptUsed: result.promptUsed,
     thaiTexts,
     modelUsed: result.model,
+    requestedModel: result.requestedModel || imageModel,
+    fallbackNotice: result.fallbackNotice,
+    fallbackEvents: result.fallbackEvents,
   };
 }
 

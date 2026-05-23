@@ -313,6 +313,36 @@ const GEMINI_IMAGE_MODELS = [
   },
 ];
 
+const getModelDisplayName = (modelId: string) =>
+  GEMINI_IMAGE_MODELS.find((model) => model.id === modelId)?.name || modelId;
+
+const buildGeneratingStatusMessage = (modelId: string) =>
+  `กำลังสร้างด้วย ${getModelDisplayName(modelId)}...`;
+
+const applyImageGenerationResult = (
+  result: {
+    imageUrl: string;
+    thaiTexts?: string[];
+    promptUsed?: string;
+    modelUsed?: string;
+    requestedModel?: string;
+    fallbackNotice?: string;
+    fallbackEvents?: GeneratedImage['fallbackEvents'];
+  },
+  requestedModel: string,
+) => ({
+  url: result.imageUrl,
+  status: 'completed' as const,
+  thaiTexts: result.thaiTexts,
+  promptUsed: result.promptUsed,
+  modelUsed: result.modelUsed,
+  requestedModel: result.requestedModel || requestedModel,
+  fallbackNotice: result.fallbackNotice,
+  fallbackEvents: result.fallbackEvents,
+  statusMessage: undefined,
+  error: undefined,
+});
+
 // Aspect Ratio options
 const ASPECT_RATIOS = [
   { id: '1:1', label: '1:1', name: 'Square', icon: '⬛', desc: 'Shopee/Lazada Product' },
@@ -911,7 +941,15 @@ const App: React.FC = () => {
 
     let successCount = 0;
     for (const cat of categoriesToGenerate) {
-      setGeneratedImages(prev => prev.map(p => p.category === cat ? { ...p, status: 'generating' } : p));
+      setGeneratedImages(prev => prev.map(p => p.category === cat ? {
+        ...p,
+        status: 'generating',
+        requestedModel: selectedImageModel,
+        statusMessage: buildGeneratingStatusMessage(selectedImageModel),
+        fallbackNotice: undefined,
+        fallbackEvents: undefined,
+        error: undefined,
+      } : p));
       try {
         const customPromptForTutorial = cat === ImageCategory.TUTORIAL
           ? JSON.stringify(tutorialStepPrompts)
@@ -929,7 +967,13 @@ const App: React.FC = () => {
           styleIdx = parseInt(val) || undefined;
         }
         const result = await generateProductImage(cat, productData, selectedStyle, customPromptForTutorial, selectedImageModel, imageAspectRatios[cat] || selectedAspectRatio, styleIdx);
-        setGeneratedImages(prev => prev.map(p => p.category === cat ? { ...p, url: result.imageUrl, status: 'completed', thaiTexts: result.thaiTexts, promptUsed: result.promptUsed, modelUsed: result.modelUsed } : p));
+        if (result.fallbackNotice) {
+          addNotification('warning', 'สลับโมเดลอัตโนมัติ', result.fallbackNotice.replace(/\n/g, ' · '));
+        }
+        setGeneratedImages(prev => prev.map(p => p.category === cat ? {
+          ...p,
+          ...applyImageGenerationResult(result, selectedImageModel),
+        } : p));
         successCount++;
       } catch (err) {
         setGeneratedImages(prev => prev.map(p => p.category === cat ? { ...p, status: 'error', error: err instanceof Error ? err.message : 'Unknown error' } : p));
@@ -967,7 +1011,11 @@ const App: React.FC = () => {
           img.category === category ? {
             ...img,
             status: 'generating',
-            error: undefined
+            requestedModel: selectedImageModel,
+            statusMessage: buildGeneratingStatusMessage(selectedImageModel),
+            fallbackNotice: undefined,
+            fallbackEvents: undefined,
+            error: undefined,
           } : img
         );
       } else {
@@ -977,7 +1025,9 @@ const App: React.FC = () => {
           category: category,
           url: '',
           prompt: '',
-          status: 'generating'
+          status: 'generating',
+          requestedModel: selectedImageModel,
+          statusMessage: buildGeneratingStatusMessage(selectedImageModel),
         }];
       }
     });
@@ -1003,15 +1053,15 @@ const App: React.FC = () => {
       const ratio = imageAspectRatios[category] || selectedAspectRatio;
       const result = await generateProductImage(category, productData, styleToUse, customPrompt, selectedImageModel, ratio, styleIndex);
 
+      if (result.fallbackNotice) {
+        addNotification('warning', 'สลับโมเดลอัตโนมัติ', result.fallbackNotice.replace(/\n/g, ' · '));
+      }
+
       // อัปเดตเฉพาะภาพที่เลือก
       setGeneratedImages(prev => prev.map(img =>
         img.category === category ? {
           ...img,
-          url: result.imageUrl,
-          status: 'completed',
-          thaiTexts: result.thaiTexts,
-          promptUsed: result.promptUsed,
-          modelUsed: result.modelUsed
+          ...applyImageGenerationResult(result, selectedImageModel),
         } : img
       ));
     } catch (err) {
@@ -2321,6 +2371,15 @@ const App: React.FC = () => {
                           <div className="w-full h-full relative animate-in fade-in duration-1000">
                             <img src={img.url} alt={meta.title} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" />
 
+                            {img.fallbackNotice && (
+                              <div className="absolute bottom-0 left-0 right-0 z-10 border-t border-amber-400/30 bg-amber-950/80 px-3 py-2 backdrop-blur-sm">
+                                <p className="text-[9px] font-black uppercase tracking-wider text-amber-300">สลับโมเดลอัตโนมัติ</p>
+                                <p className="text-[10px] font-semibold text-amber-50 whitespace-pre-line leading-snug line-clamp-3">
+                                  {img.fallbackNotice}
+                                </p>
+                              </div>
+                            )}
+
                             {/* Preview Button */}
                             <button
                               onClick={(e) => {
@@ -2339,6 +2398,14 @@ const App: React.FC = () => {
                                     <p className="text-emerald-200 text-[10px] font-black uppercase tracking-widest mb-2">
                                       MODEL USED: {img.modelUsed}
                                     </p>
+                                  )}
+                                  {img.fallbackNotice && (
+                                    <div className="mb-2 rounded-xl border border-amber-400/40 bg-amber-500/15 px-3 py-2 text-left">
+                                      <p className="text-[9px] font-black uppercase tracking-wider text-amber-200 mb-1">สลับโมเดลอัตโนมัติ</p>
+                                      <p className="text-[10px] font-semibold text-amber-50 whitespace-pre-line leading-relaxed">
+                                        {img.fallbackNotice}
+                                      </p>
+                                    </div>
                                   )}
                                   <p className="text-white text-[10px] font-black uppercase tracking-widest mb-1">PROMPT USED</p>
                                   {!editingPrompt[catKey] ? (
@@ -2600,14 +2667,25 @@ const App: React.FC = () => {
 
                         {/* Status: Generating */}
                         {img?.status === 'generating' && (
-                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 p-12 text-center">
+                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 p-8 text-center">
                             <div className="relative">
                               <div className="w-20 h-20 border-8 border-orange-50 rounded-[2rem] animate-spin border-t-orange-500"></div>
                               <Sparkles className="absolute inset-0 m-auto w-8 h-8 text-orange-400 animate-pulse" />
                             </div>
-                            <div>
+                            <div className="space-y-2">
                               <p className={`text-lg font-black tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>กำลังรังสรรค์ภาพ...</p>
-                              <p className={`text-[10px] font-black uppercase mt-2 tracking-[0.2em] ${theme === 'dark' ? 'text-gray-400' : 'text-slate-400'}`}>{meta.title}</p>
+                              {img.statusMessage && (
+                                <p className={`text-xs font-bold leading-relaxed px-4 ${theme === 'dark' ? 'text-orange-300' : 'text-orange-600'}`}>
+                                  {img.statusMessage}
+                                </p>
+                              )}
+                              {img.fallbackNotice && (
+                                <div className={`mx-auto max-w-[240px] rounded-2xl border px-3 py-2 text-left ${theme === 'dark' ? 'border-amber-500/40 bg-amber-500/10 text-amber-200' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                                  <p className="text-[10px] font-black uppercase tracking-wider mb-1">สลับโมเดล</p>
+                                  <p className="text-[11px] font-semibold whitespace-pre-line leading-relaxed">{img.fallbackNotice}</p>
+                                </div>
+                              )}
+                              <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${theme === 'dark' ? 'text-gray-400' : 'text-slate-400'}`}>{meta.title}</p>
                             </div>
                           </div>
                         )}

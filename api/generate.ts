@@ -40,6 +40,20 @@ type OrchestratedPrompt = {
   thaiTextPlan?: string[];
 };
 
+type ModelFallbackEvent = {
+  model: string;
+  success: boolean;
+  message?: string;
+};
+
+type GeneratedImagePayload = {
+  imageUrl: string;
+  modelName: string;
+  textResponse?: string;
+  requestedModel: string;
+  fallbackEvents: ModelFallbackEvent[];
+};
+
 function buildProductContext(productData: any) {
   if (!productData || typeof productData !== 'object') return '';
 
@@ -134,6 +148,29 @@ function resolveGeminiImageModelChain(requested?: string) {
     if (!chain.includes(model)) chain.push(model);
   }
   return chain;
+}
+
+function shortenErrorMessage(message: string, max = 100) {
+  return message.replace(/\s+/g, ' ').trim().slice(0, max);
+}
+
+function buildFallbackNotice(
+  requestedModel: string,
+  events: ModelFallbackEvent[],
+  finalModel: string,
+) {
+  const failed = events.filter((event) => !event.success);
+  if (failed.length === 0 && finalModel === requestedModel) return undefined;
+
+  const lines: string[] = [];
+  for (const event of failed) {
+    const detail = event.message ? ` (${event.message})` : '';
+    lines.push(`• ${event.model} ใช้ไม่ได้${detail}`);
+  }
+  if (finalModel !== requestedModel) {
+    lines.push(`กำลังใช้ ${finalModel} แทน`);
+  }
+  return lines.join('\n');
 }
 
 function extractImageFromGenerateContentPayload(payload: any) {
@@ -308,21 +345,41 @@ async function generateGeminiReferenceImageWithFallbacks(args: {
   aspectRatio: string;
   negativePrompt?: string;
   modelChain: string[];
-}) {
+}): Promise<GeneratedImagePayload> {
+  const requestedModel = args.modelChain[0] || DEFAULT_GEMINI_IMAGE_MODEL;
+  const fallbackEvents: ModelFallbackEvent[] = [];
   let lastError: any;
 
   for (const modelName of args.modelChain) {
     try {
-      return await generateGeminiReferenceImage({
+      const result = await generateGeminiReferenceImage({
         prompt: args.prompt,
         imageParts: args.imageParts,
         aspectRatio: args.aspectRatio,
         negativePrompt: args.negativePrompt,
         modelName,
       });
+
+      if (fallbackEvents.length > 0 || modelName !== requestedModel) {
+        fallbackEvents.push({ model: modelName, success: true });
+      }
+
+      return {
+        imageUrl: result.imageUrl,
+        modelName: result.modelName,
+        textResponse: result.textResponse,
+        requestedModel,
+        fallbackEvents,
+      };
     } catch (error) {
       lastError = error;
-      console.warn(`[generate] Vertex image model="${modelName}" failed:`, (error as Error)?.message || error);
+      const message = (error as Error)?.message || String(error);
+      fallbackEvents.push({
+        model: modelName,
+        success: false,
+        message: shortenErrorMessage(message),
+      });
+      console.warn(`[generate] Vertex image model="${modelName}" failed:`, message);
     }
   }
 
@@ -336,10 +393,15 @@ async function generateGeminiReferenceImageWithFallbacks(args: {
       ].filter(Boolean).join('\n\n');
 
       const fallback = await generateGeminiImage(fallbackPrompt, args.imageParts, args.aspectRatio);
+      const apiModelName = `${fallback.model} (Gemini API fallback)`;
+      fallbackEvents.push({ model: apiModelName, success: true });
+
       return {
         imageUrl: fallback.imageUrl,
-        modelName: `${fallback.model} (Gemini API fallback)`,
+        modelName: apiModelName,
         textResponse: fallback.text || undefined,
+        requestedModel,
+        fallbackEvents,
       };
     } catch (error) {
       lastError = error;
@@ -455,12 +517,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     const selectedModel = typeof model === 'string' ? model : DEFAULT_GEMINI_IMAGE_MODEL;
+    const requestedModel = normalizeImageModel(selectedModel);
     const generated = isImagen4TextModel(selectedModel)
-      ? await generateImagen4TextImage({
-          modelName: selectedModel,
-          prompt: orchestrated.prompt,
-          aspectRatio,
-        })
+      ? {
+          ...(await generateImagen4TextImage({
+            modelName: selectedModel,
+            prompt: orchestrated.prompt,
+            aspectRatio,
+          })),
+          requestedModel,
+          fallbackEvents: [] as ModelFallbackEvent[],
+        }
       : await generateGeminiReferenceImageWithFallbacks({
           prompt: orchestrated.prompt,
           imageParts,
@@ -468,6 +535,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           negativePrompt: orchestrated.negativePrompt,
           modelChain: resolveGeminiImageModelChain(selectedModel),
         });
+
+    const fallbackNotice = buildFallbackNotice(
+      requestedModel,
+      generated.fallbackEvents,
+      generated.modelName,
+    );
 
     console.log('[usage] image_generation_success', {
       status: 200,
@@ -479,6 +552,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       orchestratorModel: 'gemini-2.5-flash',
       imageModel: generated.modelName,
       category,
+      hadModelFallback: Boolean(fallbackNotice),
     });
 
     return res.status(200).json({
@@ -487,6 +561,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       model: `gemini-2.5-flash -> ${generated.modelName}`,
       textResponse: generated.textResponse || orchestrated.productSummary || undefined,
       thaiTextPlan: orchestrated.thaiTextPlan,
+      requestedModel,
+      fallbackEvents: generated.fallbackEvents,
+      fallbackNotice,
     });
   } catch (error: any) {
     console.error('[api/generate] Error:', error);
