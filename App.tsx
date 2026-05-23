@@ -235,22 +235,11 @@ const STYLES = [
 // โมเดล Gemini ที่ใช้สำหรับสร้างภาพ
 const GEMINI_IMAGE_MODELS = [
   {
-    id: 'product-recontext-v1',
-    name: '2-Stage Product Recontext',
-    badge: 'Recommended',
-    badgeColor: 'bg-gradient-to-r from-emerald-600 to-teal-500',
-    desc: 'Gemini 2.5 Flash วิเคราะห์สินค้า แล้ว Gemini 2.5 Flash Image สร้างภาพใหม่โดยคงสินค้าจากรูปอ้างอิง',
-    borderColor: 'border-emerald-500',
-    glowColor: 'shadow-emerald-500/40',
-    textColor: 'text-emerald-400',
-    iconBg: 'from-emerald-500 to-teal-400',
-  },
-  {
     id: 'gemini-3.1-flash-image-preview',
-    name: 'Gemini 3.1 Flash Image Preview',
-    badge: 'Nano Banana 2',
+    name: 'Gemini 3.1 Flash Image',
+    badge: 'Recommended',
     badgeColor: 'bg-gradient-to-r from-red-500 to-orange-400',
-    desc: 'Gen ข้อความภาษาไทยไม่เพี้ยน ล่าสุด!',
+    desc: 'คุณภาพและความเสถียรสูงสุด — Gemini 2.5 Flash วิเคราะห์สินค้า แล้ว Gemini 3.1 สร้างภาพคงสินค้าจากรูปอ้างอิง รองรับข้อความไทย',
     borderColor: 'border-orange-500',
     glowColor: 'shadow-orange-500/40',
     textColor: 'text-orange-400',
@@ -365,7 +354,7 @@ const App: React.FC = () => {
   const [summaryLength, setSummaryLength] = useState<'short' | 'medium' | 'long'>('medium');
   const [isSavingToFolder, setIsSavingToFolder] = useState(false);
   const [selectedStyle, setSelectedStyle] = useState<string>('aliexpress');
-  const [selectedImageModel, setSelectedImageModel] = useState<string>('product-recontext-v1'); // โมเดลสำหรับสร้างภาพ
+  const [selectedImageModel, setSelectedImageModel] = useState<string>('gemini-3.1-flash-image-preview'); // โมเดลสำหรับสร้างภาพ
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [isScrapingOnly, setIsScrapingOnly] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -555,7 +544,12 @@ const App: React.FC = () => {
           }
           if (savedState.generatedImages) setGeneratedImages(savedState.generatedImages);
           if (savedState.selectedStyle) setSelectedStyle(savedState.selectedStyle);
-          if (savedState.selectedImageModel) setSelectedImageModel(savedState.selectedImageModel);
+          if (savedState.selectedImageModel) {
+            const restoredModel = savedState.selectedImageModel === 'product-recontext-v1'
+              ? 'gemini-3.1-flash-image-preview'
+              : savedState.selectedImageModel;
+            setSelectedImageModel(restoredModel);
+          }
           if (savedState.step) setStep(savedState.step);
           if (savedState.selectedCategories) setSelectedCategories(new Set(savedState.selectedCategories));
         }

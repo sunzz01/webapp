@@ -1061,7 +1061,7 @@ export const generateProductImage = async (
   productData: ProductData,
   style: string,
   customPrompt?: string,  // เพิ่มพารามิเตอร์สำหรับ custom prompt
-  imageModel: string = 'gemini-2.5-flash-image',  // รองรับการเลือกโมเดล (Nano Banana default)
+  imageModel: string = 'gemini-3.1-flash-image-preview',  // รองรับการเลือกโมเดล (Nano Banana 2 default)
   aspectRatio: string = '1:1',  // อัตราส่วนภาพ default 1:1
   styleIndex?: number  // สไตล์เจาะจง (0=random, 1-6=specific variation)
 ): Promise<ImageGenerationResult> => {

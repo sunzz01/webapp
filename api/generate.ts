@@ -3,7 +3,7 @@
  *
  * 2-stage product image pipeline:
  *   1) Gemini 2.5 Flash analyzes product images + legacy direction prompt.
- *   2) Gemini image model (default gemini-2.5-flash-image) generates a new scene
+ *   2) Gemini image model (default gemini-3.1-flash-image-preview) generates a new scene
  *      while preserving the product from reference images.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
@@ -11,9 +11,10 @@ import { getVertexAIForLocation, getVertexAccessToken, getVertexEnvironment } fr
 import { generateGeminiImage } from './_lib/geminiFallback.js';
 import { requireFirebaseUser } from './_lib/firebaseAdmin.js';
 
+const DEFAULT_GEMINI_IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
 const GEMINI_IMAGE_MODEL_FALLBACKS = [
+  DEFAULT_GEMINI_IMAGE_MODEL,
   'gemini-2.5-flash-image',
-  'gemini-3.1-flash-image-preview',
   'gemini-3-pro-image-preview',
 ];
 
@@ -116,15 +117,18 @@ function isImagen4TextModel(model?: string) {
   return model === 'imagen-4.0-generate-001' || model === 'imagen-4.0-fast-generate-001';
 }
 
+function normalizeImageModel(requested?: string) {
+  if (!requested || requested === 'product-recontext-v1') {
+    return process.env.GCP_DEFAULT_IMAGE_MODEL || DEFAULT_GEMINI_IMAGE_MODEL;
+  }
+  return requested;
+}
+
 function resolveGeminiImageModelChain(requested?: string) {
+  const normalized = normalizeImageModel(requested);
   const chain: string[] = [];
-  if (
-    requested &&
-    requested !== 'product-recontext-v1' &&
-    !isImagen4TextModel(requested) &&
-    !requested.startsWith('imagen-product-recontext')
-  ) {
-    chain.push(requested);
+  if (!isImagen4TextModel(normalized) && !normalized.startsWith('imagen-product-recontext')) {
+    chain.push(normalized);
   }
   for (const model of GEMINI_IMAGE_MODEL_FALLBACKS) {
     if (!chain.includes(model)) chain.push(model);
@@ -450,7 +454,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       imageParts,
     });
 
-    const selectedModel = typeof model === 'string' ? model : 'product-recontext-v1';
+    const selectedModel = typeof model === 'string' ? model : DEFAULT_GEMINI_IMAGE_MODEL;
     const generated = isImagen4TextModel(selectedModel)
       ? await generateImagen4TextImage({
           modelName: selectedModel,
