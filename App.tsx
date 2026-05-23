@@ -239,7 +239,7 @@ const GEMINI_IMAGE_MODELS = [
     name: '2-Stage Product Recontext',
     badge: 'Recommended',
     badgeColor: 'bg-gradient-to-r from-emerald-600 to-teal-500',
-    desc: 'Gemini 2.5 Flash วิเคราะห์สินค้าและเขียน prompt จากนั้น Imagen Product Recontext เปลี่ยนฉากโดยคงสินค้าจริง',
+    desc: 'Gemini 2.5 Flash วิเคราะห์สินค้า แล้ว Gemini 2.5 Flash Image สร้างภาพใหม่โดยคงสินค้าจากรูปอ้างอิง',
     borderColor: 'border-emerald-500',
     glowColor: 'shadow-emerald-500/40',
     textColor: 'text-emerald-400',

@@ -29,5 +29,14 @@
         { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }
       ]
     }
-  ]
+  ],
+
+  "functions": {
+    "api/generate.ts": {
+      "maxDuration": 60
+    },
+    "api/analyze.ts": {
+      "maxDuration": 30
+    }
+  }
 }

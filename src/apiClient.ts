@@ -137,7 +137,8 @@ async function apiPost<T>(path: string, body: any): Promise<T> {
 
   const contentType = response.headers.get('content-type') || '';
   const rawBody = await response.text();
-  const looksLikeHtml = rawBody.trim().startsWith('<!DOCTYPE') || rawBody.trim().startsWith('<html');
+  const trimmedBody = rawBody.trim();
+  const looksLikeHtml = /^<!doctype\s+html/i.test(trimmedBody) || /^<html[\s>]/i.test(trimmedBody);
   const parseJsonBody = () => {
     try {
       return rawBody ? JSON.parse(rawBody) : {};
