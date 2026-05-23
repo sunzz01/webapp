@@ -14,6 +14,84 @@ export function isMarketingPlatformStyle(style?: string) {
   return !['minimalist', 'minimalist02'].includes(normalized);
 }
 
+/** Short color/typography hint — not full cover layout (use for non-COVER categories). */
+const PLATFORM_STYLE_ACCENTS: Record<string, string> = {
+  shopee: 'Shopee orange (#EE4D2D), playful bold Thai sale typography — accent only, not a hero cover layout.',
+  lazada: 'Lazada blue (#0F146D) and gold accents — color/typography only.',
+  'shopee-live': 'Live-stream pink-purple gradient accents, energetic typography — not a static cover banner.',
+  'shopee-mall': 'Premium Shopee Mall gold + clean white — refined accents only.',
+  'lazada-flagship': 'Official store blue + elegant typography accents.',
+  tiktok: 'TikTok black + cyan/pink neon accents, bold mobile caption style — only if layout fits category.',
+  tiktok02: 'Creator UGC vertical accents: neon pink/cyan, feed-style chips — not a catalog cover.',
+  pinduoduo: 'Pinduoduo hot pink/orange urgency colors — use only on infographic/social, not lifestyle macro.',
+  pinduoduo02: 'Group-buy price-drop color language — accent only.',
+  taobao: 'Taobao high-saturation collage colors — accent only unless INFOGRAPHIC.',
+  taobao02: 'Mobile collage accent colors.',
+  'budget-friendly': 'Bright yellow/orange value-sale accent colors.',
+  'regional-festival': 'Festive red/gold cultural accent palette.',
+};
+
+export function getPlatformStyleAccent(style: string): string {
+  return PLATFORM_STYLE_ACCENTS[style.toLowerCase()]
+    || `Match ${style} marketplace brand colors and typography as subtle accents — not a main listing cover composition.`;
+}
+
+export function resolveImageCategory(category?: string): ImageCategory | null {
+  if (!category) return null;
+  return (Object.values(ImageCategory) as string[]).includes(category)
+    ? (category as ImageCategory)
+    : null;
+}
+
+export function categoryAllowsPromotionalLayout(category: ImageCategory): boolean {
+  return (
+    category === ImageCategory.COVER
+    || category === ImageCategory.INFOGRAPHIC
+    || category === ImageCategory.SOCIAL_PROOF
+  );
+}
+
+/** Hard constraints so the model does not default every slot to COVER. */
+export function getCategoryHardConstraints(category: ImageCategory): string {
+  switch (category) {
+    case ImageCategory.COVER:
+      return 'MUST be main listing COVER / hero promotional image with full marketplace layout, badges, and hero product.';
+    case ImageCategory.INFOGRAPHIC:
+      return 'MUST be feature infographic with icons/callouts/panels — NOT a plain product hero cover, NOT a lifestyle scene.';
+    case ImageCategory.CLOSE_UP:
+      return 'MUST be macro/detail close-up (texture, material, craftsmanship). Tight crop. FORBIDDEN: full promotional cover, price banners, lifestyle room scenes, infographic grids.';
+    case ImageCategory.LIFESTYLE_A:
+      return 'MUST be lifestyle in cozy HOME/indoor use. FORBIDDEN: cover banner layout, infographic panels, macro-only studio shot.';
+    case ImageCategory.LIFESTYLE_B:
+      return 'MUST be lifestyle OUTDOOR/nature use. FORBIDDEN: cover hero layout, infographic, white-catalog cover.';
+    case ImageCategory.LIFESTYLE_C:
+      return 'MUST be lifestyle in urban/professional/office context. FORBIDDEN: cover hero, infographic grid.';
+    case ImageCategory.LIFESTYLE_THAI_STREET_FOOD:
+      return 'MUST be authentic Thai street food stall scene with product in use. FORBIDDEN: studio cover layout.';
+    case ImageCategory.LIFESTYLE_THAI_MARKET:
+      return 'MUST be traditional Thai market scene. FORBIDDEN: promotional cover banner.';
+    case ImageCategory.LIFESTYLE_THAI_KITCHEN:
+      return 'MUST be Thai kitchen cooking scene. FORBIDDEN: ecommerce cover hero.';
+    case ImageCategory.LIFESTYLE_ISAN_KITCHEN:
+      return 'MUST be Isan kitchen / som tam context. FORBIDDEN: cover-style sale graphics dominating frame.';
+    case ImageCategory.LIFESTYLE_THAI_LOCAL_RESTAURANT:
+      return 'MUST be local Thai restaurant dining context. FORBIDDEN: main listing cover composition.';
+    case ImageCategory.SIZE_CHART:
+      return 'MUST be size/spec/measurement chart layout with dimensions and labels. FORBIDDEN: hero cover, lifestyle scene only.';
+    case ImageCategory.SOCIAL_PROOF:
+      return 'MUST show reviews/trust/unboxing/social proof collage. FORBIDDEN: plain product cover without review elements.';
+    case ImageCategory.TUTORIAL:
+      return 'MUST be numbered step-by-step how-to layout. FORBIDDEN: single hero cover image without steps.';
+    default:
+      return 'Follow the specified image category — do NOT default to main listing COVER.';
+  }
+}
+
+export function getCategoryHardConstraintsForApi(category?: string): string {
+  const resolved = resolveImageCategory(category);
+  return resolved ? getCategoryHardConstraints(resolved) : '';
+}
+
 export function generateStructuredPrompt(productName: string, style: string): string {
   const baseStructure = {
     composition: '',
@@ -557,26 +635,38 @@ export function buildImageGenerationPrompt(
     ? customPrompt
     : buildCategoryTaskPrompt(category, productData, style, styleIndex);
 
-  const platformGuide = category === ImageCategory.COVER
+  const isCover = category === ImageCategory.COVER;
+  const platformGuide = isCover
     ? taskPrompt
-    : `PLATFORM STYLE (${style}) — apply these visual rules to background, graphics, typography, colors, and layout:\n${generateStructuredPrompt(productData.name, style)}`;
+    : [
+      `PLATFORM STYLE ACCENT (${style}) — colors & typography only (NOT full cover layout):`,
+      getPlatformStyleAccent(style),
+      getCategoryHardConstraints(category),
+    ].join('\n');
 
   const marketing = isMarketingPlatformStyle(style);
+  const allowPromoLayout = categoryAllowsPromotionalLayout(category) && marketing;
 
   return [
-    `Create a brand-new ${category} ecommerce MARKETING image (not a near-copy of the reference photo).`,
+    `Create a brand-new ${category} ecommerce image (not a near-copy of the reference photo).`,
     getCategoryCreativeRequirements(category),
+    getCategoryHardConstraints(category),
     platformGuide,
-    `CATEGORY TASK:\n${taskPrompt}`,
+    `PRIMARY CATEGORY TASK (this defines shot type — follow strictly):\n${taskPrompt}`,
     `Product name: ${productData.name || 'Unknown product'}`,
     productData.description ? `Description: ${productData.description}` : '',
     features.length ? `Key features: ${features.join(' | ')}` : '',
     marketing
-      ? 'Keep the SAME product from reference images (shape, logo, color, labels) but CREATE a new scene, background, promotional layout, and marketplace-style graphics as specified. Do NOT return an almost unchanged photo.'
+      ? 'Keep the SAME product from reference images (shape, logo, color, labels) but CREATE a new scene/composition matching the CATEGORY TASK above. Do NOT return an almost unchanged photo.'
       : 'Preserve product identity from references. Minimalist composition — no promotional clutter.',
-    marketing
-      ? 'Include platform-appropriate sale badges, gradients, typography, and layout energy when the style requires it.'
-      : 'No promotional badges or sale text.',
+    allowPromoLayout
+      ? 'Include platform-appropriate sale badges, gradients, typography, and promotional layout energy for this category.'
+      : marketing
+        ? 'Use platform brand colors/typography as subtle accents only. NO main-listing cover layout, NO dominant price banners, NO hero promotional banner.'
+        : 'No promotional badges or sale text.',
+    !isCover
+      ? `FORBIDDEN for this request: treating ${category} as COVER / main listing hero / full promotional banner.`
+      : '',
   ].filter(Boolean).join('\n\n');
 }
 
@@ -589,31 +679,39 @@ export function getOrchestratorInstructions(args: {
   legacyPrompt: string;
 }) {
   const marketing = isMarketingPlatformStyle(args.style);
+  const resolvedCategory = resolveImageCategory(args.category);
+  const categoryConstraints = resolvedCategory
+    ? getCategoryHardConstraints(resolvedCategory)
+    : 'Honor the image category in the legacy prompt (cover vs close-up vs lifestyle vs infographic).';
+  const isCover = resolvedCategory === ImageCategory.COVER;
 
   if (marketing) {
     return `
-You are the Prompt Orchestrator for PLATFORM-SPECIFIC ecommerce marketing images (${args.style}).
+You are the Prompt Orchestrator for PLATFORM-SPECIFIC ecommerce images (${args.style}).
 
 Goal:
-- Read the legacy creative direction carefully — it contains detailed marketplace layout rules (Shopee, Lazada, Pinduoduo, etc.).
-- Output a DETAILED image-generation prompt that produces a NEW marketing image, NOT a barely edited product photo.
-- Keep the same product from reference images but CHANGE scene, background, composition, promotional graphics, badges, gradients, and typography per the platform style.
-- Honor the image category purpose: ${args.category || 'unknown'} (cover, infographic, lifestyle, etc.).
-- Include Thai marketing text suggestions when appropriate for the platform.
+- Read the legacy creative direction — it specifies IMAGE CATEGORY and shot type.
+- Output a DETAILED image-generation prompt for category "${args.category || 'unknown'}" ONLY.
+- Keep the same product from reference images but CHANGE scene/composition to match the category.
+- ${categoryConstraints}
+- ${isCover
+    ? 'For COVER: use full marketplace promotional layout (badges, hero product, sale graphics) per platform style.'
+    : 'For NON-COVER categories: use platform colors/typography as ACCENTS only — do NOT output a main listing cover / hero banner / full promotional cover layout.'}
+- Include Thai marketing text suggestions when appropriate for the category and platform.
 - Aspect ratio: ${args.aspectRatio} (${args.ratioDesc}).
 
 ${args.productContext}
 
 STYLE / PLATFORM: ${args.style || 'default'}
-CATEGORY: ${args.category || 'unknown'}
+CATEGORY (mandatory): ${args.category || 'unknown'}
 
-LEGACY CREATIVE DIRECTION (follow closely — do not simplify away badges, layouts, or sale elements):
+LEGACY CREATIVE DIRECTION (category task is PRIMARY — platform cover rules apply only if category is COVER):
 ${args.legacyPrompt}
 
 Return valid JSON only:
 {
-  "prompt": "detailed final image prompt",
-  "negativePrompt": "plain white catalog photo, unchanged background, no marketing graphics, blurry text",
+  "prompt": "detailed final image prompt that clearly states shot type (${args.category}) in the first sentence",
+  "negativePrompt": "main listing cover layout, hero promotional banner, wrong shot type${isCover ? '' : ', dominant price banners, infographic grid when not infographic'}",
   "productSummary": "short product identity summary",
   "thaiTextPlan": ["short Thai text for overlays if useful"]
 }
@@ -626,7 +724,8 @@ You are the Prompt Orchestrator for ecommerce product images.
 Goal:
 - Analyze product reference images.
 - Use legacy prompt as creative direction.
-- Produce a concise prompt that keeps product identity but improves scene and presentation.
+- Produce a concise prompt that keeps product identity but matches category shot type.
+- ${categoryConstraints}
 - Aspect ratio: ${args.aspectRatio} (${args.ratioDesc}).
 
 ${args.productContext}
@@ -638,8 +737,8 @@ ${args.legacyPrompt}
 
 Return valid JSON only:
 {
-  "prompt": "final image prompt",
-  "negativePrompt": "things to avoid",
+  "prompt": "final image prompt — first sentence must state the ${args.category} shot type",
+  "negativePrompt": "wrong image category, main listing cover when category is not COVER",
   "productSummary": "short product identity summary",
   "thaiTextPlan": ["short Thai text ideas if useful"]
 }

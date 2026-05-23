@@ -10,7 +10,11 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getVertexAIForLocation, getVertexAccessToken, getVertexEnvironment } from './_lib/vertex.js';
 import { generateGeminiImage } from './_lib/geminiFallback.js';
 import { requireFirebaseUser } from './_lib/firebaseAdmin.js';
-import { getOrchestratorInstructions, isMarketingPlatformStyle } from './_lib/imagePromptBuilder.js';
+import {
+  getCategoryHardConstraintsForApi,
+  getOrchestratorInstructions,
+  isMarketingPlatformStyle,
+} from './_lib/imagePromptBuilder.js';
 
 const DEFAULT_GEMINI_IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
 const GEMINI_IMAGE_MODEL_FALLBACKS = [
@@ -268,6 +272,7 @@ async function generateGeminiReferenceImage(args: {
   modelName: string;
   negativePrompt?: string;
   style?: string;
+  category?: string;
 }) {
   const { projectId } = getVertexEnvironment();
   const location = getImageGenLocation();
@@ -277,11 +282,14 @@ async function generateGeminiReferenceImage(args: {
 
   const ratioDesc = RATIO_DESCRIPTIONS[args.aspectRatio] || RATIO_DESCRIPTIONS['1:1'];
   const marketing = isMarketingPlatformStyle(args.style);
+  const categoryLock = getCategoryHardConstraintsForApi(args.category);
   const promptSections = [
     args.prompt,
+    categoryLock,
     `Generate this ecommerce product image in ${args.aspectRatio} (${ratioDesc}).`,
+    args.category ? `Image category for this request: ${args.category}.` : '',
     marketing
-      ? 'Create a NEW marketing composition from the reference product. Change background, layout, promotional graphics, and scene. Do NOT output a near-duplicate of the reference photo.'
+      ? 'Create a NEW composition from the reference product matching the category above. Do NOT output a near-duplicate of the reference photo. Do NOT default non-COVER categories to a main listing cover layout.'
       : 'Preserve product identity. Refine scene and lighting with minimal promotional elements.',
   ];
   if (args.negativePrompt) {
@@ -330,6 +338,7 @@ async function generateGeminiReferenceImageWithFallbacks(args: {
   negativePrompt?: string;
   modelChain: string[];
   style?: string;
+  category?: string;
 }): Promise<GeneratedImagePayload> {
   const requestedModel = args.modelChain[0] || DEFAULT_GEMINI_IMAGE_MODEL;
   const fallbackEvents: ModelFallbackEvent[] = [];
@@ -344,6 +353,7 @@ async function generateGeminiReferenceImageWithFallbacks(args: {
         negativePrompt: args.negativePrompt,
         modelName,
         style: args.style,
+        category: args.category,
       });
 
       if (fallbackEvents.length > 0 || modelName !== requestedModel) {
@@ -372,9 +382,12 @@ async function generateGeminiReferenceImageWithFallbacks(args: {
   if (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY) {
     try {
       const ratioDesc = RATIO_DESCRIPTIONS[args.aspectRatio] || RATIO_DESCRIPTIONS['1:1'];
+      const categoryLock = getCategoryHardConstraintsForApi(args.category);
       const fallbackPrompt = [
         args.prompt,
+        categoryLock,
         `Aspect ratio: ${args.aspectRatio} (${ratioDesc}).`,
+        args.category ? `Image category: ${args.category}.` : '',
         args.negativePrompt ? `Avoid: ${args.negativePrompt}` : '',
       ].filter(Boolean).join('\n\n');
 
@@ -521,6 +534,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           negativePrompt: orchestrated.negativePrompt,
           modelChain: resolveGeminiImageModelChain(selectedModel),
           style,
+          category: typeof category === 'string' ? category : undefined,
         });
 
     const fallbackNotice = buildFallbackNotice(
