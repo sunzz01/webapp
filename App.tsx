@@ -139,6 +139,14 @@ const STYLES = [
     promptTemplate: 'Shopee Live style: live pulse icon, viewer count, pink-purple gradient, floating comments.'
   },
   {
+    id: 'tiktok',
+    name: 'TikTok Shop',
+    emoji: '🎵',
+    color: 'text-cyan-400',
+    desc: 'Vertical social commerce, bold hook text, cyan-pink-black TikTok aesthetic, UGC energy',
+    promptTemplate: 'TikTok Shop style: 9:16 vertical layout, cyan #00F2EA and pink #FF0050 accents, bold hook caption, hashtag chips, Shop Now CTA, trending energy.'
+  },
+  {
     id: 'lazada-flagship',
     name: 'Lazada Flagship',
     emoji: '👑',
@@ -223,6 +231,14 @@ const STYLES = [
     name: 'Pinduoduo Urgency (V.2)',
     desc: 'Gamified urgency, flash sale style, massive price alerts',
     promptTemplate: 'Pinduoduo V.2: Huge price drop text, countdown timers, social validation pulses.'
+  },
+  {
+    id: 'tiktok02',
+    name: 'TikTok Viral (V.2)',
+    emoji: '📲',
+    color: 'text-fuchsia-400',
+    desc: 'For You feed aesthetic, creator POV, viral hook + TikTok Shop flash deal',
+    promptTemplate: 'TikTok V.2: For You page mockup, creator hand holding product, viral hook text, flash price sticker, swipe-up shop CTA.'
   },
   {
     id: 'xianyu02',

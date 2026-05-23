@@ -547,6 +547,14 @@ const extractThaiTexts = (productData: ProductData, category: ImageCategory, sty
         texts.push('Flash Deal ends in 00:05:23');
         texts.push('Only 5 left at this price!');
       }
+      else if (['tiktok', 'tiktok02'].includes(s)) {
+        texts.push('Hook: ราคานี้ห้ามพลาด! / ต้องมี!');
+        texts.push('ป้าย: TikTok Shop | ซื้อเลย / Shop Now');
+        texts.push('ราคา: ฿XXX → ฿XXX (ลด XX%)');
+        texts.push('#TikTokShop #FlashSale');
+        texts.push('12.4K likes | แชร์ | คอมเมนต์');
+        if (s === 'tiktok02') texts.push('For You feed | เพิ่มลงตะกร้า');
+      }
       // === Lazada Group ===
       else if (['lazada', 'lazada-flagship'].includes(s)) {
         texts.push('แบนเนอร์: LazMall / Official Store ✓');
@@ -688,7 +696,7 @@ export const generateProductImage = async (
     case ImageCategory.COVER:
       const basePrompt = generateStructuredPrompt(productData.name, style);
       // Determine if this is an SEA platform and apply localization
-      const seaPlatforms = ['shopee', 'lazada', 'shopee-live', 'lazada-flagship', 'shopee-mall', 'regional-festival', 'budget-friendly'];
+      const seaPlatforms = ['shopee', 'lazada', 'shopee-live', 'lazada-flagship', 'shopee-mall', 'tiktok', 'tiktok02', 'regional-festival', 'budget-friendly'];
       if (seaPlatforms.includes(style.toLowerCase())) {
         const marketData = getSEAMarketVariations('TH'); // Defaulting to TH for now
         promptSuffix = `

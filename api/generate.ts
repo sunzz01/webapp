@@ -10,7 +10,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getVertexAIForLocation, getVertexAccessToken, getVertexEnvironment } from './_lib/vertex.js';
 import { generateGeminiImage } from './_lib/geminiFallback.js';
 import { requireFirebaseUser } from './_lib/firebaseAdmin.js';
-import { getOrchestratorInstructions, isMarketingPlatformStyle } from '../src/imagePromptBuilder.js';
+import { getOrchestratorInstructions, isMarketingPlatformStyle } from './_lib/imagePromptBuilder.js';
 
 const DEFAULT_GEMINI_IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
 const GEMINI_IMAGE_MODEL_FALLBACKS = [

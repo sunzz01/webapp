@@ -294,6 +294,11 @@ function extractThaiTexts(
       } else if (['lazada', 'lazada-flagship'].includes(s)) {
         texts.push('แบนเนอร์: LazMall / Official Store ✓');
         texts.push('ป้ายราคา: ราคาเดิม → ราคา SALE');
+      } else if (['tiktok', 'tiktok02'].includes(s)) {
+        texts.push('Hook: ราคานี้ห้ามพลาด!');
+        texts.push('ป้าย: TikTok Shop | ซื้อเลย');
+        texts.push('ราคา: ฿เดิม → ฿ลด');
+        texts.push('#TikTokShop #FlashSale');
       }
       return texts;
     }
