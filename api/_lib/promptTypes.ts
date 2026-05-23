@@ -1,0 +1,27 @@
+/**
+ * Minimal types for API prompt builder (no dependency on project root / src/).
+ */
+
+export enum ImageCategory {
+  COVER = 'COVER',
+  INFOGRAPHIC = 'INFOGRAPHIC',
+  CLOSE_UP = 'CLOSE_UP',
+  LIFESTYLE_A = 'LIFESTYLE_A',
+  LIFESTYLE_B = 'LIFESTYLE_B',
+  LIFESTYLE_C = 'LIFESTYLE_C',
+  LIFESTYLE_THAI_STREET_FOOD = 'LIFESTYLE_THAI_STREET_FOOD',
+  LIFESTYLE_THAI_MARKET = 'LIFESTYLE_THAI_MARKET',
+  LIFESTYLE_THAI_KITCHEN = 'LIFESTYLE_THAI_KITCHEN',
+  LIFESTYLE_ISAN_KITCHEN = 'LIFESTYLE_ISAN_KITCHEN',
+  LIFESTYLE_THAI_LOCAL_RESTAURANT = 'LIFESTYLE_THAI_LOCAL_RESTAURANT',
+  SIZE_CHART = 'SIZE_CHART',
+  SOCIAL_PROOF = 'SOCIAL_PROOF',
+  TUTORIAL = 'TUTORIAL',
+}
+
+export interface ProductData {
+  name: string;
+  description: string;
+  images: string[];
+  features: string[];
+}

@@ -1,7 +1,7 @@
 ﻿/**
  * Shared image prompt builder — used by apiClient (Vercel) and geminiService (dev).
  */
-import { ImageCategory, type ProductData } from '../../types';
+import { ImageCategory, type ProductData } from './promptTypes.js';
 export const SEA_MARKETPLACE_STYLES = new Set([
   'shopee', 'lazada', 'shopee-live', 'lazada-flagship', 'shopee-mall',
   'tiktok', 'tiktok02',
