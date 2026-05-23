@@ -10,6 +10,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getVertexAIForLocation, getVertexAccessToken, getVertexEnvironment } from './_lib/vertex.js';
 import { generateGeminiImage } from './_lib/geminiFallback.js';
 import { requireFirebaseUser } from './_lib/firebaseAdmin.js';
+import { getOrchestratorInstructions, isMarketingPlatformStyle } from '../src/imagePromptBuilder.js';
 
 const DEFAULT_GEMINI_IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
 const GEMINI_IMAGE_MODEL_FALLBACKS = [
@@ -213,34 +214,14 @@ async function orchestratePromptAtLocation(
     },
   });
 
-  const instruction = `
-You are the Prompt Orchestrator for an ecommerce Product Recontext pipeline.
-
-Goal:
-- Analyze the attached product image(s).
-- Use the existing legacy prompt as creative direction, not as a final prompt.
-- Produce a concise Imagen Product Recontext prompt that keeps the exact same product but changes the scene/background.
-- Preserve product identity: shape, color, material, logo/label placement, visible accessories, and proportions.
-- The final prompt may include Thai text direction if the legacy prompt asks for Thai marketing text, but keep text concise and readable.
-- Avoid overloading the image with many badges, review cards, tiny captions, or dense text.
-- Aspect ratio target: ${args.aspectRatio} (${args.ratioDesc}).
-
-${args.productContext}
-
-CATEGORY: ${args.category || 'unknown'}
-STYLE: ${args.style || 'default'}
-
-LEGACY CREATIVE DIRECTION:
-${args.legacyPrompt}
-
-Return valid JSON only:
-{
-  "prompt": "final recontext prompt for Imagen",
-  "negativePrompt": "things to avoid",
-  "productSummary": "short product identity summary",
-  "thaiTextPlan": ["short Thai text ideas if useful"]
-}
-`.trim();
+  const instruction = getOrchestratorInstructions({
+    category: args.category,
+    style: args.style,
+    aspectRatio: args.aspectRatio,
+    ratioDesc: args.ratioDesc,
+    productContext: args.productContext,
+    legacyPrompt: args.legacyPrompt,
+  });
 
   const response = await model.generateContent({
     contents: [{ role: 'user', parts: [...args.imageParts, { text: instruction }] }],
@@ -286,6 +267,7 @@ async function generateGeminiReferenceImage(args: {
   aspectRatio: string;
   modelName: string;
   negativePrompt?: string;
+  style?: string;
 }) {
   const { projectId } = getVertexEnvironment();
   const location = getImageGenLocation();
@@ -294,11 +276,13 @@ async function generateGeminiReferenceImage(args: {
   const endpoint = `https://${host}/v1/projects/${projectId}/locations/${location}/publishers/google/models/${args.modelName}:generateContent`;
 
   const ratioDesc = RATIO_DESCRIPTIONS[args.aspectRatio] || RATIO_DESCRIPTIONS['1:1'];
+  const marketing = isMarketingPlatformStyle(args.style);
   const promptSections = [
     args.prompt,
     `Generate this ecommerce product image in ${args.aspectRatio} (${ratioDesc}).`,
-    'Preserve the exact product from the reference images: shape, color, labels, materials, and proportions.',
-    'Improve only scene, lighting, background, and presentation.',
+    marketing
+      ? 'Create a NEW marketing composition from the reference product. Change background, layout, promotional graphics, and scene. Do NOT output a near-duplicate of the reference photo.'
+      : 'Preserve product identity. Refine scene and lighting with minimal promotional elements.',
   ];
   if (args.negativePrompt) {
     promptSections.push(`Avoid: ${args.negativePrompt}`);
@@ -345,6 +329,7 @@ async function generateGeminiReferenceImageWithFallbacks(args: {
   aspectRatio: string;
   negativePrompt?: string;
   modelChain: string[];
+  style?: string;
 }): Promise<GeneratedImagePayload> {
   const requestedModel = args.modelChain[0] || DEFAULT_GEMINI_IMAGE_MODEL;
   const fallbackEvents: ModelFallbackEvent[] = [];
@@ -358,6 +343,7 @@ async function generateGeminiReferenceImageWithFallbacks(args: {
         aspectRatio: args.aspectRatio,
         negativePrompt: args.negativePrompt,
         modelName,
+        style: args.style,
       });
 
       if (fallbackEvents.length > 0 || modelName !== requestedModel) {
@@ -534,6 +520,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           aspectRatio,
           negativePrompt: orchestrated.negativePrompt,
           modelChain: resolveGeminiImageModelChain(selectedModel),
+          style,
         });
 
     const fallbackNotice = buildFallbackNotice(
