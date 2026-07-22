@@ -48,7 +48,7 @@ import { useAuth } from './src/contexts/AuthContext';
 import { saveToDB, loadFromDB, clearDB } from './src/utils/storage'; // Persistence
 import { ImageEditorModal } from './src/components/ImageEditorModal';
 import LoginPage from './src/components/LoginPage';
-import { ShopeeAdsStudio, type ThaiAdsSeed } from './src/components/ShopeeAdsStudio';
+import { ShopeeAdsStudio, createThaiAdsSession, type ThaiAdsSession } from './src/components/ShopeeAdsStudio';
 
 const STYLES = [
   {
@@ -360,7 +360,7 @@ const App: React.FC = () => {
   const [isSubmittingAuth, setIsSubmittingAuth] = useState<boolean>(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState<boolean>(false);
   const [studioMode, setStudioMode] = useState(false);
-  const [thaiAdsSeed, setThaiAdsSeed] = useState<ThaiAdsSeed | null>(null);
+  const [thaiAdsSession, setThaiAdsSession] = useState<ThaiAdsSession>(createThaiAdsSession);
 
   const [productUrl, setProductUrl] = useState<string>('');
   const [productName, setProductName] = useState<string>('');
@@ -561,6 +561,17 @@ const App: React.FC = () => {
           if (savedState.selectedImageModel) setSelectedImageModel(savedState.selectedImageModel);
           if (savedState.step) setStep(savedState.step);
           if (savedState.selectedCategories) setSelectedCategories(new Set(savedState.selectedCategories));
+          if (savedState.thaiAdsSession) {
+            const restoredThaiAds = savedState.thaiAdsSession as ThaiAdsSession;
+            setThaiAdsSession({
+              ...createThaiAdsSession(),
+              ...restoredThaiAds,
+              isGenerating: false,
+              cards: (restoredThaiAds.cards || []).map(card => card.status === 'generating'
+                ? { ...card, status: 'error', error: 'งานหยุดเนื่องจากมีการรีเฟรชหน้า กรุณาสร้างภาพนี้ใหม่' }
+                : card),
+            });
+          }
         }
       } catch (err) {
         console.error('Failed to restore state from DB:', err);
@@ -585,7 +596,8 @@ const App: React.FC = () => {
       selectedStyle,
       selectedImageModel,
       step,
-      selectedCategories: Array.from(selectedCategories)
+      selectedCategories: Array.from(selectedCategories),
+      thaiAdsSession,
     };
     
     saveToDB('appState', stateToSave).catch(err => console.error('Failed to save state to DB:', err));
@@ -600,7 +612,8 @@ const App: React.FC = () => {
     selectedStyle,
     selectedImageModel,
     step,
-    selectedCategories
+    selectedCategories,
+    thaiAdsSession
   ]);
 
   // ==========================================
@@ -763,12 +776,13 @@ const App: React.FC = () => {
       .map(line => line.replace(/^[-*•\s]+/, '').trim())
       .filter(line => line.length > 2)
       .slice(0, 8);
-    setThaiAdsSeed({
-      id: `${Date.now()}-${images.length}`,
+    setThaiAdsSession({
+      ...createThaiAdsSession(),
+      assets: { product: images, package: [], logo: [] },
       name: productName || 'สินค้าใหม่',
-      description: productDesc,
-      images,
-      facts,
+      details: productDesc,
+      factsText: facts.join('\n'),
+      notice: `รับข้อมูลสินค้าและรูปอ้างอิงจากหน้า Analyze แล้ว (${images.length} รูป)`,
     });
     setStudioMode(true);
     addNotification('success', 'ส่งไป Thai Ads แล้ว', `พร้อมสร้างภาพจากรูปอ้างอิง ${images.length} รูป`);
@@ -935,6 +949,7 @@ const App: React.FC = () => {
     if (validImages.length === 0) {
       addNotification('error', 'อ่านรูปสินค้าไม่ได้', 'ระบบไม่สามารถแปลงรูปสินค้าเป็นไฟล์สำหรับส่งให้ AI ได้ กรุณาอัปโหลดรูปใหม่หรือใช้รูปที่มีขนาดเล็กลง');
       setGeneratedImages([]);
+      setThaiAdsSession(createThaiAdsSession());
       setIsGenerating(false);
       setStep(2);
       return;
@@ -1650,7 +1665,7 @@ const App: React.FC = () => {
       </header>
 
       <main className={`flex-1 w-full px-6 py-10 ${theme === 'dark' ? 'bg-[#0b1523]' : 'bg-[#f8fafc]'}`}>
-        {studioMode ? <ShopeeAdsStudio dark={theme === 'dark'} seed={thaiAdsSeed} imageModel={selectedImageModel} /> : <>
+        {studioMode ? <ShopeeAdsStudio dark={theme === 'dark'} imageModel={selectedImageModel} session={thaiAdsSession} setSession={setThaiAdsSession} /> : <>
         {step === 1 && (
           <div className="mx-auto grid w-full max-w-[1320px] grid-cols-1 gap-10 lg:grid-cols-[1.08fr_0.92fr] animate-in fade-in slide-in-from-bottom-4 duration-500">
             <section className="space-y-7 pt-6">
