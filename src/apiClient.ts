@@ -268,7 +268,7 @@ export async function generateProductImage(
 export async function generateShopeeAdImage(
   productData: ProductData,
   brief: ShopeeAdBrief,
-  imageModel = 'product-recontext-v1',
+  imageModel = 'imagen-3.0-generate-002',
 ): Promise<ImageGenerationResult> {
   const facts = brief.facts.filter(Boolean).join(' | ');
   const thaiCopy = brief.thaiCopy.filter(Boolean).join(' | ');

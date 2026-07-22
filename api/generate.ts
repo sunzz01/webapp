@@ -98,8 +98,18 @@ function getRecontextModel() {
   return process.env.IMAGEN_RECONTEXT_MODEL || 'imagen-product-recontext-preview-06-30';
 }
 
-function isImagen4TextModel(model?: string) {
-  return model === 'imagen-4.0-generate-001' || model === 'imagen-4.0-fast-generate-001';
+function isImagenTextModel(model?: string) {
+  return [
+    'imagen-3.0-generate-002',
+    'imagen-3.0-fast-generate-001',
+    'imagen-4.0-generate-001',
+    'imagen-4.0-fast-generate-001',
+  ].includes(model || '');
+}
+
+function isUnavailableRecontextModel(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return /publisher model|not found|does not have access|unsupported model/i.test(message);
 }
 
 async function orchestratePrompt(args: {
@@ -348,27 +358,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       imageParts,
     });
 
-    const selectedModel = typeof model === 'string' ? model : 'product-recontext-v1';
-    const generated = isImagen4TextModel(selectedModel)
-      ? await generateImagen4TextImage({
-          modelName: selectedModel,
-          prompt: orchestrated.prompt,
-          aspectRatio,
-        })
-      : await generateProductRecontextImage({
+    const selectedModel = typeof model === 'string' ? model : 'imagen-3.0-generate-002';
+    let generated;
+    if (isImagenTextModel(selectedModel)) {
+      generated = await generateImagen4TextImage({
+        modelName: selectedModel,
+        prompt: orchestrated.prompt,
+        aspectRatio,
+      });
+    } else {
+      // Product Recontext is a preview/allowlisted publisher model. Projects
+      // without access still receive a generated listing image rather than 500.
+      try {
+        generated = await generateProductRecontextImage({
           prompt: orchestrated.prompt,
           imageParts,
           aspectRatio,
           negativePrompt: orchestrated.negativePrompt,
         });
+      } catch (error) {
+        if (!isUnavailableRecontextModel(error)) throw error;
+        const fallbackModel = process.env.IMAGEN_FALLBACK_MODEL || 'imagen-3.0-generate-002';
+        console.warn(`[api/generate] Recontext is unavailable; falling back to ${fallbackModel}.`);
+        generated = await generateImagen4TextImage({
+          modelName: fallbackModel,
+          prompt: orchestrated.prompt,
+          aspectRatio,
+        });
+      }
+    }
 
     console.log('[usage] image_generation_success', {
       status: 200,
       uid: firebaseUser.uid,
       email: firebaseUser.email,
-      pipeline: isImagen4TextModel(selectedModel)
-        ? 'gemini-2.5-flash->imagen-4'
-        : 'gemini-2.5-flash->imagen-product-recontext',
+      pipeline: isImagenTextModel(selectedModel)
+        ? 'gemini-2.5-flash->imagen'
+        : 'gemini-2.5-flash->imagen-product-recontext-or-fallback',
       orchestratorModel: 'gemini-2.5-flash',
       imageModel: generated.modelName,
       category,

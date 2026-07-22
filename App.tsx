@@ -368,7 +368,7 @@ const App: React.FC = () => {
   const [summaryLength, setSummaryLength] = useState<'short' | 'medium' | 'long'>('medium');
   const [isSavingToFolder, setIsSavingToFolder] = useState(false);
   const [selectedStyle, setSelectedStyle] = useState<string>('aliexpress');
-  const [selectedImageModel, setSelectedImageModel] = useState<string>('product-recontext-v1'); // โมเดลสำหรับสร้างภาพ
+  const [selectedImageModel, setSelectedImageModel] = useState<string>('imagen-3.0-generate-002'); // โมเดลสำหรับสร้างภาพ
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [isScrapingOnly, setIsScrapingOnly] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
