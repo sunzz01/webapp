@@ -1,12 +1,20 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import JSZip from 'jszip';
 import { Download, ImagePlus, Loader2, Package, RefreshCw, ShieldCheck, Sparkles, UserRound, X } from 'lucide-react';
-import { generateShopeeAdImage, type ShopeeAdBrief } from '../apiClient';
-import type { ProductData } from '../../types';
+import { generateProductImage, type ShopeeAdBrief } from '../apiClient';
+import { ImageCategory, type ProductData } from '../../types';
 
 type AssetKind = 'product' | 'package' | 'logo';
 type AdStatus = 'ready' | 'generating' | 'completed' | 'error';
 type AdCard = ShopeeAdBrief & { id: string; status: AdStatus; imageUrl?: string; error?: string };
+
+export type ThaiAdsSeed = {
+  id: string;
+  name: string;
+  description: string;
+  images: string[];
+  facts?: string[];
+};
 
 const BLUEPRINTS: Omit<AdCard, 'status' | 'imageUrl' | 'error'>[] = [
   { id: 'hero', role: 'THAI AD COVER HERO', title: 'ภาพปกยิงแอด', objective: 'หยุดสายตาใน 1 วินาที สินค้าเด่นที่สุด', facts: [], thaiCopy: [], includePerson: false },
@@ -27,6 +35,28 @@ const readFiles = async (files: FileList | null): Promise<string[]> => Promise.a
 
 const cleanName = (value: string) => value.replace(/[\\/:*?"<>|]/g, '_').trim() || 'shopee-ad';
 
+const categoryForCard = (id: string): ImageCategory => ({
+  hero: ImageCategory.COVER,
+  anatomy: ImageCategory.INFOGRAPHIC,
+  spec: ImageCategory.SIZE_CHART,
+  macro: ImageCategory.CLOSE_UP,
+  action: ImageCategory.LIFESTYLE_A,
+  solution: ImageCategory.INFOGRAPHIC,
+  lifestyle: ImageCategory.LIFESTYLE_A,
+  package: ImageCategory.INFOGRAPHIC,
+  'hero-lifestyle': ImageCategory.LIFESTYLE_B,
+  feature: ImageCategory.INFOGRAPHIC,
+}[id] || ImageCategory.COVER);
+
+const buildThaiAdsPrompt = (card: AdCard) => [
+  `Thai Shopee Detail-Rich Ads role: ${card.role}.`,
+  `Objective: ${card.objective}.`,
+  'Use a clean Thai high-information ecommerce layout, with the exact reference product large and unmistakable. Preserve identity, colour, materials, labels, shape, proportions, and included pieces.',
+  card.facts.length ? `Confirmed facts only: ${card.facts.join(' | ')}.` : 'Use only visible product details; do not invent specifications.',
+  card.includePerson ? `Include an adult Thai or Asian person naturally using the exact product. ${card.personBrief || ''}` : 'Do not include people unless the role requires them.',
+  'Leave clean overlay space for editable Thai copy. Do not invent prices, discounts, reviews, certification badges, measurements, variants, accessories, or claims.',
+].filter(Boolean).join('\n\n');
+
 async function imageWithCopy(url: string, copy: string[]) {
   const image = new Image(); image.crossOrigin = 'anonymous'; image.src = url; await image.decode();
   const canvas = document.createElement('canvas'); canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
@@ -42,7 +72,7 @@ async function imageWithCopy(url: string, copy: string[]) {
   return await new Promise<Blob>((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Export failed')), 'image/png'));
 }
 
-export function ShopeeAdsStudio({ dark }: { dark: boolean }) {
+export function ShopeeAdsStudio({ dark, seed, imageModel }: { dark: boolean; seed?: ThaiAdsSeed | null; imageModel: string }) {
   const [assets, setAssets] = useState<Record<AssetKind, string[]>>({ product: [], package: [], logo: [] });
   const [name, setName] = useState(''); const [details, setDetails] = useState(''); const [factsText, setFactsText] = useState('');
   const [count, setCount] = useState(10); const [heroWithPerson, setHeroWithPerson] = useState(true); const [personBrief, setPersonBrief] = useState('คนไทยหรือเอเชียวัยผู้ใหญ่ ใช้งานสินค้าอย่างเป็นธรรมชาติ');
@@ -51,6 +81,15 @@ export function ShopeeAdsStudio({ dark }: { dark: boolean }) {
   const allImages = useMemo(() => [...assets.product, ...assets.package, ...assets.logo], [assets]);
   const confirmedFacts = useMemo(() => factsText.split('\n').map(x => x.trim()).filter(Boolean), [factsText]);
   const classCard = dark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900';
+
+  useEffect(() => {
+    if (!seed) return;
+    setName(seed.name);
+    setDetails(seed.description);
+    setFactsText(seed.facts?.join('\n') || '');
+    setAssets(current => ({ ...current, product: seed.images }));
+    setNotice(`รับข้อมูลสินค้าและรูปอ้างอิงจากหน้า Analyze แล้ว (${seed.images.length} รูป)`);
+  }, [seed?.id]);
 
   const addAssets = async (kind: AssetKind, files: FileList | null) => {
     const data = await readFiles(files); setAssets(prev => ({ ...prev, [kind]: [...prev[kind], ...data] }));
@@ -66,7 +105,7 @@ export function ShopeeAdsStudio({ dark }: { dark: boolean }) {
     for (const card of work) {
       updateCard(card.id, { status: 'generating', error: undefined });
       try {
-        const result = await generateShopeeAdImage(product, card);
+        const result = await generateProductImage(categoryForCard(card.id), product, 'shopee', buildThaiAdsPrompt(card), imageModel, '1:1');
         updateCard(card.id, { status: 'completed', imageUrl: result.imageUrl, thaiCopy: card.thaiCopy.length ? card.thaiCopy : result.thaiTexts });
       } catch (error) { updateCard(card.id, { status: 'error', error: error instanceof Error ? error.message : 'สร้างภาพไม่สำเร็จ' }); }
     }
@@ -74,7 +113,7 @@ export function ShopeeAdsStudio({ dark }: { dark: boolean }) {
   };
   const regenerate = async (card: AdCard) => {
     if (!allImages.length) return; updateCard(card.id, { status: 'generating', error: undefined });
-    try { const result = await generateShopeeAdImage({ name, description: details, features: confirmedFacts, images: allImages }, card); updateCard(card.id, { status: 'completed', imageUrl: result.imageUrl }); }
+    try { const result = await generateProductImage(categoryForCard(card.id), { name, description: details, features: confirmedFacts, images: allImages }, 'shopee', buildThaiAdsPrompt(card), imageModel, '1:1'); updateCard(card.id, { status: 'completed', imageUrl: result.imageUrl, thaiCopy: card.thaiCopy.length ? card.thaiCopy : result.thaiTexts }); }
     catch (error) { updateCard(card.id, { status: 'error', error: error instanceof Error ? error.message : 'สร้างภาพไม่สำเร็จ' }); }
   };
   const download = async (card: AdCard) => { if (!card.imageUrl) return; const blob = await imageWithCopy(card.imageUrl, card.thaiCopy); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${cleanName(name)}-${card.id}.png`; a.click(); URL.revokeObjectURL(a.href); };

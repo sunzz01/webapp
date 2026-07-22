@@ -48,7 +48,7 @@ import { useAuth } from './src/contexts/AuthContext';
 import { saveToDB, loadFromDB, clearDB } from './src/utils/storage'; // Persistence
 import { ImageEditorModal } from './src/components/ImageEditorModal';
 import LoginPage from './src/components/LoginPage';
-import { ShopeeAdsStudio } from './src/components/ShopeeAdsStudio';
+import { ShopeeAdsStudio, type ThaiAdsSeed } from './src/components/ShopeeAdsStudio';
 
 const STYLES = [
   {
@@ -360,6 +360,7 @@ const App: React.FC = () => {
   const [isSubmittingAuth, setIsSubmittingAuth] = useState<boolean>(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState<boolean>(false);
   const [studioMode, setStudioMode] = useState(false);
+  const [thaiAdsSeed, setThaiAdsSeed] = useState<ThaiAdsSeed | null>(null);
 
   const [productUrl, setProductUrl] = useState<string>('');
   const [productName, setProductName] = useState<string>('');
@@ -740,6 +741,37 @@ const App: React.FC = () => {
       console.error("Failed to convert image:", url, e);
       return "";
     }
+  };
+
+  const sendToThaiAds = async () => {
+    const sourceImages = [...localImages, ...scrapedImages];
+    if (!sourceImages.length) {
+      addNotification('warning', 'ต้องมีรูปสินค้าก่อน', 'กรุณาอัปโหลดรูป หรือส่งข้อมูลสินค้าจาก Gimi Shopee X ก่อนเปิด Thai Ads');
+      return;
+    }
+
+    addNotification('info', 'กำลังส่งข้อมูลไป Thai Ads', 'กำลังเตรียมรูปสินค้าและรายละเอียดจากหน้า Analyze…');
+    const converted = await Promise.all(sourceImages.slice(0, 6).map(imageUrlToBase64));
+    const images = converted.filter(Boolean);
+    if (!images.length) {
+      addNotification('error', 'เตรียมรูปไม่สำเร็จ', 'ไม่สามารถอ่านรูปสินค้าสำหรับ Thai Ads ได้ กรุณาลองอัปโหลดรูปโดยตรง');
+      return;
+    }
+
+    const facts = productDesc
+      .split('\n')
+      .map(line => line.replace(/^[-*•\s]+/, '').trim())
+      .filter(line => line.length > 2)
+      .slice(0, 8);
+    setThaiAdsSeed({
+      id: `${Date.now()}-${images.length}`,
+      name: productName || 'สินค้าใหม่',
+      description: productDesc,
+      images,
+      facts,
+    });
+    setStudioMode(true);
+    addNotification('success', 'ส่งไป Thai Ads แล้ว', `พร้อมสร้างภาพจากรูปอ้างอิง ${images.length} รูป`);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1618,13 +1650,18 @@ const App: React.FC = () => {
       </header>
 
       <main className={`flex-1 w-full px-6 py-10 ${theme === 'dark' ? 'bg-[#0b1523]' : 'bg-[#f8fafc]'}`}>
-        {studioMode ? <ShopeeAdsStudio dark={theme === 'dark'} /> : <>
+        {studioMode ? <ShopeeAdsStudio dark={theme === 'dark'} seed={thaiAdsSeed} imageModel={selectedImageModel} /> : <>
         {step === 1 && (
           <div className="mx-auto grid w-full max-w-[1320px] grid-cols-1 gap-10 lg:grid-cols-[1.08fr_0.92fr] animate-in fade-in slide-in-from-bottom-4 duration-500">
             <section className="space-y-7 pt-6">
               <div>
                 <h2 className={`text-4xl font-black tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>เพิ่มข้อมูลสินค้า</h2>
-                <p className={`mt-3 text-base font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-500'}`}>เพิ่มรายละเอียดสินค้าและอัปโหลดรูปภาพ เพื่อเริ่มการปรับแต่งด้วย AI</p>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-4">
+                  <p className={`text-base font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-500'}`}>เพิ่มรายละเอียดสินค้าและอัปโหลดรูปภาพ เพื่อเริ่มการปรับแต่งด้วย AI</p>
+                  <button onClick={sendToThaiAds} disabled={!localImages.length && !scrapedImages.length} className="flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-40">
+                    <Sparkles className="h-4 w-4" /> ส่งไป Thai Ads
+                  </button>
+                </div>
               </div>
 
               <div>
