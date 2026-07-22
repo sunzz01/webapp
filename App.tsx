@@ -48,6 +48,7 @@ import { useAuth } from './src/contexts/AuthContext';
 import { saveToDB, loadFromDB, clearDB } from './src/utils/storage'; // Persistence
 import { ImageEditorModal } from './src/components/ImageEditorModal';
 import LoginPage from './src/components/LoginPage';
+import { ShopeeAdsStudio } from './src/components/ShopeeAdsStudio';
 
 const STYLES = [
   {
@@ -139,14 +140,6 @@ const STYLES = [
     promptTemplate: 'Shopee Live style: live pulse icon, viewer count, pink-purple gradient, floating comments.'
   },
   {
-    id: 'tiktok',
-    name: 'TikTok Shop',
-    emoji: '🎵',
-    color: 'text-cyan-400',
-    desc: 'Vertical social commerce, bold hook text, cyan-pink-black TikTok aesthetic, UGC energy',
-    promptTemplate: 'TikTok Shop style: 9:16 vertical layout, cyan #00F2EA and pink #FF0050 accents, bold hook caption, hashtag chips, Shop Now CTA, trending energy.'
-  },
-  {
     id: 'lazada-flagship',
     name: 'Lazada Flagship',
     emoji: '👑',
@@ -233,14 +226,6 @@ const STYLES = [
     promptTemplate: 'Pinduoduo V.2: Huge price drop text, countdown timers, social validation pulses.'
   },
   {
-    id: 'tiktok02',
-    name: 'TikTok Viral (V.2)',
-    emoji: '📲',
-    color: 'text-fuchsia-400',
-    desc: 'For You feed aesthetic, creator POV, viral hook + TikTok Shop flash deal',
-    promptTemplate: 'TikTok V.2: For You page mockup, creator hand holding product, viral hook text, flash price sticker, swipe-up shop CTA.'
-  },
-  {
     id: 'xianyu02',
     name: 'Xianyu C2C (V.2)',
     desc: 'Authentic second-hand style, honest wear marks, real home setting',
@@ -251,11 +236,22 @@ const STYLES = [
 // โมเดล Gemini ที่ใช้สำหรับสร้างภาพ
 const GEMINI_IMAGE_MODELS = [
   {
-    id: 'gemini-3.1-flash-image-preview',
-    name: 'Gemini 3.1 Flash Image',
+    id: 'product-recontext-v1',
+    name: '2-Stage Product Recontext',
     badge: 'Recommended',
+    badgeColor: 'bg-gradient-to-r from-emerald-600 to-teal-500',
+    desc: 'Gemini 2.5 Flash วิเคราะห์สินค้าและเขียน prompt จากนั้น Imagen Product Recontext เปลี่ยนฉากโดยคงสินค้าจริง',
+    borderColor: 'border-emerald-500',
+    glowColor: 'shadow-emerald-500/40',
+    textColor: 'text-emerald-400',
+    iconBg: 'from-emerald-500 to-teal-400',
+  },
+  {
+    id: 'gemini-3.1-flash-image-preview',
+    name: 'Gemini 3.1 Flash Image Preview',
+    badge: 'Nano Banana 2',
     badgeColor: 'bg-gradient-to-r from-red-500 to-orange-400',
-    desc: 'คุณภาพและความเสถียรสูงสุด — Gemini 2.5 Flash วิเคราะห์สินค้า แล้ว Gemini 3.1 สร้างภาพคงสินค้าจากรูปอ้างอิง รองรับข้อความไทย',
+    desc: 'Gen ข้อความภาษาไทยไม่เพี้ยน ล่าสุด!',
     borderColor: 'border-orange-500',
     glowColor: 'shadow-orange-500/40',
     textColor: 'text-orange-400',
@@ -329,36 +325,6 @@ const GEMINI_IMAGE_MODELS = [
   },
 ];
 
-const getModelDisplayName = (modelId: string) =>
-  GEMINI_IMAGE_MODELS.find((model) => model.id === modelId)?.name || modelId;
-
-const buildGeneratingStatusMessage = (modelId: string) =>
-  `กำลังสร้างด้วย ${getModelDisplayName(modelId)}...`;
-
-const applyImageGenerationResult = (
-  result: {
-    imageUrl: string;
-    thaiTexts?: string[];
-    promptUsed?: string;
-    modelUsed?: string;
-    requestedModel?: string;
-    fallbackNotice?: string;
-    fallbackEvents?: GeneratedImage['fallbackEvents'];
-  },
-  requestedModel: string,
-) => ({
-  url: result.imageUrl,
-  status: 'completed' as const,
-  thaiTexts: result.thaiTexts,
-  promptUsed: result.promptUsed,
-  modelUsed: result.modelUsed,
-  requestedModel: result.requestedModel || requestedModel,
-  fallbackNotice: result.fallbackNotice,
-  fallbackEvents: result.fallbackEvents,
-  statusMessage: undefined,
-  error: undefined,
-});
-
 // Aspect Ratio options
 const ASPECT_RATIOS = [
   { id: '1:1', label: '1:1', name: 'Square', icon: '⬛', desc: 'Shopee/Lazada Product' },
@@ -393,6 +359,7 @@ const App: React.FC = () => {
   const [authName, setAuthName] = useState<string>('');
   const [isSubmittingAuth, setIsSubmittingAuth] = useState<boolean>(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState<boolean>(false);
+  const [studioMode, setStudioMode] = useState(false);
 
   const [productUrl, setProductUrl] = useState<string>('');
   const [productName, setProductName] = useState<string>('');
@@ -400,7 +367,7 @@ const App: React.FC = () => {
   const [summaryLength, setSummaryLength] = useState<'short' | 'medium' | 'long'>('medium');
   const [isSavingToFolder, setIsSavingToFolder] = useState(false);
   const [selectedStyle, setSelectedStyle] = useState<string>('aliexpress');
-  const [selectedImageModel, setSelectedImageModel] = useState<string>('gemini-3.1-flash-image-preview'); // โมเดลสำหรับสร้างภาพ
+  const [selectedImageModel, setSelectedImageModel] = useState<string>('product-recontext-v1'); // โมเดลสำหรับสร้างภาพ
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [isScrapingOnly, setIsScrapingOnly] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -590,12 +557,7 @@ const App: React.FC = () => {
           }
           if (savedState.generatedImages) setGeneratedImages(savedState.generatedImages);
           if (savedState.selectedStyle) setSelectedStyle(savedState.selectedStyle);
-          if (savedState.selectedImageModel) {
-            const restoredModel = savedState.selectedImageModel === 'product-recontext-v1'
-              ? 'gemini-3.1-flash-image-preview'
-              : savedState.selectedImageModel;
-            setSelectedImageModel(restoredModel);
-          }
+          if (savedState.selectedImageModel) setSelectedImageModel(savedState.selectedImageModel);
           if (savedState.step) setStep(savedState.step);
           if (savedState.selectedCategories) setSelectedCategories(new Set(savedState.selectedCategories));
         }
@@ -957,15 +919,7 @@ const App: React.FC = () => {
 
     let successCount = 0;
     for (const cat of categoriesToGenerate) {
-      setGeneratedImages(prev => prev.map(p => p.category === cat ? {
-        ...p,
-        status: 'generating',
-        requestedModel: selectedImageModel,
-        statusMessage: buildGeneratingStatusMessage(selectedImageModel),
-        fallbackNotice: undefined,
-        fallbackEvents: undefined,
-        error: undefined,
-      } : p));
+      setGeneratedImages(prev => prev.map(p => p.category === cat ? { ...p, status: 'generating' } : p));
       try {
         const customPromptForTutorial = cat === ImageCategory.TUTORIAL
           ? JSON.stringify(tutorialStepPrompts)
@@ -983,13 +937,7 @@ const App: React.FC = () => {
           styleIdx = parseInt(val) || undefined;
         }
         const result = await generateProductImage(cat, productData, selectedStyle, customPromptForTutorial, selectedImageModel, imageAspectRatios[cat] || selectedAspectRatio, styleIdx);
-        if (result.fallbackNotice) {
-          addNotification('warning', 'สลับโมเดลอัตโนมัติ', result.fallbackNotice.replace(/\n/g, ' · '));
-        }
-        setGeneratedImages(prev => prev.map(p => p.category === cat ? {
-          ...p,
-          ...applyImageGenerationResult(result, selectedImageModel),
-        } : p));
+        setGeneratedImages(prev => prev.map(p => p.category === cat ? { ...p, url: result.imageUrl, status: 'completed', thaiTexts: result.thaiTexts, promptUsed: result.promptUsed, modelUsed: result.modelUsed } : p));
         successCount++;
       } catch (err) {
         setGeneratedImages(prev => prev.map(p => p.category === cat ? { ...p, status: 'error', error: err instanceof Error ? err.message : 'Unknown error' } : p));
@@ -1027,11 +975,7 @@ const App: React.FC = () => {
           img.category === category ? {
             ...img,
             status: 'generating',
-            requestedModel: selectedImageModel,
-            statusMessage: buildGeneratingStatusMessage(selectedImageModel),
-            fallbackNotice: undefined,
-            fallbackEvents: undefined,
-            error: undefined,
+            error: undefined
           } : img
         );
       } else {
@@ -1041,9 +985,7 @@ const App: React.FC = () => {
           category: category,
           url: '',
           prompt: '',
-          status: 'generating',
-          requestedModel: selectedImageModel,
-          statusMessage: buildGeneratingStatusMessage(selectedImageModel),
+          status: 'generating'
         }];
       }
     });
@@ -1069,15 +1011,15 @@ const App: React.FC = () => {
       const ratio = imageAspectRatios[category] || selectedAspectRatio;
       const result = await generateProductImage(category, productData, styleToUse, customPrompt, selectedImageModel, ratio, styleIndex);
 
-      if (result.fallbackNotice) {
-        addNotification('warning', 'สลับโมเดลอัตโนมัติ', result.fallbackNotice.replace(/\n/g, ' · '));
-      }
-
       // อัปเดตเฉพาะภาพที่เลือก
       setGeneratedImages(prev => prev.map(img =>
         img.category === category ? {
           ...img,
-          ...applyImageGenerationResult(result, selectedImageModel),
+          url: result.imageUrl,
+          status: 'completed',
+          thaiTexts: result.thaiTexts,
+          promptUsed: result.promptUsed,
+          modelUsed: result.modelUsed
         } : img
       ));
     } catch (err) {
@@ -1537,17 +1479,30 @@ const App: React.FC = () => {
           {[1, 2, 3].map((s) => (
             <button
               key={s}
-              onClick={() => setStep(s)}
+              onClick={() => { setStudioMode(false); setStep(s); }}
               className={`px-5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${step === s ? (theme === 'dark' ? 'bg-gray-600 text-orange-400' : 'bg-white text-orange-600') : (theme === 'dark' ? 'text-gray-300 hover:text-gray-100' : 'text-slate-400 hover:text-slate-600')}`}
             >
               <span className={`w-5 h-5 flex items-center justify-center rounded-lg text-[10px] ${step === s ? (theme === 'dark' ? 'bg-orange-500 text-white' : 'bg-orange-500 text-white') : (theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-slate-200 text-slate-500')}`}>{s}</span>
               {s === 1 ? 'ANALYZE' : s === 2 ? 'CONFIGURE' : 'RESULTS'}
             </button>
           ))}
+          <button
+            onClick={() => setStudioMode(true)}
+            className={`px-5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${studioMode ? (theme === 'dark' ? 'bg-gray-600 text-orange-400' : 'bg-white text-orange-600') : (theme === 'dark' ? 'text-gray-300 hover:text-gray-100' : 'text-slate-400 hover:text-slate-600')}`}
+          >
+            <Sparkles className="w-4 h-4" /> THAI ADS
+          </button>
         </nav>
 
         {/* ส่วน User Profile + Theme Toggle + Logout */}
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setStudioMode(true)}
+            className={`md:hidden p-2 rounded-xl transition-colors ${studioMode ? 'bg-orange-500 text-white' : (theme === 'dark' ? 'bg-gray-700 text-orange-400' : 'bg-orange-50 text-orange-600')}`}
+            aria-label="เปิด Shopee Thai Ads Generator"
+          >
+            <Sparkles className="w-5 h-5" />
+          </button>
           {/* ปุ่มสลับธีม */}
           <button
             onClick={toggleTheme}
@@ -1663,6 +1618,7 @@ const App: React.FC = () => {
       </header>
 
       <main className={`flex-1 w-full px-6 py-10 ${theme === 'dark' ? 'bg-[#0b1523]' : 'bg-[#f8fafc]'}`}>
+        {studioMode ? <ShopeeAdsStudio dark={theme === 'dark'} /> : <>
         {step === 1 && (
           <div className="mx-auto grid w-full max-w-[1320px] grid-cols-1 gap-10 lg:grid-cols-[1.08fr_0.92fr] animate-in fade-in slide-in-from-bottom-4 duration-500">
             <section className="space-y-7 pt-6">
@@ -2387,15 +2343,6 @@ const App: React.FC = () => {
                           <div className="w-full h-full relative animate-in fade-in duration-1000">
                             <img src={img.url} alt={meta.title} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" />
 
-                            {img.fallbackNotice && (
-                              <div className="absolute bottom-0 left-0 right-0 z-10 border-t border-amber-400/30 bg-amber-950/80 px-3 py-2 backdrop-blur-sm">
-                                <p className="text-[9px] font-black uppercase tracking-wider text-amber-300">สลับโมเดลอัตโนมัติ</p>
-                                <p className="text-[10px] font-semibold text-amber-50 whitespace-pre-line leading-snug line-clamp-3">
-                                  {img.fallbackNotice}
-                                </p>
-                              </div>
-                            )}
-
                             {/* Preview Button */}
                             <button
                               onClick={(e) => {
@@ -2414,14 +2361,6 @@ const App: React.FC = () => {
                                     <p className="text-emerald-200 text-[10px] font-black uppercase tracking-widest mb-2">
                                       MODEL USED: {img.modelUsed}
                                     </p>
-                                  )}
-                                  {img.fallbackNotice && (
-                                    <div className="mb-2 rounded-xl border border-amber-400/40 bg-amber-500/15 px-3 py-2 text-left">
-                                      <p className="text-[9px] font-black uppercase tracking-wider text-amber-200 mb-1">สลับโมเดลอัตโนมัติ</p>
-                                      <p className="text-[10px] font-semibold text-amber-50 whitespace-pre-line leading-relaxed">
-                                        {img.fallbackNotice}
-                                      </p>
-                                    </div>
                                   )}
                                   <p className="text-white text-[10px] font-black uppercase tracking-widest mb-1">PROMPT USED</p>
                                   {!editingPrompt[catKey] ? (
@@ -2683,25 +2622,14 @@ const App: React.FC = () => {
 
                         {/* Status: Generating */}
                         {img?.status === 'generating' && (
-                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 p-8 text-center">
+                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 p-12 text-center">
                             <div className="relative">
                               <div className="w-20 h-20 border-8 border-orange-50 rounded-[2rem] animate-spin border-t-orange-500"></div>
                               <Sparkles className="absolute inset-0 m-auto w-8 h-8 text-orange-400 animate-pulse" />
                             </div>
-                            <div className="space-y-2">
+                            <div>
                               <p className={`text-lg font-black tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>กำลังรังสรรค์ภาพ...</p>
-                              {img.statusMessage && (
-                                <p className={`text-xs font-bold leading-relaxed px-4 ${theme === 'dark' ? 'text-orange-300' : 'text-orange-600'}`}>
-                                  {img.statusMessage}
-                                </p>
-                              )}
-                              {img.fallbackNotice && (
-                                <div className={`mx-auto max-w-[240px] rounded-2xl border px-3 py-2 text-left ${theme === 'dark' ? 'border-amber-500/40 bg-amber-500/10 text-amber-200' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
-                                  <p className="text-[10px] font-black uppercase tracking-wider mb-1">สลับโมเดล</p>
-                                  <p className="text-[11px] font-semibold whitespace-pre-line leading-relaxed">{img.fallbackNotice}</p>
-                                </div>
-                              )}
-                              <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${theme === 'dark' ? 'text-gray-400' : 'text-slate-400'}`}>{meta.title}</p>
+                              <p className={`text-[10px] font-black uppercase mt-2 tracking-[0.2em] ${theme === 'dark' ? 'text-gray-400' : 'text-slate-400'}`}>{meta.title}</p>
                             </div>
                           </div>
                         )}
@@ -2830,6 +2758,7 @@ const App: React.FC = () => {
           </div>
         )
         }
+        </>}
       </main >
 
       <footer className={`${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-slate-100'} border-t py-16 px-8 mt-24`}>

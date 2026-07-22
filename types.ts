@@ -29,12 +29,6 @@ export interface ProductData {
   features: string[];
 }
 
-export interface ModelFallbackEvent {
-  model: string;
-  success: boolean;
-  message?: string;
-}
-
 export interface GeneratedImage {
   id: string;
   category: ImageCategory;
@@ -44,10 +38,6 @@ export interface GeneratedImage {
   thaiTexts?: string[];    // ข้อความภาษาไทยที่ควรปรากฏในภาพ (สำหรับอ้างอิงแก้ไขใน Photoshop)
   promptUsed?: string;     // prompt ที่ใช้สร้างภาพจริง
   modelUsed?: string;      // โมเดลจริงที่ backend ใช้ หลัง fallback
-  requestedModel?: string; // โมเดลที่ผู้ใช้เลือกจาก UI
-  statusMessage?: string;  // ข้อความบนการ์ดตอนกำลังสร้าง
-  fallbackNotice?: string; // แจ้งเมื่อมีการสลับโมเดล
-  fallbackEvents?: ModelFallbackEvent[];
   error?: string;          // ข้อความแสดงข้อผิดพลาดถ้ามี
 }
 
@@ -57,9 +47,6 @@ export interface ImageGenerationResult {
   promptUsed: string;
   thaiTexts: string[];
   modelUsed?: string;
-  requestedModel?: string;
-  fallbackNotice?: string;
-  fallbackEvents?: ModelFallbackEvent[];
 }
 
 // Image Strategy Structure for Platforms

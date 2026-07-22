@@ -1,27 +1,13 @@
 /**
  * POST /api/generate
  *
- * 2-stage product image pipeline:
+ * 2-stage product content generation pipeline:
  *   1) Gemini 2.5 Flash analyzes product images + legacy direction prompt.
- *   2) Gemini image model (default gemini-3.1-flash-image-preview) generates a new scene
- *      while preserving the product from reference images.
+ *   2) Imagen Product Recontext places the same product into the generated scene.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getVertexAIForLocation, getVertexAccessToken, getVertexEnvironment } from './_lib/vertex.js';
-import { generateGeminiImage } from './_lib/geminiFallback.js';
 import { requireFirebaseUser } from './_lib/firebaseAdmin.js';
-import {
-  getCategoryHardConstraintsForApi,
-  getOrchestratorInstructions,
-  isMarketingPlatformStyle,
-} from './_lib/imagePromptBuilder.js';
-
-const DEFAULT_GEMINI_IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
-const GEMINI_IMAGE_MODEL_FALLBACKS = [
-  DEFAULT_GEMINI_IMAGE_MODEL,
-  'gemini-2.5-flash-image',
-  'gemini-3-pro-image-preview',
-];
 
 const RATIO_DESCRIPTIONS: Record<string, string> = {
   '1:1': 'square format (1:1 aspect ratio)',
@@ -43,20 +29,6 @@ type OrchestratedPrompt = {
   negativePrompt?: string;
   productSummary?: string;
   thaiTextPlan?: string[];
-};
-
-type ModelFallbackEvent = {
-  model: string;
-  success: boolean;
-  message?: string;
-};
-
-type GeneratedImagePayload = {
-  imageUrl: string;
-  modelName: string;
-  textResponse?: string;
-  requestedModel: string;
-  fallbackEvents: ModelFallbackEvent[];
 };
 
 function buildProductContext(productData: any) {
@@ -111,106 +83,44 @@ function parseJsonObject(text: string): any {
   const start = cleaned.indexOf('{');
   const end = cleaned.lastIndexOf('}');
   const jsonText = start >= 0 && end >= start ? cleaned.slice(start, end + 1) : cleaned;
-  try {
-    return JSON.parse(jsonText);
-  } catch {
-    throw new Error('Prompt orchestrator returned invalid JSON.');
-  }
+  return JSON.parse(jsonText);
 }
 
-function getOrchestratorLocations() {
-  const primary = process.env.GCP_ORCHESTRATOR_LOCATION || process.env.GCP_IMAGE_LOCATION || 'global';
-  const fallback = process.env.GCP_LOCATION || 'us-central1';
-  return [...new Set([primary, fallback])];
+function getOrchestratorLocation() {
+  return process.env.GCP_ORCHESTRATOR_LOCATION || process.env.GCP_IMAGE_LOCATION || 'global';
 }
 
-function getImageGenLocation() {
-  return process.env.GCP_IMAGE_LOCATION || process.env.GCP_ORCHESTRATOR_LOCATION || 'global';
+function getRecontextLocation() {
+  return process.env.GCP_RECONTEXT_LOCATION || process.env.GCP_LOCATION || 'us-central1';
 }
 
-function getVertexApiHost(location: string) {
-  return location === 'global' ? 'aiplatform.googleapis.com' : `${location}-aiplatform.googleapis.com`;
+function getRecontextModel() {
+  return process.env.IMAGEN_RECONTEXT_MODEL || 'imagen-product-recontext-preview-06-30';
 }
 
 function isImagen4TextModel(model?: string) {
   return model === 'imagen-4.0-generate-001' || model === 'imagen-4.0-fast-generate-001';
 }
 
-function normalizeImageModel(requested?: string) {
-  if (!requested || requested === 'product-recontext-v1') {
-    return process.env.GCP_DEFAULT_IMAGE_MODEL || DEFAULT_GEMINI_IMAGE_MODEL;
-  }
-  return requested;
-}
-
-function resolveGeminiImageModelChain(requested?: string) {
-  const normalized = normalizeImageModel(requested);
-  const chain: string[] = [];
-  if (!isImagen4TextModel(normalized) && !normalized.startsWith('imagen-product-recontext')) {
-    chain.push(normalized);
-  }
-  for (const model of GEMINI_IMAGE_MODEL_FALLBACKS) {
-    if (!chain.includes(model)) chain.push(model);
-  }
-  return chain;
-}
-
-function shortenErrorMessage(message: string, max = 100) {
-  return message.replace(/\s+/g, ' ').trim().slice(0, max);
-}
-
-function buildFallbackNotice(
-  requestedModel: string,
-  events: ModelFallbackEvent[],
-  finalModel: string,
-) {
-  const failed = events.filter((event) => !event.success);
-  if (failed.length === 0 && finalModel === requestedModel) return undefined;
-
-  const lines: string[] = [];
-  for (const event of failed) {
-    const detail = event.message ? ` (${event.message})` : '';
-    lines.push(`• ${event.model} ใช้ไม่ได้${detail}`);
-  }
-  if (finalModel !== requestedModel) {
-    lines.push(`กำลังใช้ ${finalModel} แทน`);
-  }
-  return lines.join('\n');
-}
-
-function extractImageFromGenerateContentPayload(payload: any) {
-  const parts = payload?.candidates?.[0]?.content?.parts
-    || payload?.response?.candidates?.[0]?.content?.parts
-    || [];
-
-  let imageUrl = '';
-  let text = '';
-
-  for (const part of parts) {
-    const inline = part?.inlineData || part?.inline_data;
-    if (inline?.data) {
-      const mimeType = inline.mimeType || inline.mime_type || 'image/png';
-      imageUrl = `data:${mimeType};base64,${inline.data}`;
-    }
-    if (part?.text) text += part.text;
-  }
-
-  return { imageUrl, text: text.trim() };
-}
-
-async function orchestratePromptAtLocation(
-  location: string,
-  args: {
-    productContext: string;
-    legacyPrompt: string;
-    ratioDesc: string;
-    aspectRatio: string;
-    category?: string;
-    style?: string;
-    imageParts: InlineImagePart[];
-  },
-): Promise<OrchestratedPrompt> {
-  const vertexAI = getVertexAIForLocation(location);
+async function orchestratePrompt(args: {
+  productContext: string;
+  legacyPrompt: string;
+  ratioDesc: string;
+  aspectRatio: string;
+  category?: string;
+  style?: string;
+  adBrief?: {
+    role?: string;
+    title?: string;
+    objective?: string;
+    facts?: string[];
+    thaiCopy?: string[];
+    includePerson?: boolean;
+    personBrief?: string;
+  };
+  imageParts: InlineImagePart[];
+}): Promise<OrchestratedPrompt> {
+  const vertexAI = getVertexAIForLocation(getOrchestratorLocation());
   const model = vertexAI.getGenerativeModel({
     model: 'gemini-2.5-flash',
     generationConfig: {
@@ -218,14 +128,38 @@ async function orchestratePromptAtLocation(
     },
   });
 
-  const instruction = getOrchestratorInstructions({
-    category: args.category,
-    style: args.style,
-    aspectRatio: args.aspectRatio,
-    ratioDesc: args.ratioDesc,
-    productContext: args.productContext,
-    legacyPrompt: args.legacyPrompt,
-  });
+  const instruction = `
+You are the Prompt Orchestrator for an ecommerce Product Recontext pipeline.
+
+Goal:
+- Analyze the attached product image(s).
+- Use the existing legacy prompt as creative direction, not as a final prompt.
+- Produce a concise Imagen Product Recontext prompt that keeps the exact same product but changes the scene/background.
+- Preserve product identity: shape, color, material, logo/label placement, visible accessories, and proportions.
+- The final prompt may include Thai text direction if the legacy prompt asks for Thai marketing text, but keep text concise and readable.
+- Avoid overloading the image with many badges, review cards, tiny captions, or dense text.
+- Aspect ratio target: ${args.aspectRatio} (${args.ratioDesc}).
+
+${args.productContext}
+
+CATEGORY: ${args.category || 'unknown'}
+STYLE: ${args.style || 'default'}
+
+${args.adBrief ? `SHOPEE THAI ADS BRIEF (facts are the only permitted product claims):
+${JSON.stringify(args.adBrief)}
+For this workflow, preserve the exact product and create clean intentional zones for the supplied Thai copy. Do not try to render Thai text in the generated pixels: the client will place it as an editable overlay. Never add prices, discounts, ratings, certifications, measurements, or accessories that are not explicitly confirmed.` : ''}
+
+LEGACY CREATIVE DIRECTION:
+${args.legacyPrompt}
+
+Return valid JSON only:
+{
+  "prompt": "final recontext prompt for Imagen",
+  "negativePrompt": "things to avoid",
+  "productSummary": "short product identity summary",
+  "thaiTextPlan": ["short Thai text ideas if useful"]
+}
+`.trim();
 
   const response = await model.generateContent({
     contents: [{ role: 'user', parts: [...args.imageParts, { text: instruction }] }],
@@ -244,57 +178,17 @@ async function orchestratePromptAtLocation(
   };
 }
 
-async function orchestratePrompt(args: {
-  productContext: string;
-  legacyPrompt: string;
-  ratioDesc: string;
-  aspectRatio: string;
-  category?: string;
-  style?: string;
-  imageParts: InlineImagePart[];
-}): Promise<OrchestratedPrompt> {
-  let lastError: any;
-  for (const location of getOrchestratorLocations()) {
-    try {
-      return await orchestratePromptAtLocation(location, args);
-    } catch (error) {
-      lastError = error;
-      console.warn(`[orchestratePrompt] location=${location} failed:`, (error as Error)?.message || error);
-    }
-  }
-  throw lastError || new Error('Prompt orchestrator failed on all configured regions.');
-}
-
-async function generateGeminiReferenceImage(args: {
+async function generateProductRecontextImage(args: {
   prompt: string;
   imageParts: InlineImagePart[];
   aspectRatio: string;
-  modelName: string;
   negativePrompt?: string;
-  style?: string;
-  category?: string;
 }) {
   const { projectId } = getVertexEnvironment();
-  const location = getImageGenLocation();
+  const location = getRecontextLocation();
+  const modelName = getRecontextModel();
   const accessToken = await getVertexAccessToken();
-  const host = getVertexApiHost(location);
-  const endpoint = `https://${host}/v1/projects/${projectId}/locations/${location}/publishers/google/models/${args.modelName}:generateContent`;
-
-  const ratioDesc = RATIO_DESCRIPTIONS[args.aspectRatio] || RATIO_DESCRIPTIONS['1:1'];
-  const marketing = isMarketingPlatformStyle(args.style);
-  const categoryLock = getCategoryHardConstraintsForApi(args.category);
-  const promptSections = [
-    args.prompt,
-    categoryLock,
-    `Generate this ecommerce product image in ${args.aspectRatio} (${ratioDesc}).`,
-    args.category ? `Image category for this request: ${args.category}.` : '',
-    marketing
-      ? 'Create a NEW composition from the reference product matching the category above. Do NOT output a near-duplicate of the reference photo. Do NOT default non-COVER categories to a main listing cover layout.'
-      : 'Preserve product identity. Refine scene and lighting with minimal promotional elements.',
-  ];
-  if (args.negativePrompt) {
-    promptSections.push(`Avoid: ${args.negativePrompt}`);
-  }
+  const endpoint = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${modelName}:predict`;
 
   const response = await fetch(endpoint, {
     method: 'POST',
@@ -303,112 +197,49 @@ async function generateGeminiReferenceImage(args: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      contents: [{
-        role: 'user',
-        parts: [...args.imageParts, { text: promptSections.join('\n\n') }],
-      }],
-      generationConfig: {
-        responseModalities: ['TEXT', 'IMAGE'],
+      instances: [
+        {
+          prompt: args.prompt,
+          productImages: args.imageParts.map((part) => ({
+            image: {
+              bytesBase64Encoded: part.inlineData.data,
+            },
+          })),
+        },
+      ],
+      parameters: {
+        addWatermark: true,
+        enhancePrompt: true,
+        personGeneration: 'allow_adult',
+        safetySetting: 'block_few',
+        sampleCount: 1,
+        negativePrompt: args.negativePrompt,
+        outputOptions: {
+          mimeType: 'image/png',
+          compressionQuality: 90,
+        },
       },
     }),
   });
 
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const message = payload?.error?.message || response.statusText || 'Gemini image generation failed';
-    throw new Error(`${args.modelName}: ${message}`);
+    const message = payload?.error?.message || response.statusText || 'Product recontext request failed';
+    throw new Error(`${modelName}: ${message}`);
   }
 
-  const extracted = extractImageFromGenerateContentPayload(payload);
-  if (!extracted.imageUrl) {
-    throw new Error(`${args.modelName}: no image data returned`);
+  const prediction = payload?.predictions?.[0];
+  const base64 = prediction?.bytesBase64Encoded || prediction?.image?.bytesBase64Encoded;
+  const mimeType = prediction?.mimeType || prediction?.image?.mimeType || 'image/png';
+
+  if (!base64) {
+    throw new Error(`${modelName}: no image data returned`);
   }
 
   return {
-    imageUrl: extracted.imageUrl,
-    modelName: args.modelName,
-    textResponse: extracted.text || undefined,
+    imageUrl: `data:${mimeType};base64,${base64}`,
+    modelName,
   };
-}
-
-async function generateGeminiReferenceImageWithFallbacks(args: {
-  prompt: string;
-  imageParts: InlineImagePart[];
-  aspectRatio: string;
-  negativePrompt?: string;
-  modelChain: string[];
-  style?: string;
-  category?: string;
-}): Promise<GeneratedImagePayload> {
-  const requestedModel = args.modelChain[0] || DEFAULT_GEMINI_IMAGE_MODEL;
-  const fallbackEvents: ModelFallbackEvent[] = [];
-  let lastError: any;
-
-  for (const modelName of args.modelChain) {
-    try {
-      const result = await generateGeminiReferenceImage({
-        prompt: args.prompt,
-        imageParts: args.imageParts,
-        aspectRatio: args.aspectRatio,
-        negativePrompt: args.negativePrompt,
-        modelName,
-        style: args.style,
-        category: args.category,
-      });
-
-      if (fallbackEvents.length > 0 || modelName !== requestedModel) {
-        fallbackEvents.push({ model: modelName, success: true });
-      }
-
-      return {
-        imageUrl: result.imageUrl,
-        modelName: result.modelName,
-        textResponse: result.textResponse,
-        requestedModel,
-        fallbackEvents,
-      };
-    } catch (error) {
-      lastError = error;
-      const message = (error as Error)?.message || String(error);
-      fallbackEvents.push({
-        model: modelName,
-        success: false,
-        message: shortenErrorMessage(message),
-      });
-      console.warn(`[generate] Vertex image model="${modelName}" failed:`, message);
-    }
-  }
-
-  if (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY) {
-    try {
-      const ratioDesc = RATIO_DESCRIPTIONS[args.aspectRatio] || RATIO_DESCRIPTIONS['1:1'];
-      const categoryLock = getCategoryHardConstraintsForApi(args.category);
-      const fallbackPrompt = [
-        args.prompt,
-        categoryLock,
-        `Aspect ratio: ${args.aspectRatio} (${ratioDesc}).`,
-        args.category ? `Image category: ${args.category}.` : '',
-        args.negativePrompt ? `Avoid: ${args.negativePrompt}` : '',
-      ].filter(Boolean).join('\n\n');
-
-      const fallback = await generateGeminiImage(fallbackPrompt, args.imageParts, args.aspectRatio);
-      const apiModelName = `${fallback.model} (Gemini API fallback)`;
-      fallbackEvents.push({ model: apiModelName, success: true });
-
-      return {
-        imageUrl: fallback.imageUrl,
-        modelName: apiModelName,
-        textResponse: fallback.text || undefined,
-        requestedModel,
-        fallbackEvents,
-      };
-    } catch (error) {
-      lastError = error;
-      console.warn('[generate] Gemini API fallback failed:', (error as Error)?.message || error);
-    }
-  }
-
-  throw lastError || new Error('All image generation models failed.');
 }
 
 async function generateImagen4TextImage(args: {
@@ -488,6 +319,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       style,
       productData,
       model,
+      adBrief,
     } = req.body;
 
     if (!prompt && !customPrompt) {
@@ -512,36 +344,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       aspectRatio,
       category,
       style,
+      adBrief,
       imageParts,
     });
 
-    const selectedModel = typeof model === 'string' ? model : DEFAULT_GEMINI_IMAGE_MODEL;
-    const requestedModel = normalizeImageModel(selectedModel);
+    const selectedModel = typeof model === 'string' ? model : 'product-recontext-v1';
     const generated = isImagen4TextModel(selectedModel)
-      ? {
-          ...(await generateImagen4TextImage({
-            modelName: selectedModel,
-            prompt: orchestrated.prompt,
-            aspectRatio,
-          })),
-          requestedModel,
-          fallbackEvents: [] as ModelFallbackEvent[],
-        }
-      : await generateGeminiReferenceImageWithFallbacks({
+      ? await generateImagen4TextImage({
+          modelName: selectedModel,
+          prompt: orchestrated.prompt,
+          aspectRatio,
+        })
+      : await generateProductRecontextImage({
           prompt: orchestrated.prompt,
           imageParts,
           aspectRatio,
           negativePrompt: orchestrated.negativePrompt,
-          modelChain: resolveGeminiImageModelChain(selectedModel),
-          style,
-          category: typeof category === 'string' ? category : undefined,
         });
-
-    const fallbackNotice = buildFallbackNotice(
-      requestedModel,
-      generated.fallbackEvents,
-      generated.modelName,
-    );
 
     console.log('[usage] image_generation_success', {
       status: 200,
@@ -549,22 +368,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       email: firebaseUser.email,
       pipeline: isImagen4TextModel(selectedModel)
         ? 'gemini-2.5-flash->imagen-4'
-        : `gemini-2.5-flash->${generated.modelName}`,
+        : 'gemini-2.5-flash->imagen-product-recontext',
       orchestratorModel: 'gemini-2.5-flash',
       imageModel: generated.modelName,
       category,
-      hadModelFallback: Boolean(fallbackNotice),
     });
 
     return res.status(200).json({
       imageUrl: generated.imageUrl,
       promptUsed: orchestrated.prompt,
       model: `gemini-2.5-flash -> ${generated.modelName}`,
-      textResponse: generated.textResponse || orchestrated.productSummary || undefined,
+      textResponse: orchestrated.productSummary || undefined,
       thaiTextPlan: orchestrated.thaiTextPlan,
-      requestedModel,
-      fallbackEvents: generated.fallbackEvents,
-      fallbackNotice,
     });
   } catch (error: any) {
     console.error('[api/generate] Error:', error);

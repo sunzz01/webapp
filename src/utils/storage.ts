@@ -45,12 +45,12 @@ export const loadFromDB = async <T>(key: string): Promise<T | null> => {
 export async function clearDB(): Promise<void> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.deleteDatabase(DB_NAME);
-    
+
     request.onsuccess = () => {
       console.log('Database cleared successfully');
       resolve();
     };
-    
+
     request.onerror = () => {
       console.error('Error clearing database:', request.error);
       reject(request.error);
