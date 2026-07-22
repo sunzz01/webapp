@@ -6,7 +6,8 @@
  *   2) Imagen Product Recontext places the same product into the generated scene.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getVertexAIForLocation, getVertexAccessToken, getVertexEnvironment } from './_lib/vertex.js';
+import { GoogleGenAI, Modality } from '@google/genai';
+import { getServiceAccountCredentials, getVertexAIForLocation, getVertexAccessToken, getVertexEnvironment } from './_lib/vertex.js';
 import { requireFirebaseUser } from './_lib/firebaseAdmin.js';
 
 const RATIO_DESCRIPTIONS: Record<string, string> = {
@@ -105,6 +106,29 @@ function isImagenTextModel(model?: string) {
     'imagen-4.0-generate-001',
     'imagen-4.0-fast-generate-001',
   ].includes(model || '');
+}
+
+const ENTERPRISE_GEMINI_IMAGE_MODELS = new Set([
+  'gemini-3.1-flash-image',
+  // Keep saved selections from earlier builds working, but send them to the
+  // GA model. The preview name was retired on 17 July 2026.
+  'gemini-3.1-flash-image-preview',
+  'gemini-2.5-flash-image',
+  'gemini-3-pro-image-preview',
+  'gemini-3-pro-image',
+]);
+
+function getEnterpriseGeminiImageModel(model: string) {
+  if (model === 'gemini-3.1-flash-image-preview') return 'gemini-3.1-flash-image';
+  if (model === 'gemini-3-pro-image-preview') return 'gemini-3-pro-image';
+  return model;
+}
+
+function getGeminiAspectRatio(aspectRatio: string) {
+  const supported = new Set(['1:1', '2:3', '3:2', '3:4', '4:3', '9:16', '16:9', '21:9']);
+  if (supported.has(aspectRatio)) return aspectRatio;
+  // Gemini Image does not expose 4:5. Keep the closest portrait composition.
+  return aspectRatio === '4:5' ? '3:4' : '1:1';
 }
 
 function isUnavailableRecontextModel(error: unknown) {
@@ -305,6 +329,65 @@ async function generateImagen4TextImage(args: {
   };
 }
 
+/**
+ * Generates or edits an image through the current Google Gen AI SDK. This is
+ * intentionally separate from the legacy Vertex SDK used by the prompt
+ * orchestrator: Gemini 3.1 Flash Image is available on the global Enterprise
+ * Agent Platform endpoint and supports image input/output in one request.
+ */
+async function generateEnterpriseGeminiImage(args: {
+  modelName: string;
+  prompt: string;
+  imageParts: InlineImagePart[];
+  aspectRatio: string;
+}) {
+  const { projectId } = getVertexEnvironment();
+  const modelName = getEnterpriseGeminiImageModel(args.modelName);
+  const ai = new GoogleGenAI({
+    enterprise: true,
+    project: projectId,
+    location: 'global',
+    apiVersion: 'v1',
+    googleAuthOptions: {
+      credentials: getServiceAccountCredentials(),
+    },
+  });
+
+  const response = await ai.models.generateContent({
+    model: modelName,
+    contents: [{
+      role: 'user',
+      parts: [
+        ...args.imageParts,
+        { text: args.prompt },
+      ],
+    }],
+    config: {
+      responseModalities: [Modality.IMAGE, Modality.TEXT],
+      imageConfig: {
+        aspectRatio: getGeminiAspectRatio(args.aspectRatio),
+        personGeneration: 'ALLOW_ADULT',
+        outputMimeType: 'image/png',
+      },
+    },
+  });
+
+  const outputPart = response.candidates
+    ?.flatMap(candidate => candidate.content?.parts || [])
+    .find(part => part.inlineData?.data);
+  const base64 = outputPart?.inlineData?.data;
+  const mimeType = outputPart?.inlineData?.mimeType || 'image/png';
+
+  if (!base64) {
+    throw new Error(`${modelName}: no image data returned`);
+  }
+
+  return {
+    imageUrl: `data:${mimeType};base64,${base64}`,
+    modelName,
+  };
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -358,9 +441,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       imageParts,
     });
 
-    const selectedModel = typeof model === 'string' ? model : 'imagen-3.0-generate-002';
+    const selectedModel = typeof model === 'string' ? model : 'gemini-3.1-flash-image';
     let generated;
-    if (isImagenTextModel(selectedModel)) {
+    if (ENTERPRISE_GEMINI_IMAGE_MODELS.has(selectedModel)) {
+      try {
+        generated = await generateEnterpriseGeminiImage({
+          modelName: selectedModel,
+          prompt: orchestrated.prompt,
+          imageParts,
+          aspectRatio,
+        });
+      } catch (error) {
+        // A deployment may not yet have the Agent Platform API / model access.
+        // Return a useful listing image and report the real fallback model to UI.
+        const fallbackModel = process.env.IMAGEN_FALLBACK_MODEL || 'imagen-3.0-generate-002';
+        console.warn(`[api/generate] ${getEnterpriseGeminiImageModel(selectedModel)} is unavailable; falling back to ${fallbackModel}.`, error);
+        generated = await generateImagen4TextImage({
+          modelName: fallbackModel,
+          prompt: orchestrated.prompt,
+          aspectRatio,
+        });
+      }
+    } else if (isImagenTextModel(selectedModel)) {
       generated = await generateImagen4TextImage({
         modelName: selectedModel,
         prompt: orchestrated.prompt,
@@ -392,9 +494,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       status: 200,
       uid: firebaseUser.uid,
       email: firebaseUser.email,
-      pipeline: isImagenTextModel(selectedModel)
-        ? 'gemini-2.5-flash->imagen'
-        : 'gemini-2.5-flash->imagen-product-recontext-or-fallback',
+      pipeline: ENTERPRISE_GEMINI_IMAGE_MODELS.has(selectedModel)
+        ? 'gemini-2.5-flash->gemini-image-or-imagen-fallback'
+        : isImagenTextModel(selectedModel)
+          ? 'gemini-2.5-flash->imagen'
+          : 'gemini-2.5-flash->imagen-product-recontext-or-fallback',
       orchestratorModel: 'gemini-2.5-flash',
       imageModel: generated.modelName,
       category,

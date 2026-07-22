@@ -22,7 +22,7 @@ export const MODEL_REGISTRY = {
   ],
   /** Image generation models (Vertex AI) */
   image: [
-    'gemini-3.1-flash-image-preview', // Nano Banana 2
+    'gemini-3.1-flash-image',         // Nano Banana 2 (GA)
     'gemini-3-pro-image-preview',     // Nano Banana Pro
     'imagen-4.0-generate-001',
     'imagen-4.0-fast-generate-001',

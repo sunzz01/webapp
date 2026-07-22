@@ -236,22 +236,22 @@ const STYLES = [
 // โมเดล Gemini ที่ใช้สำหรับสร้างภาพ
 const GEMINI_IMAGE_MODELS = [
   {
-    id: 'product-recontext-v1',
-    name: '2-Stage Product Recontext',
+    id: 'gemini-3.1-flash-image',
+    name: 'Gemini 3.1 Flash Image',
     badge: 'Recommended',
     badgeColor: 'bg-gradient-to-r from-emerald-600 to-teal-500',
-    desc: 'Gemini 2.5 Flash วิเคราะห์สินค้าและเขียน prompt จากนั้น Imagen Product Recontext เปลี่ยนฉากโดยคงสินค้าจริง',
+    desc: 'Nano Banana 2 รุ่น GA — สร้างและแก้ภาพจากรูปสินค้าอ้างอิงโดยตรง พร้อมคงตัวตนสินค้า',
     borderColor: 'border-emerald-500',
     glowColor: 'shadow-emerald-500/40',
     textColor: 'text-emerald-400',
     iconBg: 'from-emerald-500 to-teal-400',
   },
   {
-    id: 'gemini-3.1-flash-image-preview',
-    name: 'Gemini 3.1 Flash Image Preview',
-    badge: 'Nano Banana 2',
+    id: 'product-recontext-v1',
+    name: '2-Stage Product Recontext',
+    badge: 'Fallback',
     badgeColor: 'bg-gradient-to-r from-red-500 to-orange-400',
-    desc: 'Gen ข้อความภาษาไทยไม่เพี้ยน ล่าสุด!',
+    desc: 'Gemini 2.5 Flash วางแผน prompt แล้วใช้ Imagen สร้างภาพ หากโปรเจกต์ไม่ได้สิทธิ์ Recontext จะ fallback อัตโนมัติ',
     borderColor: 'border-orange-500',
     glowColor: 'shadow-orange-500/40',
     textColor: 'text-orange-400',
@@ -325,6 +325,10 @@ const GEMINI_IMAGE_MODELS = [
   },
 ];
 
+// Migrates sessions saved before the Gemini 3.1 Flash Image preview retirement.
+const normalizeImageModelSelection = (model?: string) =>
+  model === 'gemini-3.1-flash-image-preview' ? 'gemini-3.1-flash-image' : model;
+
 // Aspect Ratio options
 const ASPECT_RATIOS = [
   { id: '1:1', label: '1:1', name: 'Square', icon: '⬛', desc: 'Shopee/Lazada Product' },
@@ -368,7 +372,7 @@ const App: React.FC = () => {
   const [summaryLength, setSummaryLength] = useState<'short' | 'medium' | 'long'>('medium');
   const [isSavingToFolder, setIsSavingToFolder] = useState(false);
   const [selectedStyle, setSelectedStyle] = useState<string>('aliexpress');
-  const [selectedImageModel, setSelectedImageModel] = useState<string>('imagen-3.0-generate-002'); // โมเดลสำหรับสร้างภาพ
+  const [selectedImageModel, setSelectedImageModel] = useState<string>('gemini-3.1-flash-image'); // โมเดลสำหรับสร้างภาพ
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [isScrapingOnly, setIsScrapingOnly] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -558,7 +562,7 @@ const App: React.FC = () => {
           }
           if (savedState.generatedImages) setGeneratedImages(savedState.generatedImages);
           if (savedState.selectedStyle) setSelectedStyle(savedState.selectedStyle);
-          if (savedState.selectedImageModel) setSelectedImageModel(savedState.selectedImageModel);
+          if (savedState.selectedImageModel) setSelectedImageModel(normalizeImageModelSelection(savedState.selectedImageModel));
           if (savedState.step) setStep(savedState.step);
           if (savedState.selectedCategories) setSelectedCategories(new Set(savedState.selectedCategories));
           if (savedState.thaiAdsSession) {
@@ -2327,6 +2331,9 @@ const App: React.FC = () => {
                 </div>
 
                 <div className={`${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-slate-50 border-slate-100'} p-8 rounded-[2.5rem] flex flex-col gap-5 min-w-[320px] shadow-inner border`}>
+                  <div className={`rounded-xl px-3 py-2 text-[10px] font-mono font-bold ${theme === 'dark' ? 'bg-gray-900 text-emerald-300' : 'bg-white text-emerald-700'} border ${theme === 'dark' ? 'border-gray-700' : 'border-emerald-100'}`}>
+                    กำลังเลือกใช้: {selectedImageModel}
+                  </div>
                   <div className="flex items-center justify-between w-full text-[12px] font-black uppercase tracking-widest text-slate-500">
                     <span className="flex items-center gap-2"><Zap className="w-4 h-4 text-orange-500" /> ความคืบหน้า</span>
                     <span className={`${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{completedCount} / 9</span>
@@ -2394,6 +2401,11 @@ const App: React.FC = () => {
                         {img?.status === 'completed' && (
                           <div className="w-full h-full relative animate-in fade-in duration-1000">
                             <img src={img.url} alt={meta.title} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" />
+                            {img.modelUsed && (
+                              <div title={img.modelUsed} className="absolute left-4 top-4 max-w-[calc(100%-5.5rem)] truncate rounded-full border border-emerald-200/40 bg-slate-950/70 px-3 py-1.5 text-[9px] font-black tracking-wide text-emerald-200 backdrop-blur-md">
+                                AI: {img.modelUsed}
+                              </div>
+                            )}
 
                             {/* Preview Button */}
                             <button
