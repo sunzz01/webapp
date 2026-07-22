@@ -68,9 +68,20 @@ function getProjectId() {
   return process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT;
 }
 
+/**
+ * The deprecated @google-cloud/vertexai SDK does not consistently support the
+ * `global` hostname. It can return an HTML page instead of a Vertex JSON error,
+ * which then surfaces as `Unexpected token '<'`. Keep the SDK on a regional
+ * endpoint; the image REST calls can still use their own explicitly configured
+ * locations.
+ */
+function getVertexSdkLocation(location?: string) {
+  return !location || location === 'global' ? 'us-central1' : location;
+}
+
 export function getVertexEnvironment() {
   const projectId = getProjectId();
-  const location = process.env.GCP_LOCATION || process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
+  const location = getVertexSdkLocation(process.env.GCP_LOCATION || process.env.GOOGLE_CLOUD_LOCATION);
 
   if (!projectId) {
     throw new Error('Missing GCP_PROJECT_ID environment variable. Set it in Vercel Project Settings.');
@@ -111,7 +122,7 @@ export async function getVertexAccessToken() {
 
 export function getVertexConfigStatus() {
   const projectId = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT;
-  const location = process.env.GCP_LOCATION || process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
+  const location = getVertexSdkLocation(process.env.GCP_LOCATION || process.env.GOOGLE_CLOUD_LOCATION);
   const serviceAccount = process.env.GCP_SERVICE_ACCOUNT;
 
   return {
@@ -152,7 +163,7 @@ export function getVertexAI(): VertexAI {
 export function getVertexAIForLocation(locationOverride: string): VertexAI {
   const { projectId } = getVertexEnvironment();
   const credentials = getServiceAccountCredentials();
-  const location = locationOverride || getVertexEnvironment().location;
+  const location = getVertexSdkLocation(locationOverride || getVertexEnvironment().location);
   const cacheKey = `${projectId}:${location}`;
 
   const cached = _vertexAIByLocation.get(cacheKey);
