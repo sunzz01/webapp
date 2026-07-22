@@ -217,13 +217,14 @@ export async function generateProductImage(
   let prompt = '';
 
   if (customPrompt) {
-    prompt = buildGroundedProductPrompt(customPrompt, category, productData);
+    prompt = buildGroundedProductPrompt(customPrompt, category, productData, style);
   } else {
     // Build category-specific prompt
     prompt = buildGroundedProductPrompt(
       buildCategoryPrompt(category, productData, style, styleIndex),
       category,
       productData,
+      style,
     );
   }
 
@@ -342,13 +343,21 @@ function buildGroundedProductPrompt(
   taskPrompt: string,
   category: ImageCategory,
   productData: ProductData,
+  visualStyle?: string,
 ): string {
   const features = productData.features?.filter(Boolean).slice(0, 8) || [];
+  const price = productData.price?.display || (productData.price?.current ? `฿${productData.price.current.toLocaleString('th-TH')}` : '');
+  const variants = (productData.variantGroups || [])
+    .map(group => `${group.name}: ${group.options.map(option => `${option.label}${option.price?.display ? ` (${option.price.display})` : ''}`).join(', ')}`)
+    .join(' | ');
   return [
     `Create a ${category} ecommerce image for this exact product.`,
     `Product name: ${productData.name || 'Unknown product'}`,
     productData.description ? `Product description: ${productData.description}` : '',
     features.length ? `Key product features: ${features.join(' | ')}` : '',
+    price ? `Confirmed selling price: ${price}. Use this only for a clear, editable client-side overlay plan; never invent or alter a price.` : '',
+    variants ? `Confirmed variants/options: ${variants}. If the task names one option, show that exact option only; for a comparison task, show only these confirmed options.` : '',
+    visualStyle ? `Visual direction preset: ${visualStyle}. Keep its colour palette, lighting, composition language, and typography zone consistent for this image.` : '',
     'Use the attached product reference images as the source of truth. Preserve the same product identity, shape, color, materials, logos/labels, and visible details. Improve only the scene, lighting, background, composition, and sales presentation. Do not invent a different product.',
     `Image task: ${taskPrompt}`,
   ].filter(Boolean).join('\n\n');

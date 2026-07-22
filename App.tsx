@@ -39,7 +39,7 @@ import {
   Edit2
 } from 'lucide-react';
 import JSZip from 'jszip';
-import { ImageCategory, IMAGE_CATEGORIES_METADATA, ProductData, GeneratedImage } from './types';
+import { ImageCategory, IMAGE_CATEGORIES_METADATA, ProductData, GeneratedImage, ProductPrice, ProductVariantGroup } from './types';
 import { analyzeProduct, generateProductImage, summarizeProductDescription, getApiKeys } from './geminiService';
 import { useTheme } from './src/contexts/ThemeContext'; // นำเข้า hook สำหรับจัดการธีม
 import { useNotification } from './src/contexts/NotificationContext';
@@ -369,6 +369,10 @@ const App: React.FC = () => {
   const [productUrl, setProductUrl] = useState<string>('');
   const [productName, setProductName] = useState<string>('');
   const [productDesc, setProductDesc] = useState<string>('');
+  const [productPrice, setProductPrice] = useState<ProductPrice>({ currency: 'THB' });
+  const [variantGroups, setVariantGroups] = useState<ProductVariantGroup[]>([]);
+  const [selectedVariantOptionIds, setSelectedVariantOptionIds] = useState<string[]>([]);
+  const [cardVisualStyles, setCardVisualStyles] = useState<Record<string, string>>({});
   const [summaryLength, setSummaryLength] = useState<'short' | 'medium' | 'long'>('medium');
   const [isSavingToFolder, setIsSavingToFolder] = useState(false);
   const [selectedStyle, setSelectedStyle] = useState<string>('aliexpress');
@@ -493,7 +497,7 @@ const App: React.FC = () => {
       console.log("images:", event.detail?.images);
       console.log("images length:", event.detail?.images?.length);
 
-      const { productUrl, productName, productDesc, images } = event.detail || {};
+       const { productUrl, productName, productDesc, images, price, variantGroups: incomingVariantGroups } = event.detail || {};
 
       // ล้างข้อมูลเก่าทั้งหมดก่อนรับข้อมูลใหม่
       setLocalImages([]);
@@ -501,9 +505,12 @@ const App: React.FC = () => {
       setScrapedImages([]);
       setOriginalScrapedImages([]);
       setGeneratedImages([]);
-      setProductUrl('');
-      setProductName('');
-      setProductDesc('');
+       setProductUrl('');
+       setProductName('');
+       setProductDesc('');
+       setProductPrice({ currency: 'THB' });
+       setVariantGroups([]);
+       setSelectedVariantOptionIds([]);
 
       // ตั้งค่าข้อมูลใหม่
       if (productUrl) {
@@ -514,10 +521,16 @@ const App: React.FC = () => {
         console.log("Setting productName:", productName);
         setProductName(productName);
       }
-      if (productDesc) {
+       if (productDesc) {
         console.log("Setting productDesc:", productDesc);
-        setProductDesc(productDesc);
-      }
+         setProductDesc(productDesc);
+       }
+       if (price && typeof price === 'object') {
+         setProductPrice({ currency: 'THB', ...price });
+       }
+       if (Array.isArray(incomingVariantGroups)) {
+         setVariantGroups(incomingVariantGroups);
+       }
       if (images && Array.isArray(images) && images.length > 0) {
         console.log("Setting scrapedImages:", images.length, "images");
         setScrapedImages(images);
@@ -527,7 +540,8 @@ const App: React.FC = () => {
       }
 
       setStep(1);
-      alert(`รับข้อมูลจาก Gimi Shopee X เรียบร้อยแล้ว!\n\nชื่อสินค้า: ${productName || 'ไม่มี'}\nจำนวนรูป: ${images?.length || 0} รูป`);
+       const variantCount = Array.isArray(incomingVariantGroups) ? incomingVariantGroups.reduce((total, group) => total + (group.options?.length || 0), 0) : 0;
+       alert(`รับข้อมูลจาก Gimi Shopee X เรียบร้อยแล้ว!\n\nชื่อสินค้า: ${productName || 'ไม่มี'}\nราคา: ${price?.display || 'ไม่มี'}\nตัวเลือก: ${variantCount} รายการ\nรูป: ${images?.length || 0} รูป`);
     };
 
     // SECURITY: Listen for generic event name from extension (replaces old 'SHOPEE_X_DATA_TRANSFER')
@@ -549,9 +563,13 @@ const App: React.FC = () => {
       try {
         const savedState = await loadFromDB<any>('appState');
         if (savedState) {
-          if (savedState.productUrl) setProductUrl(savedState.productUrl);
-          if (savedState.productName) setProductName(savedState.productName);
-          if (savedState.productDesc) setProductDesc(savedState.productDesc);
+           if (savedState.productUrl) setProductUrl(savedState.productUrl);
+           if (savedState.productName) setProductName(savedState.productName);
+           if (savedState.productDesc) setProductDesc(savedState.productDesc);
+           if (savedState.productPrice) setProductPrice({ currency: 'THB', ...savedState.productPrice });
+           if (Array.isArray(savedState.variantGroups)) setVariantGroups(savedState.variantGroups);
+           if (Array.isArray(savedState.selectedVariantOptionIds)) setSelectedVariantOptionIds(savedState.selectedVariantOptionIds);
+           if (savedState.cardVisualStyles) setCardVisualStyles(savedState.cardVisualStyles);
           if (savedState.scrapedImages) {
             setScrapedImages(savedState.scrapedImages);
             setOriginalScrapedImages(savedState.scrapedImages);
@@ -591,9 +609,13 @@ const App: React.FC = () => {
     if (isRestoring) return; // Don't save while we are still loading
 
     const stateToSave = {
-      productUrl,
-      productName,
-      productDesc,
+       productUrl,
+       productName,
+       productDesc,
+       productPrice,
+       variantGroups,
+       selectedVariantOptionIds,
+       cardVisualStyles,
       scrapedImages,
       localImages,
       generatedImages,
@@ -610,6 +632,10 @@ const App: React.FC = () => {
     productUrl,
     productName,
     productDesc,
+    productPrice,
+    variantGroups,
+    selectedVariantOptionIds,
+    cardVisualStyles,
     scrapedImages,
     localImages,
     generatedImages,
@@ -760,6 +786,69 @@ const App: React.FC = () => {
     }
   };
 
+  const getPriceDisplay = (price: ProductPrice = productPrice) => {
+    if (price.display) return price.display;
+    const min = price.min ?? price.current;
+    const max = price.max ?? price.current;
+    if (min === undefined) return '';
+    const format = (value: number) => `฿${value.toLocaleString('th-TH', { maximumFractionDigits: 2 })}`;
+    return min === max || max === undefined ? format(min) : `${format(min)} - ${format(max)}`;
+  };
+
+  const updateProductPrice = (field: 'min' | 'max' | 'current' | 'original', value: string) => {
+    const numeric = value.trim() === '' ? undefined : Number(value.replace(/,/g, ''));
+    setProductPrice(previous => {
+      const next = { ...previous, currency: previous.currency || 'THB', [field]: Number.isFinite(numeric) ? numeric : undefined };
+      return { ...next, display: getPriceDisplay({ ...next, display: '' }) };
+    });
+  };
+
+  const buildCurrentProductData = (images: string[], variantLabel?: string): ProductData => {
+    const optionFacts = variantGroups.flatMap(group => group.options.slice(0, 12).map(option => `${group.name}: ${option.label}${option.price?.display ? ` (${option.price.display})` : ''}`));
+    const description = [
+      productDesc || 'ไม่มีรายละเอียด',
+      getPriceDisplay() ? `ราคาที่ยืนยันแล้ว: ${getPriceDisplay()}` : '',
+      variantLabel ? `ตัวเลือกที่ต้องสร้างภาพนี้: ${variantLabel}` : '',
+    ].filter(Boolean).join('\n');
+    return {
+      name: variantLabel ? `${productName || 'สินค้าใหม่'} — ${variantLabel}` : productName || 'สินค้าใหม่',
+      description,
+      images,
+      features: [...productDesc.split('\n').map(line => line.replace(/^[-*•\s]+/, '').trim()).filter(line => line.length > 2).slice(0, 8), ...optionFacts].slice(0, 12),
+      price: productPrice,
+      variantGroups,
+    };
+  };
+
+  const toggleVariantOption = (optionId: string) => {
+    setSelectedVariantOptionIds(previous => previous.includes(optionId)
+      ? previous.filter(id => id !== optionId)
+      : [...previous, optionId]);
+  };
+
+  const updateVariantOption = (groupId: string, optionId: string, patch: Record<string, unknown>) => {
+    setVariantGroups(previous => previous.map(group => group.id !== groupId ? group : {
+      ...group,
+      options: group.options.map(option => option.id === optionId ? { ...option, ...patch } : option),
+    }));
+  };
+
+  const addVariantOption = (groupId: string) => {
+    setVariantGroups(previous => previous.map(group => group.id !== groupId ? group : {
+      ...group,
+      options: [...group.options, { id: `${group.id}-${Date.now()}`, label: 'ตัวเลือกใหม่' }],
+    }));
+  };
+
+  const addVariantGroup = () => {
+    const id = `manual-group-${Date.now()}`;
+    setVariantGroups(previous => [...previous, {
+      id,
+      name: 'ตัวเลือกสินค้า',
+      options: [{ id: `${id}-option-1`, label: 'ตัวเลือกใหม่' }],
+    }]);
+  };
+
   const sendToThaiAds = async () => {
     const sourceImages = [...localImages, ...scrapedImages];
     if (!sourceImages.length) {
@@ -780,13 +869,17 @@ const App: React.FC = () => {
       .map(line => line.replace(/^[-*•\s]+/, '').trim())
       .filter(line => line.length > 2)
       .slice(0, 8);
+    const priceFact = getPriceDisplay() ? `ราคาที่ผู้ขายยืนยัน: ${getPriceDisplay()}` : '';
+    const variantFacts = variantGroups.flatMap(group => group.options.slice(0, 12).map(option => `${group.name}: ${option.label}${option.price?.display ? ` ${option.price.display}` : ''}`));
     setThaiAdsSession({
       ...createThaiAdsSession(),
       assets: { product: images, package: [], logo: [] },
       name: productName || 'สินค้าใหม่',
       details: productDesc,
-      factsText: facts.join('\n'),
-      notice: `รับข้อมูลสินค้าและรูปอ้างอิงจากหน้า Analyze แล้ว (${images.length} รูป)`,
+      factsText: [priceFact, ...facts, ...variantFacts].filter(Boolean).join('\n'),
+      price: productPrice,
+      variantGroups,
+      notice: `รับข้อมูลสินค้า ราคา และตัวเลือกจากหน้า Analyze แล้ว (${images.length} รูป)`,
     });
     setStudioMode(true);
     addNotification('success', 'ส่งไป Thai Ads แล้ว', `พร้อมสร้างภาพจากรูปอ้างอิง ${images.length} รูป`);
@@ -959,18 +1052,13 @@ const App: React.FC = () => {
       return;
     }
 
-    const productData: ProductData = {
-      name: productName || "สินค้าใหม่",
-      description: productDesc || "ไม่มีรายละเอียด",
-      images: validImages,
-      features: ["คุณภาพพรีเมียม", "ทนทาน", "ดีไซน์ทันสมัย"]
-    };
+    const productData = buildCurrentProductData(validImages);
 
     addNotification('info', 'เริ่มระบบสร้างภาพ AI', `กำลังติดต่อโมเดล ${selectedImageModel} เพื่อสร้างภาพตามหมวดหมู่...`);
 
     let successCount = 0;
     for (const cat of categoriesToGenerate) {
-      setGeneratedImages(prev => prev.map(p => p.category === cat ? { ...p, status: 'generating' } : p));
+      setGeneratedImages(prev => prev.map(p => p.category === cat && !p.variantLabel ? { ...p, status: 'generating' } : p));
       try {
         const customPromptForTutorial = cat === ImageCategory.TUTORIAL
           ? JSON.stringify(tutorialStepPrompts)
@@ -987,11 +1075,12 @@ const App: React.FC = () => {
           const val = selectedTutorialStyle[cat] || '0';
           styleIdx = parseInt(val) || undefined;
         }
-        const result = await generateProductImage(cat, productData, selectedStyle, customPromptForTutorial, selectedImageModel, imageAspectRatios[cat] || selectedAspectRatio, styleIdx);
-        setGeneratedImages(prev => prev.map(p => p.category === cat ? { ...p, url: result.imageUrl, status: 'completed', thaiTexts: result.thaiTexts, promptUsed: result.promptUsed, modelUsed: result.modelUsed } : p));
+        const styleForCard = cardVisualStyles[cat] || (cat === ImageCategory.COVER ? selectedCoverStyle || selectedStyle : selectedStyle);
+        const result = await generateProductImage(cat, productData, styleForCard, customPromptForTutorial, selectedImageModel, imageAspectRatios[cat] || selectedAspectRatio, styleIdx);
+        setGeneratedImages(prev => prev.map(p => p.category === cat && !p.variantLabel ? { ...p, url: result.imageUrl, status: 'completed', thaiTexts: result.thaiTexts, promptUsed: result.promptUsed, modelUsed: result.modelUsed, visualStyle: styleForCard } : p));
         successCount++;
       } catch (err) {
-        setGeneratedImages(prev => prev.map(p => p.category === cat ? { ...p, status: 'error', error: err instanceof Error ? err.message : 'Unknown error' } : p));
+        setGeneratedImages(prev => prev.map(p => p.category === cat && !p.variantLabel ? { ...p, status: 'error', error: err instanceof Error ? err.message : 'Unknown error' } : p));
         const errMsg = err instanceof Error ? err.message : '';
         const isQuota = errMsg.includes('429') || errMsg.includes('quota') || errMsg.includes('QUOTA') || errMsg.includes('RESOURCE_EXHAUSTED');
         const userMsg = isQuota
@@ -1020,10 +1109,10 @@ const App: React.FC = () => {
 
     // อัปเดตสถานะเป็นกำลังสร้างใหม่ (หรือสร้างภาพครั้งแรกสำหรับ Slot ว่าง)
     setGeneratedImages(prev => {
-      const exists = prev.some(img => img.category === category);
+      const exists = prev.some(img => img.category === category && !img.variantLabel);
       if (exists) {
         return prev.map(img =>
-          img.category === category ? {
+          img.category === category && !img.variantLabel ? {
             ...img,
             status: 'generating',
             error: undefined
@@ -1049,28 +1138,24 @@ const App: React.FC = () => {
       );
       const validImages = processedImages.filter(img => img !== "");
 
-      const productData: ProductData = {
-        name: productName || "สินค้าใหม่",
-        description: productDesc || "ไม่มีรายละเอียด",
-        images: validImages,
-        features: ["คุณภาพพรีเมียม", "ทนทาน", "ดีไซน์ทันสมัย"]
-      };
+      const productData = buildCurrentProductData(validImages);
 
       // สร้างภาพใหม่เฉพาะหมวดที่เลือก โดยใช้จำนวนครั้งที่พยายามสร้างใหม่เพื่อปรับ prompt
       const attemptCount = regenerationAttempts[category] || 1;
-      const styleToUse = styleOverride || selectedStyle;
+      const styleToUse = styleOverride || cardVisualStyles[category] || (category === ImageCategory.COVER ? selectedCoverStyle || selectedStyle : selectedStyle);
       const ratio = imageAspectRatios[category] || selectedAspectRatio;
       const result = await generateProductImage(category, productData, styleToUse, customPrompt, selectedImageModel, ratio, styleIndex);
 
       // อัปเดตเฉพาะภาพที่เลือก
       setGeneratedImages(prev => prev.map(img =>
-        img.category === category ? {
+        img.category === category && !img.variantLabel ? {
           ...img,
           url: result.imageUrl,
           status: 'completed',
           thaiTexts: result.thaiTexts,
           promptUsed: result.promptUsed,
-          modelUsed: result.modelUsed
+          modelUsed: result.modelUsed,
+          visualStyle: styleToUse,
         } : img
       ));
     } catch (err) {
@@ -1078,13 +1163,51 @@ const App: React.FC = () => {
       const errorMessage = err instanceof Error ? err.message : "เกิดข้อผิดพลาดในการสร้างภาพ";
 
       setGeneratedImages(prev => prev.map(img =>
-        img.category === category ? {
+        img.category === category && !img.variantLabel ? {
           ...img,
           status: 'error',
           error: errorMessage
         } : img
       ));
     }
+  };
+
+  const generateSelectedVariantImages = async () => {
+    const targets = variantGroups.flatMap(group => group.options
+      .filter(option => selectedVariantOptionIds.includes(option.id))
+      .map(option => ({ group, option, label: `${group.name}: ${option.label}${option.price?.display ? ` · ${option.price.display}` : ''}` })));
+    if (!targets.length) {
+      addNotification('warning', 'ยังไม่ได้เลือกตัวเลือกสินค้า', 'เลือกสี ขนาด หรือรุ่นอย่างน้อย 1 รายการก่อนสร้างภาพแยกตัวเลือก');
+      return;
+    }
+    const sourceImages = [...localImages, ...scrapedImages];
+    const converted = await Promise.all(sourceImages.slice(0, 3).map(imageUrlToBase64));
+    const images = converted.filter(Boolean);
+    if (!images.length) {
+      addNotification('error', 'อ่านรูปสินค้าไม่ได้', 'ต้องมีรูปสินค้าอ้างอิงก่อนสร้างภาพแยกตัวเลือก');
+      return;
+    }
+
+    setIsGenerating(true);
+    setStep(3);
+    for (const target of targets) {
+      const id = `variant-${target.option.id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      setGeneratedImages(previous => [...previous, { id, category: ImageCategory.COVER, url: '', prompt: '', status: 'generating', variantLabel: target.label, visualStyle: cardVisualStyles.COVER || selectedStyle }]);
+      try {
+        const result = await generateProductImage(
+          ImageCategory.COVER,
+          buildCurrentProductData(images, target.label),
+          cardVisualStyles.COVER || selectedStyle,
+          `Create a dedicated, exact-variant product cover for "${target.label}". Clearly distinguish only this confirmed purchasable option from other variants. Leave a clean editable Thai overlay zone for the exact variant name and confirmed price.`,
+          selectedImageModel,
+          selectedAspectRatio,
+        );
+        setGeneratedImages(previous => previous.map(image => image.id === id ? { ...image, url: result.imageUrl, status: 'completed', thaiTexts: [`${target.label}`, ...result.thaiTexts], promptUsed: result.promptUsed, modelUsed: result.modelUsed } : image));
+      } catch (error) {
+        setGeneratedImages(previous => previous.map(image => image.id === id ? { ...image, status: 'error', error: error instanceof Error ? error.message : 'สร้างภาพตัวเลือกไม่สำเร็จ' } : image));
+      }
+    }
+    setIsGenerating(false);
   };
 
   // ลบอักขระที่ทำให้เกิด subfolder ใน ZIP หรือ OS
@@ -1721,6 +1844,23 @@ const App: React.FC = () => {
                     value={productName}
                     onChange={(e) => setProductName(e.target.value)}
                   />
+                </div>
+
+                <div className={`rounded-3xl border p-5 ${theme === 'dark' ? 'border-emerald-900/70 bg-emerald-950/20' : 'border-emerald-100 bg-emerald-50/60'}`}>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div><h3 className={`font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>ราคาและตัวเลือกสินค้า</h3><p className={`mt-1 text-xs ${theme === 'dark' ? 'text-emerald-200/70' : 'text-emerald-800/70'}`}>ตรวจ แก้ไข และเลือกตัวเลือกที่จะสร้างภาพแยกก่อนเริ่ม Generate</p></div>
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-emerald-700 shadow-sm">{getPriceDisplay() || 'ยังไม่ได้ระบุราคา'}</span>
+                  </div>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                    <label className="text-xs font-bold text-slate-600 dark:text-slate-300">ราคาแสดง<input value={productPrice.display || ''} onChange={event => setProductPrice(previous => ({ ...previous, currency: 'THB', display: event.target.value }))} placeholder="เช่น ฿199 หรือ ฿199 - ฿299" className="mt-1 w-full rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-emerald-500"/></label>
+                    <label className="text-xs font-bold text-slate-600 dark:text-slate-300">ราคาต่ำสุด<input type="number" min="0" value={productPrice.min ?? productPrice.current ?? ''} onChange={event => updateProductPrice('min', event.target.value)} placeholder="199" className="mt-1 w-full rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-emerald-500"/></label>
+                    <label className="text-xs font-bold text-slate-600 dark:text-slate-300">ราคาสูงสุด<input type="number" min="0" value={productPrice.max ?? ''} onChange={event => updateProductPrice('max', event.target.value)} placeholder="299 (ถ้ามีช่วงราคา)" className="mt-1 w-full rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-emerald-500"/></label>
+                  </div>
+                  <div className="mt-5 space-y-3">
+                    {variantGroups.map(group => <div key={group.id} className="rounded-2xl border border-emerald-100 bg-white/80 p-3 dark:bg-slate-900/40"><div className="mb-2 flex items-center justify-between gap-2"><input value={group.name} onChange={event => setVariantGroups(previous => previous.map(item => item.id === group.id ? { ...item, name: event.target.value } : item))} className="min-w-0 bg-transparent text-sm font-black text-slate-800 outline-none dark:text-white"/><button onClick={() => addVariantOption(group.id)} className="rounded-lg border border-emerald-200 px-2 py-1 text-[10px] font-black text-emerald-700">+ เพิ่มตัวเลือก</button></div><div className="grid gap-2 sm:grid-cols-2">{group.options.map(option => <label key={option.id} className={`flex items-center gap-2 rounded-xl border px-2 py-2 text-xs ${selectedVariantOptionIds.includes(option.id) ? 'border-orange-400 bg-orange-50' : 'border-slate-200 bg-white'}`}><input type="checkbox" checked={selectedVariantOptionIds.includes(option.id)} onChange={() => toggleVariantOption(option.id)} className="accent-orange-500"/><input value={option.label} onChange={event => updateVariantOption(group.id, option.id, { label: event.target.value })} className="min-w-0 flex-1 bg-transparent font-bold text-slate-800 outline-none"/><input type="number" min="0" value={option.price?.current ?? option.price?.min ?? ''} onChange={event => { const amount = event.target.value === '' ? undefined : Number(event.target.value); updateVariantOption(group.id, option.id, { price: amount === undefined || !Number.isFinite(amount) ? undefined : { currency: 'THB', current: amount, min: amount, max: amount, display: `฿${amount.toLocaleString('th-TH')}` } }); }} placeholder="ราคา" className="w-20 rounded-lg border border-slate-200 px-2 py-1 text-right text-xs text-slate-800 outline-none focus:border-orange-400"/></label>)}</div></div>)}
+                    {!variantGroups.length && <div className="rounded-xl border border-dashed border-emerald-200 p-3 text-xs text-emerald-800"><p>ยังไม่พบสี ขนาด หรือรุ่นจากหน้าเดิม — คุณยังสร้างภาพปกและภาพรายละเอียดได้ตามปกติ</p><button onClick={addVariantGroup} className="mt-2 rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-[10px] font-black text-emerald-700">+ เพิ่มกลุ่มตัวเลือกเอง</button></div>}
+                  </div>
+                  {variantGroups.length > 0 && <button onClick={generateSelectedVariantImages} disabled={isGenerating || selectedVariantOptionIds.length === 0} className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-black text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"><Layers className="h-4 w-4"/>สร้างภาพแยก {selectedVariantOptionIds.length || ''} ตัวเลือกที่เลือก</button>}
                 </div>
 
                 <div>
@@ -2429,7 +2569,7 @@ const App: React.FC = () => {
                                   <p className="text-white text-[10px] font-black uppercase tracking-widest mb-1">PROMPT USED</p>
                                   {!editingPrompt[catKey] ? (
                                     <>
-                                      <p className="text-white/70 text-[10px] italic line-clamp-2">"High-quality commercial render, ${selectedStyle} style, master lighting..."</p>
+                                      <p className="text-white/70 text-[10px] italic line-clamp-2">"High-quality commercial render, ${img.visualStyle || cardVisualStyles[catKey] || (catKey === 'COVER' ? selectedCoverStyle || selectedStyle : selectedStyle)} style, master lighting..."</p>
                                       <button
                                         onClick={() => startEditingPrompt(catKey)}
                                         className="mt-2 text-[9px] text-blue-300 hover:text-white font-black underline"
@@ -2462,6 +2602,18 @@ const App: React.FC = () => {
                                     </div>
                                   )}
                                 </div>
+                                {/* Visual direction is available on every result card. */}
+                                <div className="mb-2">
+                                  <label className="mb-1 block text-[9px] font-black uppercase tracking-wider text-white/80">รูปแบบภาพการ์ดนี้</label>
+                                  <select
+                                    value={cardVisualStyles[catKey] || (catKey === 'COVER' ? selectedCoverStyle || selectedStyle : selectedStyle)}
+                                    onChange={(e) => setCardVisualStyles(prev => ({ ...prev, [catKey]: e.target.value }))}
+                                    className="w-full text-[10px] p-2 rounded-xl bg-white/20 text-white border border-white/30 backdrop-blur-md font-bold"
+                                  >
+                                    {STYLES.map(style => <option key={style.id} value={style.id} className="bg-slate-800 text-white">{style.name} — {style.desc}</option>)}
+                                  </select>
+                                </div>
+
                                 {/* Cover Style Dropdown - แสดงเฉพาะ COVER */}
                                 {catKey === 'COVER' && (
                                   <div className="mb-2">
@@ -2664,7 +2816,7 @@ const App: React.FC = () => {
                                           ? (selectedLifestyle[catKey] || catKey) as ImageCategory
                                           : catKey as ImageCategory,
                                         catKey === 'TUTORIAL' ? JSON.stringify(tutorialStepPrompts) : undefined,
-                                        catKey === 'COVER' ? (selectedCoverStyle || selectedStyle) : (catKey === 'SOCIAL_PROOF' ? (selectedSocialProof[catKey] || 'unboxing-moment') : undefined),
+                                        catKey === 'COVER' ? (cardVisualStyles[catKey] || selectedCoverStyle || selectedStyle) : (catKey === 'SOCIAL_PROOF' ? (selectedSocialProof[catKey] || 'unboxing-moment') : undefined),
                                         styleIdx
                                       );
                                     }}
@@ -2713,6 +2865,17 @@ const App: React.FC = () => {
                             <div>
                               <p className={`text-sm font-black uppercase tracking-widest mb-2 ${theme === 'dark' ? 'text-white' : 'text-slate-500'}`}>โครงสร้างภาพที่ {meta.order}</p>
                               <p className={`text-[10px] font-bold leading-relaxed px-6 italic ${theme === 'dark' ? 'text-gray-400' : 'text-slate-400'}`}>พิมพ์เขียวพร้อมใช้งาน <br />คลิกเพื่อสร้างภาพทันที</p>
+                            </div>
+
+                            <div onClick={(e) => e.stopPropagation()} className="w-full max-w-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                              <label className={`mb-1 block text-[9px] font-black uppercase tracking-wider ${theme === 'dark' ? 'text-white/80' : 'text-slate-600'}`}>เลือกรูปแบบภาพการ์ดนี้</label>
+                              <select
+                                value={cardVisualStyles[catKey] || (catKey === 'COVER' ? selectedCoverStyle || selectedStyle : selectedStyle)}
+                                onChange={(e) => setCardVisualStyles(prev => ({ ...prev, [catKey]: e.target.value }))}
+                                className={`w-full rounded-xl border px-3 py-2 text-[10px] font-bold outline-none ${theme === 'dark' ? 'border-gray-600 bg-gray-800 text-white' : 'border-slate-200 bg-white text-slate-700'}`}
+                              >
+                                {STYLES.map(style => <option key={style.id} value={style.id}>{style.name} — {style.desc}</option>)}
+                              </select>
                             </div>
 
                             <div className="absolute bottom-10 opacity-0 group-hover:opacity-100 transition-opacity animate-in slide-in-from-bottom-2">
@@ -2785,7 +2948,7 @@ const App: React.FC = () => {
                           <h4 className={`font-black text-lg group-hover:text-orange-600 transition-colors uppercase tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{meta.title}</h4>
                         </div>
                         <p className={`text-xs font-bold leading-relaxed line-clamp-2 h-10 italic ${theme === 'dark' ? 'text-gray-400' : 'text-slate-400'}`}>
-                          " {catKey === 'COVER' ? (STYLES.find(s => s.id === (selectedCoverStyle || selectedStyle))?.name || selectedStyleName) : meta.desc} "
+                          " {STYLES.find(s => s.id === (img?.visualStyle || cardVisualStyles[catKey] || (catKey === 'COVER' ? selectedCoverStyle || selectedStyle : selectedStyle)))?.name || meta.desc} "
                         </p>
                         <div className="mt-6 flex items-center gap-4">
                           <div className={`w-2 h-2 rounded-full ${strategy.color} shadow-sm`}></div>
@@ -2799,6 +2962,29 @@ const App: React.FC = () => {
                   );
                 })}
             </div>
+
+            {generatedImages.some(image => image.variantLabel) && (
+              <section className={`mt-12 rounded-[2.5rem] border p-6 md:p-8 ${theme === 'dark' ? 'border-emerald-900/70 bg-emerald-950/15' : 'border-emerald-100 bg-emerald-50/50'}`}>
+                <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-600">Variant Studio</p>
+                    <h3 className={`mt-1 text-xl font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>ภาพแยกตามตัวเลือกสินค้า</h3>
+                    <p className={`mt-1 text-xs ${theme === 'dark' ? 'text-emerald-200/70' : 'text-emerald-800/70'}`}>แต่ละภาพยึดชื่อตัวเลือกและราคาที่ยืนยันไว้จากหน้า Analyze</p>
+                  </div>
+                  <span className="rounded-full bg-emerald-500 px-3 py-1.5 text-xs font-black text-white">{generatedImages.filter(image => image.variantLabel).length} ตัวเลือก</span>
+                </div>
+                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {generatedImages.filter(image => image.variantLabel).map(image => (
+                    <article key={image.id} className={`overflow-hidden rounded-3xl border ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-white bg-white shadow-sm'}`}>
+                      <div className={`aspect-square ${theme === 'dark' ? 'bg-gray-800' : 'bg-slate-100'}`}>
+                        {image.status === 'completed' && image.url ? <img src={image.url} alt={image.variantLabel} className="h-full w-full object-cover"/> : <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-xs text-slate-500">{image.status === 'generating' ? <Loader2 className="animate-spin text-emerald-500"/> : <ImageIcon className="text-emerald-500"/>}<span>{image.status === 'generating' ? 'กำลังสร้างภาพตัวเลือก…' : image.error || 'รอสร้างภาพ'}</span></div>}
+                      </div>
+                      <div className="p-4"><p className={`text-sm font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{image.variantLabel}</p><p className="mt-1 truncate text-[10px] font-bold text-emerald-600">{image.modelUsed ? `ใช้จริง: ${image.modelUsed}` : image.status === 'generating' ? 'กำลังส่งข้อมูลรุ่น/ตัวเลือกให้ AI' : 'รอผลลัพธ์'}</p><p className={`mt-2 text-[10px] ${theme === 'dark' ? 'text-gray-400' : 'text-slate-500'}`}>สไตล์: {STYLES.find(style => style.id === image.visualStyle)?.name || image.visualStyle || selectedStyleName}</p>{image.url && <button onClick={() => downloadSingleImage(image.url, image.variantLabel || 'variant')} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2 text-xs font-black text-white hover:bg-emerald-700"><Download className="h-4 w-4"/>บันทึกภาพ</button>}</div>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            )}
 
             {/* Empty State Guard */}
             {generatedImages.length === 0 && !isGenerating && (

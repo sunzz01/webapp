@@ -27,6 +27,30 @@ export interface ProductData {
   description: string;
   images: string[];
   features: string[];
+  price?: ProductPrice;
+  variantGroups?: ProductVariantGroup[];
+}
+
+export interface ProductPrice {
+  currency?: string;
+  current?: number;
+  min?: number;
+  max?: number;
+  original?: number;
+  display?: string;
+}
+
+export interface ProductVariantOption {
+  id: string;
+  label: string;
+  price?: ProductPrice;
+  stock?: number;
+}
+
+export interface ProductVariantGroup {
+  id: string;
+  name: string;
+  options: ProductVariantOption[];
 }
 
 export interface GeneratedImage {
@@ -38,6 +62,8 @@ export interface GeneratedImage {
   thaiTexts?: string[];    // ข้อความภาษาไทยที่ควรปรากฏในภาพ (สำหรับอ้างอิงแก้ไขใน Photoshop)
   promptUsed?: string;     // prompt ที่ใช้สร้างภาพจริง
   modelUsed?: string;      // โมเดลจริงที่ backend ใช้ หลัง fallback
+  variantLabel?: string;   // ตัวเลือกสินค้า สำหรับภาพที่สร้างแยกรายตัวเลือก
+  visualStyle?: string;    // รูปแบบภาพที่เลือกเฉพาะการ์ด
   error?: string;          // ข้อความแสดงข้อผิดพลาดถ้ามี
 }
 

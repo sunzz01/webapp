@@ -40,12 +40,21 @@ function buildProductContext(productData: any) {
   const features = Array.isArray(productData.features)
     ? productData.features.filter(Boolean).map(String).slice(0, 8)
     : [];
+  const price = productData.price?.display || (productData.price?.current ? `฿${Number(productData.price.current).toLocaleString('th-TH')}` : '');
+  const variants = Array.isArray(productData.variantGroups)
+    ? productData.variantGroups.slice(0, 3).map((group: any) => {
+      const options = Array.isArray(group?.options) ? group.options.slice(0, 20) : [];
+      return `${String(group?.name || 'Option')}: ${options.map((option: any) => `${String(option?.label || '')}${option?.price?.display ? ` (${option.price.display})` : ''}`).filter(Boolean).join(', ')}`;
+    }).filter(Boolean)
+    : [];
 
   return [
     'PRODUCT CONTEXT:',
     name ? `- Product name: ${name}` : '',
     description ? `- Description: ${description}` : '',
     features.length ? `- Key features: ${features.join(' | ')}` : '',
+    price ? `- Confirmed selling price: ${price}` : '',
+    variants.length ? `- Confirmed variants: ${variants.join(' | ')}` : '',
   ].filter(Boolean).join('\n');
 }
 
@@ -172,6 +181,7 @@ Goal:
 - Preserve product identity: shape, color, material, logo/label placement, visible accessories, and proportions.
 - The final prompt may include Thai text direction if the legacy prompt asks for Thai marketing text, but keep text concise and readable.
 - Avoid overloading the image with many badges, review cards, tiny captions, or dense text.
+- Prices, variants, dimensions, and product claims are permitted only when present in PRODUCT CONTEXT. If supplied Thai copy includes a confirmed price or variant, reserve a clean editable overlay zone; do not fabricate alternative values.
 - Aspect ratio target: ${args.aspectRatio} (${args.ratioDesc}).
 
 ${args.productContext}
