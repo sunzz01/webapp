@@ -104,7 +104,7 @@ function mapFirebaseUser(firebaseUser: FirebaseUser, nameOverride?: string): Saa
     name,
     email: firebaseUser.email || '',
     tier: hasUnlimitedCredits(firebaseUser.email) ? 'enterprise' : meta.tier || 'free',
-    credits: typeof meta.credits === 'number' ? meta.credits : 5,
+    credits: typeof meta.credits === 'number' ? meta.credits : 10,
     unlimitedCredits: hasUnlimitedCredits(firebaseUser.email),
     avatar:
       firebaseUser.photoURL ||
@@ -213,7 +213,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const userData = mapFirebaseUser(credential.user, name.trim());
       setUser(userData);
       saveUserMeta(credential.user.uid, { credits: userData.credits, tier: userData.tier });
-      return { success: true, message: 'สมัครสมาชิกสำเร็จ! ได้รับสิทธิ์ฟรี 5 เครดิตสำหรับการทดลองใช้' };
+      return { success: true, message: 'สมัครสมาชิกสำเร็จ! ได้รับสิทธิ์ฟรี 10 เครดิตสำหรับการทดลองใช้' };
     } catch (error: any) {
       return { success: false, message: getFirebaseAuthMessage(error) };
     } finally {

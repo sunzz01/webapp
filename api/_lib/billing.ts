@@ -23,7 +23,7 @@ type PendingOrderInput = {
   provider?: PaymentProvider;
 };
 
-const DEFAULT_ENTITLEMENT: BillingEntitlement = { tier: 'free', credits: 5 };
+const DEFAULT_ENTITLEMENT: BillingEntitlement = { tier: 'free', credits: 10 };
 
 function db() {
   return getFirestore(getFirebaseAdminApp());

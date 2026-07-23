@@ -118,7 +118,7 @@ export const MarketingSite: React.FC<MarketingSiteProps> = ({ onOpenAuth, onGoTo
                 <button onClick={isSignedIn ? returnToStudio : () => onOpenAuth()} className={`inline-flex items-center justify-center rounded-2xl border px-6 py-3.5 text-sm font-black transition ${isDark ? 'border-white/15 bg-white/5 text-white hover:bg-white/10' : 'border-slate-200 bg-white text-slate-800 hover:border-slate-300'}`}>{isSignedIn ? 'กลับไป Studio' : 'เข้าสู่ระบบ'}</button>
               </div>
               <div className={`mt-8 flex flex-wrap gap-x-5 gap-y-3 text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-                <span className="inline-flex items-center gap-2"><Check className="h-4 w-4 text-emerald-500" />เริ่มฟรี 5 เครดิต</span>
+                <span className="inline-flex items-center gap-2"><Check className="h-4 w-4 text-emerald-500" />เริ่มฟรี 10 เครดิต</span>
                 <span className="inline-flex items-center gap-2"><Check className="h-4 w-4 text-emerald-500" />รองรับ QR และ Wallet</span>
                 <span className="inline-flex items-center gap-2"><Check className="h-4 w-4 text-emerald-500" />ไม่มีการเก็บเลขบัตร</span>
               </div>
