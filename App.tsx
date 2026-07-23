@@ -36,7 +36,10 @@ import {
   Wand2, // เพิ่ม icon สำหรับปุ่มสรุปข้อมูล
   ChevronUp,
   ChevronDown,
-  Edit2
+  Edit2,
+  ZoomIn,
+  ZoomOut,
+  Move
 } from 'lucide-react';
 import JSZip from 'jszip';
 import { ImageCategory, IMAGE_CATEGORIES_METADATA, ProductData, GeneratedImage, ProductPrice, ProductVariantGroup } from './types';
@@ -49,6 +52,14 @@ import { saveToDB, loadFromDB, clearDB } from './src/utils/storage'; // Persiste
 import { ImageEditorModal } from './src/components/ImageEditorModal';
 import LoginPage from './src/components/LoginPage';
 import { ShopeeAdsStudio, createThaiAdsSession, type ThaiAdsSession } from './src/components/ShopeeAdsStudio';
+
+type ResultsDensity = 'overview' | 'standard' | 'focus';
+
+const RESULTS_DENSITIES: { id: ResultsDensity; label: string; description: string; gridClass: string }[] = [
+  { id: 'overview', label: 'ภาพรวม', description: '4–5 ภาพต่อแถว', gridClass: 'grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-5' },
+  { id: 'standard', label: 'ปกติ', description: '3 ภาพต่อแถว', gridClass: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10' },
+  { id: 'focus', label: 'ใหญ่', description: '1–2 ภาพต่อแถว', gridClass: 'grid-cols-1 md:grid-cols-2 gap-10' },
+];
 
 const STYLES = [
   {
@@ -427,6 +438,40 @@ const App: React.FC = () => {
 
   // เพิ่ม state สำหรับ Preview Image
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewScale, setPreviewScale] = useState(1);
+  const [previewOffset, setPreviewOffset] = useState({ x: 0, y: 0 });
+  const [isPreviewDragging, setIsPreviewDragging] = useState(false);
+  const previewDragStart = useRef<{ pointerId: number; x: number; y: number; originX: number; originY: number } | null>(null);
+  const [resultsDensity, setResultsDensity] = useState<ResultsDensity>('standard');
+
+  const resetPreviewView = () => {
+    previewDragStart.current = null;
+    setIsPreviewDragging(false);
+    setPreviewScale(1);
+    setPreviewOffset({ x: 0, y: 0 });
+  };
+
+  const openPreview = (url: string) => {
+    resetPreviewView();
+    setPreviewImage(url);
+  };
+
+  const closePreview = () => {
+    setPreviewImage(null);
+    resetPreviewView();
+  };
+
+  useEffect(() => {
+    if (!previewImage) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closePreview();
+      if (event.key === '+' || event.key === '=') setPreviewScale(value => Math.min(4, value + 0.25));
+      if (event.key === '-') setPreviewScale(value => Math.max(0.5, value - 0.25));
+      if (event.key === '0') resetPreviewView();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [previewImage]);
 
   // เพิ่ม state สำหรับเลือก Style เฉพาะของ Cover Image
   const [selectedCoverStyle, setSelectedCoverStyle] = useState<string | null>(null);
@@ -570,6 +615,7 @@ const App: React.FC = () => {
            if (Array.isArray(savedState.variantGroups)) setVariantGroups(savedState.variantGroups);
            if (Array.isArray(savedState.selectedVariantOptionIds)) setSelectedVariantOptionIds(savedState.selectedVariantOptionIds);
            if (savedState.cardVisualStyles) setCardVisualStyles(savedState.cardVisualStyles);
+           if (savedState.resultsDensity === 'overview' || savedState.resultsDensity === 'standard' || savedState.resultsDensity === 'focus') setResultsDensity(savedState.resultsDensity);
           if (savedState.scrapedImages) {
             setScrapedImages(savedState.scrapedImages);
             setOriginalScrapedImages(savedState.scrapedImages);
@@ -616,6 +662,7 @@ const App: React.FC = () => {
        variantGroups,
        selectedVariantOptionIds,
        cardVisualStyles,
+       resultsDensity,
       scrapedImages,
       localImages,
       generatedImages,
@@ -636,6 +683,7 @@ const App: React.FC = () => {
     variantGroups,
     selectedVariantOptionIds,
     cardVisualStyles,
+    resultsDensity,
     scrapedImages,
     localImages,
     generatedImages,
@@ -2508,16 +2556,33 @@ const App: React.FC = () => {
             </div>
 
             {/* Strategic Grid Section Header */}
-            <div className="flex items-center gap-6 mb-10 px-4">
-              <h3 className={`text-xl font-black uppercase tracking-tighter flex items-center gap-3 ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>
-                <Target className="text-orange-500 w-6 h-6" />
-                โครงสร้าง 9 ภาพเพื่อการปิดการขาย (Strategic Sequence)
-              </h3>
-              <div className={`${theme === 'dark' ? 'bg-gray-700' : 'bg-slate-200'} h-[2px] flex-1`}></div>
-              <div className="flex gap-4">
+            <div className="mb-10 flex flex-col gap-5 px-4 xl:flex-row xl:items-center">
+              <div className="flex min-w-0 items-center gap-4">
+                <Target className="h-6 w-6 shrink-0 text-orange-500" />
+                <h3 className={`text-xl font-black uppercase tracking-tighter ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>
+                  โครงสร้าง 9 ภาพเพื่อการปิดการขาย (Strategic Sequence)
+                </h3>
+              </div>
+              <div className={`${theme === 'dark' ? 'bg-gray-700' : 'bg-slate-200'} hidden h-[2px] flex-1 xl:block`}></div>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className={`flex items-center gap-1 rounded-2xl border p-1.5 ${theme === 'dark' ? 'border-gray-700 bg-gray-800' : 'border-slate-200 bg-white shadow-sm'}`}>
+                  {RESULTS_DENSITIES.map(option => (
+                    <button
+                      key={option.id}
+                      onClick={() => setResultsDensity(option.id)}
+                      title={option.description}
+                      className={`rounded-xl px-3 py-2 text-[10px] font-black transition-all ${resultsDensity === option.id ? 'bg-orange-500 text-white shadow-md shadow-orange-500/30' : theme === 'dark' ? 'text-gray-300 hover:bg-gray-700' : 'text-slate-500 hover:bg-slate-100'}`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+                <span className={`text-[10px] font-bold ${theme === 'dark' ? 'text-gray-400' : 'text-slate-400'}`}>ปรับมุมมองภาพรวม</span>
+              </div>
+              <div className="flex flex-wrap gap-x-4 gap-y-2">
                 {['Hook', 'Logic', 'Emotion', 'Trust'].map(label => (
                   <div key={label} className="flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded-full ${label === 'Hook' ? 'bg-red-500' : label === 'Logic' ? 'bg-blue-500' : label === 'Emotion' ? 'bg-pink-500' : 'bg-green-500'}`}></div>
+                    <div className={`h-3 w-3 rounded-full ${label === 'Hook' ? 'bg-red-500' : label === 'Logic' ? 'bg-blue-500' : label === 'Emotion' ? 'bg-pink-500' : 'bg-green-500'}`}></div>
                     <span className={`text-[10px] font-black uppercase tracking-widest ${theme === 'dark' ? 'text-gray-400' : 'text-slate-400'}`}>{label}</span>
                   </div>
                 ))}
@@ -2525,7 +2590,7 @@ const App: React.FC = () => {
             </div>
 
             {/* Structured 9-Image Gallery */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 mb-20">
+            <div className={`grid ${RESULTS_DENSITIES.find(option => option.id === resultsDensity)?.gridClass || RESULTS_DENSITIES[1].gridClass} mb-20`}>
               {Object.entries(IMAGE_CATEGORIES_METADATA)
                 .sort(([, a], [, b]) => a.order - b.order)
                 .map(([catKey, meta]) => {
@@ -2534,7 +2599,7 @@ const App: React.FC = () => {
                   const isHero = meta.order === 1;
 
                   return (
-                    <div key={catKey} className={`group flex flex-col ${isHero ? 'lg:scale-105 z-10' : ''}`}>
+                    <div key={catKey} className={`group flex flex-col ${isHero && resultsDensity !== 'overview' ? 'lg:scale-105 z-10' : ''}`}>
                       <div className={`aspect-square relative rounded-[3rem] overflow-hidden border-4 transition-all duration-700 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} ${img?.status === 'completed' ? (theme === 'dark' ? 'border-gray-700 shadow-2xl ring-gray-700' : 'border-white shadow-2xl ring-slate-100') : (theme === 'dark' ? 'border-gray-700 border-dashed bg-gray-800/50 hover:bg-gray-700 hover:border-orange-500' : 'border-slate-200 border-dashed bg-slate-50/50 hover:bg-white hover:border-orange-200')}`}>
 
                         {/* Status: Completed */}
@@ -2551,7 +2616,7 @@ const App: React.FC = () => {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setPreviewImage(img.url);
+                                openPreview(img.url);
                               }}
                               className="absolute top-4 right-4 p-2.5 bg-black/30 hover:bg-black/50 text-white rounded-full backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all z-20 hover:scale-110 active:scale-95"
                               title="ดูภาพขนาดใหญ่"
@@ -3034,16 +3099,55 @@ const App: React.FC = () => {
 
       {/* Image Preview Modal */}
       {previewImage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setPreviewImage(null)}>
-          <div className="relative max-w-7xl max-h-[90vh] w-full h-full flex items-center justify-center" onClick={e => e.stopPropagation()}>
-            <img
-              src={previewImage}
-              alt="Full Preview"
-              className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"
-            />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={closePreview}>
+          <div className="relative h-full w-full max-h-[90vh] max-w-7xl overflow-hidden rounded-3xl" onClick={event => event.stopPropagation()}>
+            <div className="absolute left-4 top-4 z-20 flex items-center gap-1 rounded-2xl border border-white/20 bg-slate-950/70 p-1.5 text-white shadow-2xl backdrop-blur-md">
+              <button onClick={() => setPreviewScale(value => Math.max(0.5, value - 0.25))} className="rounded-xl p-2 hover:bg-white/15" title="ซูมออก"><ZoomOut className="h-5 w-5" /></button>
+              <button onClick={resetPreviewView} className="min-w-16 rounded-xl px-2 py-2 text-xs font-black hover:bg-white/15" title="รีเซ็ตขนาดและตำแหน่ง">{Math.round(previewScale * 100)}%</button>
+              <button onClick={() => setPreviewScale(value => Math.min(4, value + 0.25))} className="rounded-xl p-2 hover:bg-white/15" title="ซูมเข้า"><ZoomIn className="h-5 w-5" /></button>
+            </div>
+            <div className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2 rounded-full border border-white/15 bg-slate-950/65 px-4 py-2 text-[10px] font-bold text-white/85 backdrop-blur-md"><Move className="mr-1 inline h-3.5 w-3.5" />หมุนล้อเพื่อซูม · ลากเพื่อเลื่อน · กด 0 เพื่อรีเซ็ต</div>
+            <div
+              className={`flex h-full w-full touch-none items-center justify-center overflow-hidden ${previewScale > 1 ? isPreviewDragging ? 'cursor-grabbing' : 'cursor-grab' : 'cursor-zoom-in'}`}
+              onDoubleClick={resetPreviewView}
+              onWheel={event => {
+                event.preventDefault();
+                setPreviewScale(value => Math.max(0.5, Math.min(4, value - event.deltaY * 0.0015)));
+              }}
+              onPointerDown={event => {
+                if (previewScale <= 1) return;
+                previewDragStart.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, originX: previewOffset.x, originY: previewOffset.y };
+                setIsPreviewDragging(true);
+                event.currentTarget.setPointerCapture(event.pointerId);
+              }}
+              onPointerMove={event => {
+                const drag = previewDragStart.current;
+                if (!drag || drag.pointerId !== event.pointerId) return;
+                setPreviewOffset({ x: drag.originX + event.clientX - drag.x, y: drag.originY + event.clientY - drag.y });
+              }}
+              onPointerUp={event => {
+                if (previewDragStart.current?.pointerId !== event.pointerId) return;
+                previewDragStart.current = null;
+                setIsPreviewDragging(false);
+                event.currentTarget.releasePointerCapture(event.pointerId);
+              }}
+              onPointerCancel={() => {
+                previewDragStart.current = null;
+                setIsPreviewDragging(false);
+              }}
+            >
+              <img
+                src={previewImage}
+                alt="Full Preview"
+                draggable={false}
+                style={{ transform: `translate(${previewOffset.x}px, ${previewOffset.y}px) scale(${previewScale})` }}
+                className={`max-h-full max-w-full select-none rounded-2xl object-contain shadow-2xl will-change-transform ${isPreviewDragging ? 'transition-none' : 'transition-transform duration-100'}`}
+              />
+            </div>
             <button
-              onClick={() => setPreviewImage(null)}
+              onClick={closePreview}
               className="absolute top-4 right-4 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-md transition-all active:scale-95"
+              title="ปิด (Esc)"
             >
               <X className="w-6 h-6" />
             </button>
