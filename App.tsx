@@ -55,6 +55,7 @@ import LoginPage from './src/components/LoginPage';
 import { ShopeeAdsStudio, createThaiAdsSession, type ThaiAdsSession } from './src/components/ShopeeAdsStudio';
 import { MarketingSite } from './src/components/MarketingSite';
 import { PricingCheckoutModal } from './src/components/PricingCheckoutModal';
+import { KineticBackground } from './src/components/KineticBackground';
 import type { PlanId } from './pricing';
 
 type ResultsDensity = 'overview' | 'standard' | 'focus';
@@ -2001,7 +2002,8 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className={`min-h-screen flex flex-col ${theme === 'dark' ? 'bg-gray-900 text-white' : 'bg-[#F8FAFC] text-slate-900'}`}>
+    <div className={`min-h-screen flex flex-col relative z-0 ${theme === 'dark' ? 'bg-gray-900/90 text-white' : 'bg-[#F8FAFC]/90 text-slate-900'}`}>
+      <KineticBackground />
       <header className={`${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-slate-200'} sticky top-0 z-50 px-6 py-4 flex items-center justify-between shadow-sm`}>
         <div className="flex items-center gap-2">
           <div className={`${theme === 'dark' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-orange-500 hover:bg-orange-600'} p-2 rounded-xl cursor-pointer transition-all shadow-orange-100 shadow-lg`} onClick={() => setShowPublicLanding(true)}>

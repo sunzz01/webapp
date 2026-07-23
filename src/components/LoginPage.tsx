@@ -15,6 +15,7 @@ import {
   UserPlus,
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
+import { KineticBackground } from './KineticBackground';
 
 interface LoginPageProps {
   onLogin: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
@@ -101,12 +102,9 @@ const LoginPage: React.FC<LoginPageProps> = ({
   };
 
   return (
-    <div className={`min-h-screen flex items-center justify-center px-4 py-12 ${isDark ? 'bg-gray-900' : 'bg-gradient-to-br from-orange-50 via-white to-slate-50'}`}>
-      {/* Background Decor */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className={`absolute -top-40 -right-40 w-96 h-96 rounded-full blur-3xl opacity-20 ${isDark ? 'bg-orange-500' : 'bg-orange-300'}`} />
-        <div className={`absolute -bottom-40 -left-40 w-96 h-96 rounded-full blur-3xl opacity-10 ${isDark ? 'bg-orange-600' : 'bg-orange-200'}`} />
-      </div>
+    <div className={`min-h-screen flex items-center justify-center px-4 py-12 relative z-0 ${isDark ? 'bg-gray-900/90' : 'bg-gradient-to-br from-orange-50/80 via-white/80 to-slate-50/80'}`}>
+      {/* Interactive Web Motion Background */}
+      <KineticBackground />
 
       <motion.div
         initial={{ opacity: 0, y: 24, scale: 0.97 }}
