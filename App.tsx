@@ -1198,16 +1198,23 @@ const App: React.FC = () => {
       return;
     }
 
-    const facts = productDesc
-      .split('\n')
-      .map(line => line.replace(/^[-*•\s]+/, '').trim())
+    // Analyze may contain Markdown, literal escaped newlines, or <br> tags
+    // from the extension. Normalize all of them before extracting facts so
+    // headings/blank lines do not consume the feature limit.
+    const normalizedDescription = productDesc
+      .replace(/\\n/g, '\n')
+      .replace(/<br\s*\/?\s*>/gi, '\n');
+    const facts = normalizedDescription
+      .split(/\r?\n/)
+      .map(line => line.replace(/^[>*•\-\s]+/, '').replace(/\*\*/g, '').trim())
       .filter(line => line.length > 2)
-      .slice(0, 8);
+      .filter(line => !/^(จุดเด่นสินค้า|รายละเอียด|วิธีใช้งาน|คำขาย|hook)\s*:?$/i.test(line))
+      .slice(0, 24);
     setThaiAdsSession({
       ...createThaiAdsSession(),
       assets: { product: images, package: [], logo: [] },
       name: productName || 'สินค้าใหม่',
-      details: productDesc,
+      details: normalizedDescription,
       // Keep scraped commerce data in dedicated fields. ThaiAds exposes it
       // through opt-in toggles so incomplete variants/prices cannot destabilise
       // the default generation prompt.
