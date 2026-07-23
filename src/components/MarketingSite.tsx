@@ -40,9 +40,15 @@ const landingAdSlots = [
     label: 'ภาพปก',
     delay: 3,
     images: [
-      'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=640&q=85',
-      'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=640&q=85',
-      'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=640&q=85',
+      'https://6a61a95d2c9be6b62f95a2a6.imgix.net/cover-9.jpeg',
+      'https://6a61a95d2c9be6b62f95a2a6.imgix.net/sandbox/Cover-01.png',
+      'https://6a61a95d2c9be6b62f95a2a6.imgix.net/cover/Cover-09.png',
+      'https://6a61a95d2c9be6b62f95a2a6.imgix.net/Cover-02.png',
+      'https://6a61a95d2c9be6b62f95a2a6.imgix.net/cover-04.jpeg',
+      'https://6a61a95d2c9be6b62f95a2a6.imgix.net/cover-05.jpeg',
+      'https://6a61a95d2c9be6b62f95a2a6.imgix.net/cover-06.jpeg',
+      'https://6a61a95d2c9be6b62f95a2a6.imgix.net/cover-07.jpeg',
+      'https://6a61a95d2c9be6b62f95a2a6.imgix.net/cover-08.jpeg',
     ],
   },
   {
