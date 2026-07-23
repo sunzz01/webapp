@@ -71,6 +71,8 @@ const BLUEPRINTS: Omit<ThaiAdsCard, 'status' | 'imageUrl' | 'error' | 'visualSty
   { id: 'package', role: 'PACKAGE, WHAT IS INCLUDED & CLOSING VALUE', title: 'ในกล่องมีอะไรบ้าง', objective: 'สรุปแพ็กเกจและสิ่งที่ได้รับตามภาพ/ข้อมูลจริง', facts: [], thaiCopy: [] },
   { id: 'hero-lifestyle', role: 'HERO COVER LIFESTYLE + PRODUCT SHOT', title: 'Hero Shot พร้อมคน', objective: 'สินค้าอยู่ foreground ใหญ่และมีคนไทยหรือเอเชียใช้งานอย่างเป็นธรรมชาติ', facts: [], thaiCopy: [], includePerson: true },
   { id: 'feature', role: 'FEATURE INFOGRAPHIC', title: 'อินโฟกราฟิกจุดขาย', objective: 'วางสินค้าใหญ่ด้านขวาและเว้นพื้นที่ซ้ายสำหรับข้อมูล', facts: [], thaiCopy: [] },
+  { id: 'comparison', role: 'VARIANT OR USE-CASE COMPARISON', title: 'เปรียบเทียบตัวเลือก', objective: 'เปรียบเทียบเฉพาะรุ่น ตัวเลือก หรือการใช้งานที่ยืนยันแล้ว', facts: [], thaiCopy: [] },
+  { id: 'closing', role: 'CLOSING VALUE & CALL TO ACTION', title: 'สรุปความคุ้มค่า', objective: 'ปิดท้ายแคมเปญด้วยสินค้าและคุณค่าที่อ้างอิงจากข้อมูลจริง', facts: [], thaiCopy: [] },
 ];
 
 const readFiles = async (files: FileList | null): Promise<string[]> => Promise.all(Array.from(files || []).map(file => new Promise<string>((resolve, reject) => {
@@ -162,7 +164,7 @@ export function ShopeeAdsStudio({ dark, imageModel, session, setSession }: {
     const data = await readFiles(files);
     setSession(prev => ({ ...prev, assets: { ...prev.assets, [kind]: [...prev.assets[kind], ...data] } }));
   };
-  const createCards = () => BLUEPRINTS.slice(0, count).map(base => ({
+  const createCards = () => BLUEPRINTS.map(base => ({
     ...base,
     status: 'ready' as AdStatus,
     visualStyle: campaignStyle,
@@ -178,9 +180,10 @@ export function ShopeeAdsStudio({ dark, imageModel, session, setSession }: {
     if (!allImages.length) return setSession(prev => ({ ...prev, notice: 'เพิ่มภาพสินค้าหลักอย่างน้อย 1 ภาพก่อนสร้าง' }));
     if (!name.trim()) return setSession(prev => ({ ...prev, notice: 'ใส่ชื่อสินค้าก่อนเริ่มสร้าง' }));
     const work = createCards();
-    setSession(prev => ({ ...prev, cards: work, notice: 'AI วางแผนโทนภาพร่วมกันแล้ว กำลังเริ่มคิวสร้าง…', isGenerating: true }));
+    const initialCards = work.slice(0, count);
+    setSession(prev => ({ ...prev, cards: work, notice: `AI วางแผนการ์ดครบ ${BLUEPRINTS.length} ช่องแล้ว กำลังเริ่มสร้าง ${count} ภาพแรก…`, isGenerating: true }));
     const product = productForGeneration();
-    for (const card of work) {
+    for (const card of initialCards) {
       updateCard(card.id, { status: 'generating', error: undefined });
       try {
         const result = await generateProductImage(categoryForCard(card.id), product, 'shopee', buildThaiAdsPrompt(card, campaignDirection), imageModel, '1:1');
@@ -189,7 +192,7 @@ export function ShopeeAdsStudio({ dark, imageModel, session, setSession }: {
         updateCard(card.id, { status: 'error', error: error instanceof Error ? error.message : 'สร้างภาพไม่สำเร็จ' });
       }
     }
-    setSession(prev => ({ ...prev, isGenerating: false, notice: 'สร้างภาพครบคิวแล้ว คุณแก้ข้อความ สไตล์ และสร้างใหม่เป็นรายภาพได้' }));
+    setSession(prev => ({ ...prev, isGenerating: false, notice: `สร้าง ${count} ภาพแรกครบแล้ว — ช่องที่เหลือกด “สร้างภาพนี้” ได้ทันที` }));
   };
   const regenerate = async (card: ThaiAdsCard) => {
     if (!allImages.length) return;
