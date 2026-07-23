@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
 import {
   User as FirebaseUser,
   createUserWithEmailAndPassword,
@@ -29,6 +29,7 @@ interface AuthContextProps {
   logout: () => void;
   deductCredit: (amount: number) => boolean;
   addCredits: (amount: number, newTier?: 'free' | 'starter' | 'pro' | 'enterprise') => void;
+  refreshBilling: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
@@ -111,6 +112,16 @@ function mapFirebaseUser(firebaseUser: FirebaseUser, nameOverride?: string): Saa
   };
 }
 
+async function fetchBillingEntitlement(firebaseUser: FirebaseUser) {
+  const token = await firebaseUser.getIdToken();
+  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api/billing/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error('Billing account is not available');
+  const payload = await response.json();
+  return payload?.entitlement as { tier?: SaaSUser['tier']; credits?: number } | undefined;
+}
+
 function getFirebaseAuthMessage(error: any) {
   const code = error?.code || '';
   if (code === 'auth/invalid-credential' || code === 'auth/wrong-password') return 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
@@ -126,6 +137,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<SaaSUser | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
+  const refreshBilling = useCallback(async () => {
+    const firebaseUser = auth.currentUser;
+    if (!firebaseUser || hasUnlimitedCredits(firebaseUser.email)) return;
+
+    const entitlement = await fetchBillingEntitlement(firebaseUser);
+    if (!entitlement || typeof entitlement.credits !== 'number') return;
+    const tier = entitlement.tier === 'starter' || entitlement.tier === 'pro' || entitlement.tier === 'enterprise'
+      ? entitlement.tier
+      : 'free';
+
+    setUser((current) => {
+      if (!current || current.id !== firebaseUser.uid) return current;
+      const synced = { ...current, credits: entitlement.credits, tier };
+      saveUserMeta(firebaseUser.uid, { credits: synced.credits, tier: synced.tier });
+      return synced;
+    });
+  }, []);
+
   useEffect(() => {
     return onAuthStateChanged(auth, async (firebaseUser) => {
       try {
@@ -140,7 +169,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           return;
         }
 
-        setUser(mapFirebaseUser(firebaseUser));
+        const mappedUser = mapFirebaseUser(firebaseUser);
+        setUser(mappedUser);
+        try {
+          await refreshBilling();
+        } catch {
+          // Firebase-only/dev deployments retain the local trial metadata until billing is configured.
+        }
       } finally {
         setIsLoading(false);
       }
@@ -250,8 +285,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       logout,
       deductCredit,
       addCredits,
+      refreshBilling,
     }),
-    [user, isLoading],
+    [user, isLoading, refreshBilling],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

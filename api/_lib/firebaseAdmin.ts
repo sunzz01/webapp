@@ -1,5 +1,5 @@
 import type { VercelRequest } from '@vercel/node';
-import { cert, getApps, initializeApp } from 'firebase-admin/app';
+import { cert, getApp, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 
 type FirebaseServiceAccount = {
@@ -39,6 +39,12 @@ function ensureFirebaseAdmin() {
   initializeApp({
     credential: cert(parseServiceAccount(raw) as any),
   });
+}
+
+/** Server-only Firebase Admin app, shared by authenticated API routes and billing webhooks. */
+export function getFirebaseAdminApp() {
+  ensureFirebaseAdmin();
+  return getApp();
 }
 
 function getBearerToken(req: VercelRequest) {

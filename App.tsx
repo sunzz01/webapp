@@ -53,6 +53,9 @@ import { saveToDB, loadFromDB, clearDB } from './src/utils/storage'; // Persiste
 import { ImageEditorModal } from './src/components/ImageEditorModal';
 import LoginPage from './src/components/LoginPage';
 import { ShopeeAdsStudio, createThaiAdsSession, type ThaiAdsSession } from './src/components/ShopeeAdsStudio';
+import { MarketingSite } from './src/components/MarketingSite';
+import { PricingCheckoutModal } from './src/components/PricingCheckoutModal';
+import type { PlanId } from './pricing';
 
 type ResultsDensity = 'overview' | 'standard' | 'focus';
 type ScaleReferenceId = 'iphone-15' | 'iphone-15-pro' | 'hand' | 'custom';
@@ -386,7 +389,7 @@ const ASPECT_RATIOS = [
 
 const App: React.FC = () => {
   const { addNotification, notifications, removeNotification } = useNotification();
-  const { user, login, register, loginWithSocial, logout, deductCredit, addCredits, isLoading: authLoading } = useAuth();
+  const { user, login, register, loginWithSocial, logout, deductCredit, addCredits, refreshBilling, isLoading: authLoading } = useAuth();
 
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [apiKeys, setApiKeys] = useState<string[]>(() => {
@@ -409,6 +412,9 @@ const App: React.FC = () => {
   const [authName, setAuthName] = useState<string>('');
   const [isSubmittingAuth, setIsSubmittingAuth] = useState<boolean>(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState<boolean>(false);
+  const [publicScreen, setPublicScreen] = useState<'landing' | 'login'>('landing');
+  const [pendingPlanId, setPendingPlanId] = useState<PlanId | undefined>();
+  const [showPricingCheckout, setShowPricingCheckout] = useState(false);
   const [studioMode, setStudioMode] = useState(false);
   const [thaiAdsSession, setThaiAdsSession] = useState<ThaiAdsSession>(createThaiAdsSession);
 
@@ -436,6 +442,10 @@ const App: React.FC = () => {
   const [isZipping, setIsZipping] = useState<boolean>(false);
   const [scrapeError, setScrapeError] = useState<string | null>(null);
   const [isRestoring, setIsRestoring] = useState<boolean>(true); // Persistent state loading flag
+
+  useEffect(() => {
+    if (user && pendingPlanId) setShowPricingCheckout(true);
+  }, [user, pendingPlanId]);
 
   // State สำหรับเปิดปิด Modal Canva-like
   const [editingImageParams, setEditingImageParams] = useState<{ isScraped: boolean; index: number; url: string } | null>(null);
@@ -1938,12 +1948,24 @@ const App: React.FC = () => {
   if (!user) {
     return (
       <>
-        <LoginPage
-          onLogin={login}
-          onRegister={register}
-          onGoogleLogin={() => loginWithSocial('google')}
-          isLoading={authLoading}
-        />
+        {publicScreen === 'landing' ? (
+          <MarketingSite onOpenAuth={(planId) => { setPendingPlanId(planId); setPublicScreen('login'); }} />
+        ) : (
+          <div className="relative">
+            <button
+              onClick={() => setPublicScreen('landing')}
+              className="absolute left-4 top-4 z-20 rounded-xl border border-slate-200 bg-white/90 px-3 py-2 text-xs font-black text-slate-600 shadow-sm backdrop-blur hover:bg-white dark:border-white/10 dark:bg-slate-900/90 dark:text-slate-200"
+            >
+              ← กลับหน้าราคา
+            </button>
+            <LoginPage
+              onLogin={login}
+              onRegister={register}
+              onGoogleLogin={() => loginWithSocial('google')}
+              isLoading={authLoading}
+            />
+          </div>
+        )}
         <NotificationSystem notifications={notifications} onRemove={removeNotification} />
       </>
     );
@@ -1988,6 +2010,13 @@ const App: React.FC = () => {
 
         {/* ส่วน User Profile + Theme Toggle + Logout */}
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => { setShowProfileDropdown(false); setShowPricingCheckout(true); }}
+            className={`hidden lg:flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-black transition-colors ${theme === 'dark' ? 'bg-orange-500/15 text-orange-300 hover:bg-orange-500/25' : 'bg-orange-50 text-orange-600 hover:bg-orange-100'}`}
+          >
+            <Zap className="w-4 h-4" />
+            แพ็กเกจ / เครดิต
+          </button>
           <button
             onClick={() => setStudioMode(true)}
             className={`md:hidden p-2 rounded-xl transition-colors ${studioMode ? 'bg-orange-500 text-white' : (theme === 'dark' ? 'bg-gray-700 text-orange-400' : 'bg-orange-50 text-orange-600')}`}
@@ -3491,6 +3520,16 @@ const App: React.FC = () => {
         onSave={handleSaveEditedImage}
         removeBgApiHandler={callRemoveBgApi}
       />
+      {showPricingCheckout && (
+        <PricingCheckoutModal
+          initialPlanId={pendingPlanId}
+          onClose={() => { setShowPricingCheckout(false); setPendingPlanId(undefined); }}
+          onPaymentConfirmed={async () => {
+            await refreshBilling();
+            addNotification('success', 'ชำระเงินสำเร็จ', 'ระบบอัปเดตเครดิตและสิทธิ์แพ็กเกจของคุณแล้ว');
+          }}
+        />
+      )}
     </div>
   );
 };
