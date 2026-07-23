@@ -1,0 +1,368 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Sparkles, ChevronUp, ChevronDown } from 'lucide-react';
+
+interface SlotItem {
+  id: string;
+  image: string;
+  label: string;
+  tag?: string;
+  tagColor?: string;
+}
+
+interface SlotMachineHeroPreviewProps {
+  isDark: boolean;
+}
+
+const SLOT_DATA: { category: string; color: string; items: SlotItem[] }[] = [
+  {
+    category: 'ภาพปก',
+    color: 'bg-orange-500',
+    items: [
+      {
+        id: 'c1',
+        image: 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=600&auto=format&fit=crop&q=80',
+        label: 'ภาพปก',
+        tag: 'รุ่นใหม่ 5 ลิตร',
+        tagColor: 'bg-amber-500/90 text-white',
+      },
+      {
+        id: 'c2',
+        image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80',
+        label: 'ภาพปก',
+        tag: 'ลด 50%',
+        tagColor: 'bg-rose-500/90 text-white',
+      },
+      {
+        id: 'c3',
+        image: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=600&auto=format&fit=crop&q=80',
+        label: 'ภาพปก',
+        tag: 'ขายดีอันดับ 1',
+        tagColor: 'bg-emerald-500/90 text-white',
+      },
+      {
+        id: 'c4',
+        image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80',
+        label: 'ภาพปก',
+        tag: 'ส่งฟรี 0 บาท',
+        tagColor: 'bg-indigo-500/90 text-white',
+      },
+    ],
+  },
+  {
+    category: 'จุดเด่น',
+    color: 'bg-cyan-500',
+    items: [
+      {
+        id: 'h1',
+        image: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&auto=format&fit=crop&q=80',
+        label: 'จุดเด่น',
+        tag: 'ดีไซน์มินิมอล',
+        tagColor: 'bg-cyan-600/90 text-white',
+      },
+      {
+        id: 'h2',
+        image: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=600&auto=format&fit=crop&q=80',
+        label: 'จุดเด่น',
+        tag: 'ตัดเสียงรบกวน',
+        tagColor: 'bg-blue-600/90 text-white',
+      },
+      {
+        id: 'h3',
+        image: 'https://images.unsplash.com/photo-1608248597560-841459a99723?w=600&auto=format&fit=crop&q=80',
+        label: 'จุดเด่น',
+        tag: 'ออร์แกนิก 100%',
+        tagColor: 'bg-teal-600/90 text-white',
+      },
+      {
+        id: 'h4',
+        image: 'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?w=600&auto=format&fit=crop&q=80',
+        label: 'จุดเด่น',
+        tag: 'จอ AMOLED คมชัด',
+        tagColor: 'bg-purple-600/90 text-white',
+      },
+    ],
+  },
+  {
+    category: 'ขนาดจริง',
+    color: 'bg-violet-500',
+    items: [
+      {
+        id: 's1',
+        image: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=600&auto=format&fit=crop&q=80',
+        label: 'ขนาดจริง',
+        tag: 'ขนาด 30×25 ซม.',
+        tagColor: 'bg-violet-600/90 text-white',
+      },
+      {
+        id: 's2',
+        image: 'https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=600&auto=format&fit=crop&q=80',
+        label: 'ขนาดจริง',
+        tag: 'แบตเตอรี่ 40 ชม.',
+        tagColor: 'bg-amber-600/90 text-white',
+      },
+      {
+        id: 's3',
+        image: 'https://images.unsplash.com/photo-1571781926291-c477ebfd024b?w=600&auto=format&fit=crop&q=80',
+        label: 'ขนาดจริง',
+        tag: 'ความจุ 100 มล.',
+        tagColor: 'bg-pink-600/90 text-white',
+      },
+      {
+        id: 's4',
+        image: 'https://images.unsplash.com/photo-1524805444758-089113d48a6d?w=600&auto=format&fit=crop&q=80',
+        label: 'ขนาดจริง',
+        tag: 'ขนาดตัวเรือน 44มม.',
+        tagColor: 'bg-indigo-600/90 text-white',
+      },
+    ],
+  },
+];
+
+export const SlotMachineHeroPreview: React.FC<SlotMachineHeroPreviewProps> = ({ isDark }) => {
+  const [indexes, setIndexes] = useState<number[]>([0, 0, 0]);
+  const [spinning, setSpinning] = useState<boolean[]>([true, true, true]);
+  const [blurAmount, setBlurAmount] = useState<number[]>([6, 6, 6]);
+  const autoTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const dragStartRef = useRef<{ slotIdx: number; startY: number } | null>(null);
+
+  // 1. Initial Arcade Slot Machine Spinning Effect on page load
+  useEffect(() => {
+    // Fast initial spinning loop with staggered deceleration
+    const timers: NodeJS.Timeout[] = [];
+
+    // Slot 1 stops after 1.2s
+    timers.push(
+      setTimeout(() => {
+        setSpinning((prev) => [false, prev[1], prev[2]]);
+        setBlurAmount((prev) => [0, prev[1], prev[2]]);
+      }, 1200)
+    );
+
+    // Slot 2 stops after 1.6s
+    timers.push(
+      setTimeout(() => {
+        setSpinning((prev) => [prev[0], false, prev[2]]);
+        setBlurAmount((prev) => [prev[0], 0, prev[2]]);
+      }, 1600)
+    );
+
+    // Slot 3 stops after 2.0s
+    timers.push(
+      setTimeout(() => {
+        setSpinning((prev) => [prev[0], prev[1], false]);
+        setBlurAmount((prev) => [prev[0], prev[1], 0]);
+      }, 2000)
+    );
+
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
+  // Rapid ticker frame for spinning visual blur effect
+  useEffect(() => {
+    if (!spinning.some(Boolean)) return;
+
+    const interval = setInterval(() => {
+      setIndexes((prev) =>
+        prev.map((idx, sIdx) => (spinning[sIdx] ? (idx + 1) % 4 : idx))
+      );
+    }, 90);
+
+    return () => clearInterval(interval);
+  }, [spinning]);
+
+  // 2. Auto-rotate every 5 seconds after initial spin completes
+  useEffect(() => {
+    if (spinning.some(Boolean)) return;
+
+    const startAutoLoop = () => {
+      autoTimerRef.current = setInterval(() => {
+        setIndexes((prev) => prev.map((idx) => (idx + 1) % 4));
+      }, 5000);
+    };
+
+    startAutoLoop();
+
+    return () => {
+      if (autoTimerRef.current) clearInterval(autoTimerRef.current);
+    };
+  }, [spinning]);
+
+  const resetAutoTimer = () => {
+    if (autoTimerRef.current) clearInterval(autoTimerRef.current);
+    autoTimerRef.current = setInterval(() => {
+      setIndexes((prev) => prev.map((idx) => (idx + 1) % 4));
+    }, 6000);
+  };
+
+  // 3. Interactive Wheel & Drag handlers for scrolling slots manually
+  const handleWheel = (slotIdx: number, deltaY: number) => {
+    resetAutoTimer();
+    setIndexes((prev) => {
+      const next = [...prev];
+      if (deltaY > 0) {
+        next[slotIdx] = (next[slotIdx] + 1) % 4;
+      } else {
+        next[slotIdx] = (next[slotIdx] - 1 + 4) % 4;
+      }
+      return next;
+    });
+  };
+
+  const handlePointerDown = (slotIdx: number, clientY: number) => {
+    dragStartRef.current = { slotIdx, startY: clientY };
+  };
+
+  const handlePointerUp = (slotIdx: number, clientY: number) => {
+    if (!dragStartRef.current || dragStartRef.current.slotIdx !== slotIdx) return;
+    const diffY = clientY - dragStartRef.current.startY;
+    dragStartRef.current = null;
+
+    if (Math.abs(diffY) > 20) {
+      resetAutoTimer();
+      setIndexes((prev) => {
+        const next = [...prev];
+        if (diffY < 0) {
+          next[slotIdx] = (next[slotIdx] + 1) % 4;
+        } else {
+          next[slotIdx] = (next[slotIdx] - 1 + 4) % 4;
+        }
+        return next;
+      });
+    }
+  };
+
+  return (
+    <div className={`rounded-2xl p-5 ${isDark ? 'bg-[#0a1425]' : 'bg-slate-50'}`}>
+      {/* Title section updated to "ตัวอย่างภาพ" */}
+      <div className="flex items-center justify-between">
+        <div>
+          <p className={`text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>แคมเปญสินค้า</p>
+          <p className="mt-1 text-base font-black tracking-tight text-orange-500 flex items-center gap-2">
+            ตัวอย่างภาพ
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-orange-500/10 text-orange-400 border border-orange-500/20">
+              Auto 5s • Scroll/Drag สล็อต
+            </span>
+          </p>
+        </div>
+        <span className="rounded-lg bg-orange-500/15 px-2.5 py-1 text-[10px] font-black text-orange-500 animate-pulse">
+          พร้อมสร้าง
+        </span>
+      </div>
+
+      {/* 3-Column Slot Machine Reels with 1:1 Aspect Ratio */}
+      <div className="mt-5 grid grid-cols-3 gap-3">
+        {SLOT_DATA.map((col, slotIdx) => {
+          const activeIndex = indexes[slotIdx];
+          const isSlotSpinning = spinning[slotIdx];
+
+          return (
+            <div key={col.category} className="group relative flex flex-col items-center">
+              {/* Manual navigation hover hints */}
+              <button
+                onClick={() => handleWheel(slotIdx, -1)}
+                className={`absolute -top-3 z-20 rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 transition-opacity ${
+                  isDark ? 'bg-slate-800 text-white border border-white/20' : 'bg-white text-slate-800 border border-slate-200'
+                }`}
+                title="เลื่อนขึ้น"
+              >
+                <ChevronUp className="h-3 w-3" />
+              </button>
+
+              {/* 1:1 Square Slot Container */}
+              <div
+                className={`relative w-full aspect-square overflow-hidden rounded-2xl border cursor-grab active:cursor-grabbing select-none transition-all shadow-md ${
+                  isDark ? 'border-white/15 bg-slate-900/80 hover:border-orange-500/50' : 'border-slate-200 bg-white hover:border-orange-400'
+                }`}
+                onWheel={(e) => {
+                  e.preventDefault();
+                  handleWheel(slotIdx, e.deltaY);
+                }}
+                onPointerDown={(e) => handlePointerDown(slotIdx, e.clientY)}
+                onPointerUp={(e) => handlePointerUp(slotIdx, e.clientY)}
+              >
+                {/* Vertical Reel Strip */}
+                <div
+                  className={`w-full h-full flex flex-col ${
+                    isSlotSpinning ? 'transition-none' : 'transition-transform duration-700 ease-out'
+                  }`}
+                  style={{
+                    transform: `translateY(-${activeIndex * 100}%)`,
+                    filter: isSlotSpinning ? `blur(${blurAmount[slotIdx]}px)` : 'none',
+                  }}
+                >
+                  {col.items.map((item) => (
+                    <div key={item.id} className="relative w-full h-full shrink-0 aspect-square">
+                      <img
+                        src={item.image}
+                        alt={item.label}
+                        draggable={false}
+                        className="w-full h-full object-cover select-none"
+                      />
+
+                      {/* Floating Badge Tag */}
+                      {item.tag && (
+                        <span
+                          className={`absolute top-2 right-2 rounded-md px-2 py-0.5 text-[9px] font-black shadow-lg backdrop-blur-md ${
+                            item.tagColor || 'bg-black/60 text-white'
+                          }`}
+                        >
+                          {item.tag}
+                        </span>
+                      )}
+
+                      {/* Label Overlay */}
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/85 via-slate-950/40 to-transparent p-2.5 pt-6 text-left">
+                        <p className="text-[10px] font-black text-white tracking-tight leading-tight">
+                          {col.category}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Reel Edge Shadow Overlay */}
+                <div className="pointer-events-none absolute inset-0 rounded-2xl shadow-[inset_0_0_15px_rgba(0,0,0,0.3)]" />
+              </div>
+
+              <button
+                onClick={() => handleWheel(slotIdx, 1)}
+                className={`absolute -bottom-3 z-20 rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 transition-opacity ${
+                  isDark ? 'bg-slate-800 text-white border border-white/20' : 'bg-white text-slate-800 border border-slate-200'
+                }`}
+                title="เลื่อนลง"
+              >
+                <ChevronDown className="h-3 w-3" />
+              </button>
+
+              {/* Slot Indicator Dots */}
+              <div className="mt-2 flex gap-1">
+                {col.items.map((_, dotIdx) => (
+                  <span
+                    key={dotIdx}
+                    onClick={() => {
+                      resetAutoTimer();
+                      setIndexes((prev) => {
+                        const next = [...prev];
+                        next[slotIdx] = dotIdx;
+                        return next;
+                      });
+                    }}
+                    className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                      dotIdx === activeIndex
+                        ? 'w-4 bg-orange-500'
+                        : isDark
+                        ? 'w-1.5 bg-slate-700 hover:bg-slate-500'
+                        : 'w-1.5 bg-slate-300 hover:bg-slate-400'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+export default SlotMachineHeroPreview;

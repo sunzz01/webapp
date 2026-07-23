@@ -18,8 +18,8 @@ import {
 } from 'lucide-react';
 import { BillingInterval, formatThaiBaht, getPlanPrice, PlanId, PRICING_PLANS } from '../../pricing';
 import { useTheme } from '../contexts/ThemeContext';
-import { PaymentBrand, PaymentBrandLogo } from './PaymentBrandLogo';
 import { KineticBackground } from './KineticBackground';
+import { SlotMachineHeroPreview } from './SlotMachineHeroPreview';
 
 interface MarketingSiteProps {
   onOpenAuth: (planId?: PlanId) => void;
@@ -27,66 +27,12 @@ interface MarketingSiteProps {
   onSelectPlan?: (planId: PlanId) => void;
 }
 
-const paymentMethods: { brand: PaymentBrand; title: string; description: string }[] = [
-  { brand: 'promptpay', title: 'PromptPay QR', description: 'สแกนจ่ายได้ทุกธนาคาร' },
-  { brand: 'truemoney', title: 'TrueMoney', description: 'ยืนยันผ่าน Wallet ของคุณ' },
-  { brand: 'card', title: 'บัตรเครดิต/เดบิต', description: 'ชำระผ่านหน้ารับบัตรที่ปลอดภัย' },
-  { brand: 'alipay', title: 'Alipay', description: 'รองรับลูกค้าข้ามพรมแดน' },
-  { brand: 'stripe', title: 'Stripe Checkout', description: 'หน้าชำระเงินมาตรฐานสากล' },
+const paymentMethods = [
+  { icon: QrCode, title: 'PromptPay QR', description: 'สแกนจ่ายได้ทุกธนาคาร' },
+  { icon: WalletCards, title: 'TrueMoney', description: 'ยืนยันผ่าน Wallet ของคุณ' },
+  { icon: CreditCard, title: 'บัตรเครดิต/เดบิต', description: 'ชำระผ่านหน้ารับบัตรที่ปลอดภัย' },
+  { icon: CircleDollarSign, title: 'Alipay', description: 'รองรับลูกค้าข้ามพรมแดน' },
 ];
-
-const landingAdSlots = [
-  {
-    label: 'ภาพปก',
-    delay: 3,
-    images: [
-      'https://6a61a95d2c9be6b62f95a2a6.imgix.net/cover-9.jpeg',
-      'https://6a61a95d2c9be6b62f95a2a6.imgix.net/sandbox/Cover-01.png',
-      'https://6a61a95d2c9be6b62f95a2a6.imgix.net/cover/Cover-09.png',
-      'https://6a61a95d2c9be6b62f95a2a6.imgix.net/Cover-02.png',
-      'https://6a61a95d2c9be6b62f95a2a6.imgix.net/cover-04.jpeg',
-      'https://6a61a95d2c9be6b62f95a2a6.imgix.net/cover-05.jpeg',
-      'https://6a61a95d2c9be6b62f95a2a6.imgix.net/cover-06.jpeg',
-      'https://6a61a95d2c9be6b62f95a2a6.imgix.net/cover-07.jpeg',
-      'https://6a61a95d2c9be6b62f95a2a6.imgix.net/cover-08.jpeg',
-      'https://6a61a95d2c9be6b62f95a2a6.imgix.net/cover/cover-10.png',
-    ],
-  },
-  {
-    label: 'จุดเด่น',
-    delay: 5,
-    images: [
-      'https://6a61a95d2c9be6b62f95a2a6.imgix.net/feature/0_%E0%B8%A7%E0%B8%B4%E0%B8%98%E0%B8%B5%E0%B9%83%E0%B8%8A%E0%B9%89%E0%B8%87%E0%B8%B2%E0%B8%99%20(Tutorial)%E0%B8%AB%E0%B8%B1%E0%B8%A7%E0%B8%9B%E0%B8%A3%E0%B8%B1%E0%B8%9A%E0%B9%81%E0%B8%81%E0%B9%87%E0%B8%AA%E0%B9%81%E0%B8%A3%E0%B8%87%E0%B8%94%E0%B8%B1%E0%B8%99%E0%B8%AA%E0%B8%B9%E0%B8%87.png',
-      'https://6a61a95d2c9be6b62f95a2a6.imgix.net/feature/0_%E0%B8%A7%E0%B8%B4%E0%B8%98%E0%B8%B5%E0%B9%83%E0%B8%8A%E0%B9%89%E0%B8%87%E0%B8%B2%E0%B8%99%20(Tutorial)%E0%B8%AB%E0%B8%B1%E0%B8%A7%E0%B8%9B%E0%B8%A3%E0%B8%B1%E0%B8%9A%E0%B9%81%E0%B8%81%E0%B9%87%E0%B8%AA%E0%B9%81%E0%B8%A3%E0%B8%87%E0%B8%94%E0%B8%B1%E0%B8%99%E0%B8%AA%E0%B8%B9%E0%B8%87%20(1).png',
-      'https://6a61a95d2c9be6b62f95a2a6.imgix.net/feature/Feature-%20(05).jpeg',
-      'https://6a61a95d2c9be6b62f95a2a6.imgix.net/feature/Feature-%20(04).jpeg',
-      'https://6a61a95d2c9be6b62f95a2a6.imgix.net/feature/Feature-%20(03).jpeg',
-      'https://6a61a95d2c9be6b62f95a2a6.imgix.net/feature/Feature-%20(02).jpeg',
-      'https://6a61a95d2c9be6b62f95a2a6.imgix.net/feature/feature-01.png',
-    ],
-  },
-  {
-    label: 'ขนาดจริง',
-    delay: 7,
-    images: [
-      'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=640&q=85',
-      'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=640&q=85',
-      'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=640&q=85',
-    ],
-  },
-];
-
-const LandingAdPreviewSlot: React.FC<{ slot: typeof landingAdSlots[number]; isDark: boolean }> = ({ slot, isDark }) => (
-  <div className={`overflow-hidden rounded-xl border ${isDark ? 'border-white/10 bg-white/5' : 'border-slate-200 bg-white'}`}>
-    <div className="relative h-20 overflow-hidden">
-      <div className="landing-ad-slot-track" style={{ animationDelay: `${slot.delay}s` }}>
-        {[...slot.images, slot.images[0]].map((src, index) => <img key={`${src}-${index}`} src={src} alt="" className="h-20 w-full object-cover" loading={index === 0 ? 'eager' : 'lazy'} />)}
-      </div>
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/25 via-transparent to-white/10" />
-    </div>
-    <p className="truncate px-2 py-2 text-[10px] font-black">{slot.label}</p>
-  </div>
-);
 
 const faqs = [
   ['เครดิตใช้ทำอะไรได้บ้าง?', '1 เครดิตใช้กับการวิเคราะห์สินค้าหรือภาพที่สร้างสำเร็จ 1 ภาพ โดยระบบจะแจ้งก่อนเริ่มงานเสมอ'],
@@ -111,22 +57,8 @@ export const MarketingSite: React.FC<MarketingSiteProps> = ({ onOpenAuth, onGoTo
   const selectPlan = (planId: PlanId) => onSelectPlan ? onSelectPlan(planId) : onOpenAuth(planId);
 
   return (
-    <div className={isDark ? 'relative isolate min-h-screen overflow-hidden bg-[#08111f] text-slate-100' : 'relative isolate min-h-screen overflow-hidden bg-[#f8fafc] text-slate-900'}>
-      <style>{`
-        @keyframes landing-ad-slot-rotate {
-          0% { transform: translateY(0); }
-          5% { transform: translateY(-25%); }
-          33.333% { transform: translateY(-25%); }
-          38.333% { transform: translateY(-50%); }
-          66.667% { transform: translateY(-50%); }
-          71.667% { transform: translateY(-75%); }
-          100% { transform: translateY(-75%); }
-        }
-        .landing-ad-slot-track { animation: landing-ad-slot-rotate 30s cubic-bezier(.4,0,.2,1) infinite; will-change: transform; }
-        @media (prefers-reduced-motion: reduce) { .landing-ad-slot-track { animation: none !important; } }
-      `}</style>
+    <div className={isDark ? 'min-h-screen bg-[#08111f]/90 text-slate-100 relative z-0' : 'min-h-screen bg-[#f8fafc]/90 text-slate-900 relative z-0'}>
       <KineticBackground />
-      <div className="relative z-10">
       <header className={`sticky top-0 z-40 border-b backdrop-blur-xl ${isDark ? 'border-white/10 bg-[#08111f]/80' : 'border-slate-200/80 bg-white/80'}`}>
         <div className="mx-auto flex h-18 max-w-7xl items-center justify-between px-5 py-3 lg:px-8">
           <button className="flex items-center gap-3 text-left" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
@@ -168,10 +100,6 @@ export const MarketingSite: React.FC<MarketingSiteProps> = ({ onOpenAuth, onGoTo
 
       <main>
         <section className="relative overflow-hidden">
-          <div className="pointer-events-none absolute inset-0 overflow-hidden">
-            <div className="absolute -left-24 top-16 h-80 w-80 rounded-full bg-orange-400/20 blur-3xl" />
-            <div className="absolute right-0 top-0 h-[28rem] w-[28rem] rounded-full bg-cyan-400/15 blur-3xl" />
-          </div>
           <div className="relative mx-auto grid max-w-7xl gap-12 px-5 py-16 lg:grid-cols-[1.02fr_.98fr] lg:px-8 lg:py-24">
             <div className="flex flex-col justify-center">
               <div className={`mb-6 inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold ${isDark ? 'border-orange-400/30 bg-orange-400/10 text-orange-200' : 'border-orange-200 bg-orange-50 text-orange-700'}`}>
@@ -202,16 +130,8 @@ export const MarketingSite: React.FC<MarketingSiteProps> = ({ onOpenAuth, onGoTo
                   <div className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-rose-400" /><span className="h-2.5 w-2.5 rounded-full bg-amber-400" /><span className="h-2.5 w-2.5 rounded-full bg-emerald-400" /></div>
                   <span className={`text-[10px] font-black uppercase tracking-[0.16em] ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Thai Ads Studio</span>
                 </div>
-                <div className={`rounded-2xl p-5 ${isDark ? 'bg-[#0a1425]' : 'bg-slate-50'}`}>
-                  <div className="flex items-center justify-between">
-                    <div><p className={`text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>แคมเปญสินค้า</p><p className="mt-1 font-black">ตะแกรงอเนกประสงค์</p></div>
-                    <span className="rounded-lg bg-orange-500/15 px-2.5 py-1 text-[10px] font-black text-orange-500">พร้อมสร้าง</span>
-                  </div>
-                  <div className="mt-5 grid grid-cols-3 gap-3">
-                    {landingAdSlots.map(slot => <LandingAdPreviewSlot key={slot.label} slot={slot} isDark={isDark} />)}
-                  </div>
-                  <div className={`mt-4 rounded-xl border p-3 ${isDark ? 'border-emerald-400/20 bg-emerald-400/10' : 'border-emerald-100 bg-emerald-50'}`}><div className="flex items-center gap-2 text-xs font-bold text-emerald-600"><ShieldCheck className="h-4 w-4" />ล็อกราคาและตัวเลือกสินค้าใน prompt</div></div>
-                </div>
+                <SlotMachineHeroPreview isDark={isDark} />
+                <div className={`mt-4 rounded-xl border p-3 ${isDark ? 'border-emerald-400/20 bg-emerald-400/10' : 'border-emerald-100 bg-emerald-50'}`}><div className="flex items-center gap-2 text-xs font-bold text-emerald-600"><ShieldCheck className="h-4 w-4" />ล็อกราคาและตัวเลือกสินค้าใน prompt</div></div>
               </div>
               <div className={`absolute -bottom-6 -left-4 rounded-2xl border p-3 shadow-xl ${isDark ? 'border-white/10 bg-[#15253e]' : 'border-white bg-white'}`}><div className="flex items-center gap-3"><span className="rounded-xl bg-emerald-500/15 p-2 text-emerald-500"><Sparkles className="h-4 w-4" /></span><span><span className="block text-[10px] font-bold text-slate-400">สร้างภาพสำเร็จ</span><span className="block text-xs font-black">6 ภาพในแคมเปญ</span></span></div></div>
             </div>
@@ -245,8 +165,8 @@ export const MarketingSite: React.FC<MarketingSiteProps> = ({ onOpenAuth, onGoTo
               <div><p className="text-xs font-black uppercase tracking-[0.18em] text-orange-500">Payment options</p><h2 className="mt-3 text-2xl font-black">จ่ายด้วยวิธีที่ลูกค้าคุ้นเคย</h2></div>
               <p className={`max-w-md text-sm leading-6 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>เช็กเอาต์จะแสดงวิธีจ่ายที่ร้านเปิดใช้งานจริง และไม่เปิดเผยข้อมูลสำคัญของผู้ใช้</p>
             </div>
-            <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-              {paymentMethods.map(({ brand, title, description }) => <div key={title} className={`rounded-2xl border p-4 ${isDark ? 'border-white/10 bg-[#0c192b]' : 'border-slate-200 bg-slate-50'}`}><span className={`flex h-10 w-16 items-center justify-center rounded-lg ${isDark ? 'bg-white' : 'bg-white'}`}><PaymentBrandLogo brand={brand} /></span><p className="mt-4 text-sm font-black">{title}</p><p className={`mt-1 text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{description}</p></div>)}
+            <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {paymentMethods.map(({ icon: Icon, title, description }) => <div key={title} className={`rounded-2xl border p-4 ${isDark ? 'border-white/10 bg-[#0c192b]' : 'border-slate-200 bg-slate-50'}`}><Icon className="h-5 w-5 text-orange-500" /><p className="mt-4 text-sm font-black">{title}</p><p className={`mt-1 text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{description}</p></div>)}
             </div>
           </div>
         </section>
@@ -255,7 +175,6 @@ export const MarketingSite: React.FC<MarketingSiteProps> = ({ onOpenAuth, onGoTo
       </main>
 
       <footer className={`border-t px-5 py-8 ${isDark ? 'border-white/10 text-slate-500' : 'border-slate-200 text-slate-500'}`}><div className="mx-auto flex max-w-7xl flex-col justify-between gap-2 text-xs sm:flex-row"><span>© {new Date().getFullYear()} PicSeller. Visual commerce for Thai sellers.</span><span className="inline-flex items-center gap-1"><ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />Payment is confirmed server-side before credits are granted.</span></div></footer>
-      </div>
     </div>
   );
 };
