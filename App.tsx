@@ -1203,17 +1203,20 @@ const App: React.FC = () => {
       .map(line => line.replace(/^[-*•\s]+/, '').trim())
       .filter(line => line.length > 2)
       .slice(0, 8);
-    const priceFact = getPriceDisplay() ? `ราคาที่ผู้ขายยืนยัน: ${getPriceDisplay()}` : '';
-    const variantFacts = variantGroups.flatMap(group => group.options.slice(0, 12).map(option => `${group.name}: ${option.label}${option.price?.display ? ` ${option.price.display}` : ''}`));
     setThaiAdsSession({
       ...createThaiAdsSession(),
       assets: { product: images, package: [], logo: [] },
       name: productName || 'สินค้าใหม่',
       details: productDesc,
-      factsText: [priceFact, ...facts, ...variantFacts].filter(Boolean).join('\n'),
+      // Keep scraped commerce data in dedicated fields. ThaiAds exposes it
+      // through opt-in toggles so incomplete variants/prices cannot destabilise
+      // the default generation prompt.
+      factsText: facts.join('\n'),
       price: productPrice,
       variantGroups,
-      notice: `รับข้อมูลสินค้า ราคา และตัวเลือกจากหน้า Analyze แล้ว (${images.length} รูป)`,
+      usePrice: false,
+      useVariants: false,
+      notice: `รับข้อมูลสินค้าจาก Analyze แล้ว — ราคาและตัวเลือกปิดไว้เป็นค่าเริ่มต้น (${images.length} รูป)`,
     });
     setStudioMode(true);
     addNotification('success', 'ส่งไป Thai Ads แล้ว', `พร้อมสร้างภาพจากรูปอ้างอิง ${images.length} รูป`);

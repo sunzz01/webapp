@@ -235,6 +235,7 @@ export async function generateProductImage(
   imageModel?: string,
   aspectRatio: string = '1:1',
   styleIndex?: number,
+  adBrief?: ShopeeAdBrief,
 ): Promise<ImageGenerationResult> {
   // Construct prompt based on category (simplified — full prompt construction
   // happens on client side using the same logic as before)
@@ -268,6 +269,7 @@ export async function generateProductImage(
     style,
     customPrompt,
     productData: { ...productData, images: apiImages || [] },
+    adBrief,
   });
 
   // Build thaiTexts for reference
@@ -303,6 +305,7 @@ export async function generateShopeeAdImage(
     'Thai high-information ecommerce design: clear product hierarchy, professional callout areas, crisp commercial lighting, and a clean mobile-safe central composition.',
     `Confirmed facts only: ${facts || 'Use only visible product details.'}`,
     thaiCopy ? `Text to be added later as editable Thai overlay (do not attempt to render it inside the generated image): ${thaiCopy}. Leave intentional clean overlay zones instead.` : '',
+    'All visible labels, callouts, captions, and marketing copy must be Thai only. Never generate English marketing copy, Latin placeholders, or mixed-language text. If Thai text cannot be rendered accurately, leave the area clean and text-free rather than inventing or garbling text.',
     brief.includePerson ? `Include an adult Thai or Asian person using the exact product naturally. ${brief.personBrief || 'The product must remain large and clearly visible in the foreground.'}` : 'No people unless required by the image role.',
     'Preserve product identity exactly: shape, color, materials, labels, proportions, included pieces. Never invent measurements, certifications, prices, promotions, reviews, accessories, variants, or performance claims.',
   ].filter(Boolean).join('\n\n');
