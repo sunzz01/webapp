@@ -122,27 +122,30 @@ export const SlotMachineHeroPreview: React.FC<SlotMachineHeroPreviewProps> = ({ 
   const [indexes, setIndexes] = useState<number[]>([0, 0, 0]);
   const [spinning, setSpinning] = useState<boolean[]>([true, true, true]);
   const [blurAmount, setBlurAmount] = useState<number[]>([6, 6, 6]);
-  const autoTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const autoLoopRef = useRef<NodeJS.Timeout | null>(null);
   const dragStartRef = useRef<{ slotIdx: number; startY: number } | null>(null);
 
-  // 1. Initial Arcade Slot Machine Spinning Effect on page load
+  // 1. Initial Arcade Slot Machine Spinning Effect on page load (staggered decelerations)
   useEffect(() => {
     const timers: NodeJS.Timeout[] = [];
 
+    // Slot 0 stops at 1.0s
     timers.push(
       setTimeout(() => {
         setSpinning((prev) => [false, prev[1], prev[2]]);
         setBlurAmount((prev) => [0, prev[1], prev[2]]);
-      }, 1200)
+      }, 1000)
     );
 
+    // Slot 1 stops at 1.5s
     timers.push(
       setTimeout(() => {
         setSpinning((prev) => [prev[0], false, prev[2]]);
         setBlurAmount((prev) => [prev[0], 0, prev[2]]);
-      }, 1600)
+      }, 1500)
     );
 
+    // Slot 2 stops at 2.0s
     timers.push(
       setTimeout(() => {
         setSpinning((prev) => [prev[0], prev[1], false]);
@@ -153,40 +156,71 @@ export const SlotMachineHeroPreview: React.FC<SlotMachineHeroPreviewProps> = ({ 
     return () => timers.forEach(clearTimeout);
   }, []);
 
-  // Rapid ticker frame for spinning visual blur effect
+  // Rapid ticker frame for initial spinning visual blur effect
   useEffect(() => {
     if (!spinning.some(Boolean)) return;
 
     const interval = setInterval(() => {
       setIndexes((prev) =>
-        prev.map((idx, sIdx) => (spinning[sIdx] ? (idx + 1) % 4 : idx))
+        prev.map((idx, sIdx) => {
+          if (!spinning[sIdx]) return idx;
+          // Slot 1 spins upward initially, 0 and 2 spin downward
+          return sIdx === 1 ? (idx - 1 + 4) % 4 : (idx + 1) % 4;
+        })
       );
     }, 90);
 
     return () => clearInterval(interval);
   }, [spinning]);
 
-  // 2. Auto-rotate every 5 seconds after initial spin completes
+  // 2. STRICT RULE: Sequential Turn-based Motion (Never move simultaneously!)
+  // Slot 0 moves down -> Slot 1 (Middle) moves UP -> Slot 2 moves down
   useEffect(() => {
     if (spinning.some(Boolean)) return;
 
-    const startAutoLoop = () => {
-      autoTimerRef.current = setInterval(() => {
-        setIndexes((prev) => prev.map((idx) => (idx + 1) % 4));
-      }, 5000);
+    const timers: NodeJS.Timeout[] = [];
+
+    const scheduleSequentialCycle = () => {
+      // Step 1 (t = 0.5s): Left Slot moves DOWN 1 step
+      timers.push(
+        setTimeout(() => {
+          setIndexes((prev) => [ (prev[0] + 1) % 4, prev[1], prev[2] ]);
+        }, 500)
+      );
+
+      // Step 2 (t = 1.9s): Middle Slot moves UPWARDS 1 step! (1.4s gap)
+      timers.push(
+        setTimeout(() => {
+          setIndexes((prev) => [ prev[0], (prev[1] - 1 + 4) % 4, prev[2] ]);
+        }, 1900)
+      );
+
+      // Step 3 (t = 3.3s): Right Slot moves DOWN 1 step! (1.4s gap)
+      timers.push(
+        setTimeout(() => {
+          setIndexes((prev) => [ prev[0], prev[1], (prev[2] + 1) % 4 ]);
+        }, 3300)
+      );
     };
 
-    startAutoLoop();
+    // Run cycle first time after initial spin
+    scheduleSequentialCycle();
+
+    // Repeat cycle every 5.2 seconds
+    autoLoopRef.current = setInterval(() => {
+      scheduleSequentialCycle();
+    }, 5200);
 
     return () => {
-      if (autoTimerRef.current) clearInterval(autoTimerRef.current);
+      if (autoLoopRef.current) clearInterval(autoLoopRef.current);
+      timers.forEach(clearTimeout);
     };
   }, [spinning]);
 
   const resetAutoTimer = () => {
-    if (autoTimerRef.current) clearInterval(autoTimerRef.current);
-    autoTimerRef.current = setInterval(() => {
-      setIndexes((prev) => prev.map((idx) => (idx + 1) % 4));
+    if (autoLoopRef.current) clearInterval(autoLoopRef.current);
+    autoLoopRef.current = setInterval(() => {
+      setIndexes((prev) => [ (prev[0] + 1) % 4, prev[1], prev[2] ]);
     }, 6000);
   };
 
@@ -195,10 +229,19 @@ export const SlotMachineHeroPreview: React.FC<SlotMachineHeroPreviewProps> = ({ 
     resetAutoTimer();
     setIndexes((prev) => {
       const next = [...prev];
-      if (deltaY > 0) {
-        next[slotIdx] = (next[slotIdx] + 1) % 4;
+      if (slotIdx === 1) {
+        // Middle slot wheel inverted
+        if (deltaY > 0) {
+          next[slotIdx] = (next[slotIdx] - 1 + 4) % 4;
+        } else {
+          next[slotIdx] = (next[slotIdx] + 1) % 4;
+        }
       } else {
-        next[slotIdx] = (next[slotIdx] - 1 + 4) % 4;
+        if (deltaY > 0) {
+          next[slotIdx] = (next[slotIdx] + 1) % 4;
+        } else {
+          next[slotIdx] = (next[slotIdx] - 1 + 4) % 4;
+        }
       }
       return next;
     });
@@ -217,10 +260,19 @@ export const SlotMachineHeroPreview: React.FC<SlotMachineHeroPreviewProps> = ({ 
       resetAutoTimer();
       setIndexes((prev) => {
         const next = [...prev];
-        if (diffY < 0) {
-          next[slotIdx] = (next[slotIdx] + 1) % 4;
+        if (slotIdx === 1) {
+          // Middle slot drag inverted
+          if (diffY < 0) {
+            next[slotIdx] = (next[slotIdx] - 1 + 4) % 4;
+          } else {
+            next[slotIdx] = (next[slotIdx] + 1) % 4;
+          }
         } else {
-          next[slotIdx] = (next[slotIdx] - 1 + 4) % 4;
+          if (diffY < 0) {
+            next[slotIdx] = (next[slotIdx] + 1) % 4;
+          } else {
+            next[slotIdx] = (next[slotIdx] - 1 + 4) % 4;
+          }
         }
         return next;
       });
@@ -235,7 +287,7 @@ export const SlotMachineHeroPreview: React.FC<SlotMachineHeroPreviewProps> = ({ 
           <p className="mt-1 text-base font-black tracking-tight text-orange-500 flex items-center gap-2">
             ตัวอย่างภาพ
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-orange-500/10 text-orange-400 border border-orange-500/20">
-              Auto 5s • Scroll/Drag สล็อต
+              สล็อตกลางเลื่อนขึ้น ⬆️ • ขยับทีละช่อง
             </span>
           </p>
         </div>
