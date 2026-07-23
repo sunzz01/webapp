@@ -38,7 +38,7 @@ function buildProductContext(productData: any, category?: string) {
   const name = String(productData.name || '').trim();
   const description = String(productData.description || '').trim();
   const features = Array.isArray(productData.features)
-    ? productData.features.filter(Boolean).map(String).slice(0, 8)
+    ? productData.features.filter(Boolean).map(String).slice(0, 24)
     : [];
   const price = productData.price?.display || (productData.price?.current ? `฿${Number(productData.price.current).toLocaleString('th-TH')}` : '');
   const variants = Array.isArray(productData.variantGroups)
