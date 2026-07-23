@@ -88,31 +88,66 @@ const SLOT_DATA: { category: string; color: string; items: SlotItem[] }[] = [
     items: [
       {
         id: 's1',
-        image: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=640&q=85',
+        image: 'https://6a61a95d2c9be6b62f95a2a6.imgix.net/size/size-01.png',
         label: 'ขนาดจริง',
-        tag: 'มิติขนาดจริง',
+        tag: 'ขนาดสินค้า 01',
         tagColor: 'bg-violet-600/90 text-white',
       },
       {
         id: 's2',
-        image: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=640&q=85',
+        image: 'https://6a61a95d2c9be6b62f95a2a6.imgix.net/size/size-12.png',
         label: 'ขนาดจริง',
-        tag: 'เทียบขนาด',
-        tagColor: 'bg-amber-600/90 text-white',
-      },
-      {
-        id: 's3',
-        image: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=640&q=85',
-        label: 'ขนาดจริง',
-        tag: 'รายละเอียดสเกล',
+        tag: 'ขนาดสินค้า 12',
         tagColor: 'bg-indigo-600/90 text-white',
       },
       {
-        id: 's4',
-        image: 'https://6a61a95d2c9be6b62f95a2a6.imgix.net/feature/Feature-%20(05).jpeg',
+        id: 's3',
+        image: 'https://6a61a95d2c9be6b62f95a2a6.imgix.net/size/size-11.png',
         label: 'ขนาดจริง',
-        tag: 'ขนาดมาตรฐาน',
+        tag: 'ขนาดสินค้า 11',
+        tagColor: 'bg-blue-600/90 text-white',
+      },
+      {
+        id: 's4',
+        image: 'https://6a61a95d2c9be6b62f95a2a6.imgix.net/size/7_SIZE_CHART.png_202607231422.jpeg',
+        label: 'ขนาดจริง',
+        tag: 'Size Chart 07',
+        tagColor: 'bg-teal-600/90 text-white',
+      },
+      {
+        id: 's5',
+        image: 'https://6a61a95d2c9be6b62f95a2a6.imgix.net/size/SIZE_03.png_202607231422.jpeg',
+        label: 'ขนาดจริง',
+        tag: 'Size Chart 03',
+        tagColor: 'bg-amber-600/90 text-white',
+      },
+      {
+        id: 's6',
+        image: 'https://6a61a95d2c9be6b62f95a2a6.imgix.net/size/SIZE_CHART.png_202607231422.jpeg',
+        label: 'ขนาดจริง',
+        tag: 'Size Chart หลัก',
+        tagColor: 'bg-orange-600/90 text-white',
+      },
+      {
+        id: 's7',
+        image: 'https://6a61a95d2c9be6b62f95a2a6.imgix.net/size/size-02.png_202607231422.jpeg',
+        label: 'ขนาดจริง',
+        tag: 'ขนาดสินค้า 02',
+        tagColor: 'bg-rose-600/90 text-white',
+      },
+      {
+        id: 's8',
+        image: 'https://6a61a95d2c9be6b62f95a2a6.imgix.net/size/size-09.jpeg',
+        label: 'ขนาดจริง',
+        tag: 'ขนาดสินค้า 09',
         tagColor: 'bg-pink-600/90 text-white',
+      },
+      {
+        id: 's9',
+        image: 'https://6a61a95d2c9be6b62f95a2a6.imgix.net/size/size-099.jpeg',
+        label: 'ขนาดจริง',
+        tag: 'ขนาดสินค้า 99',
+        tagColor: 'bg-purple-600/90 text-white',
       },
     ],
   },
@@ -125,11 +160,20 @@ export const SlotMachineHeroPreview: React.FC<SlotMachineHeroPreviewProps> = ({ 
   const autoLoopRef = useRef<NodeJS.Timeout | null>(null);
   const dragStartRef = useRef<{ slotIdx: number; startY: number } | null>(null);
 
+  // Helper for safe wrapping modulo per slot count
+  const nextIdx = (slotIdx: number, current: number, direction: 'down' | 'up') => {
+    const total = SLOT_DATA[slotIdx].items.length;
+    if (direction === 'down') {
+      return (current + 1) % total;
+    } else {
+      return (current - 1 + total) % total;
+    }
+  };
+
   // 1. Initial Arcade Slot Machine Spinning Effect on page load (staggered decelerations)
   useEffect(() => {
     const timers: NodeJS.Timeout[] = [];
 
-    // Slot 0 stops at 1.0s
     timers.push(
       setTimeout(() => {
         setSpinning((prev) => [false, prev[1], prev[2]]);
@@ -137,7 +181,6 @@ export const SlotMachineHeroPreview: React.FC<SlotMachineHeroPreviewProps> = ({ 
       }, 1000)
     );
 
-    // Slot 1 stops at 1.5s
     timers.push(
       setTimeout(() => {
         setSpinning((prev) => [prev[0], false, prev[2]]);
@@ -145,7 +188,6 @@ export const SlotMachineHeroPreview: React.FC<SlotMachineHeroPreviewProps> = ({ 
       }, 1500)
     );
 
-    // Slot 2 stops at 2.0s
     timers.push(
       setTimeout(() => {
         setSpinning((prev) => [prev[0], prev[1], false]);
@@ -164,8 +206,8 @@ export const SlotMachineHeroPreview: React.FC<SlotMachineHeroPreviewProps> = ({ 
       setIndexes((prev) =>
         prev.map((idx, sIdx) => {
           if (!spinning[sIdx]) return idx;
-          // Slot 1 spins upward initially, 0 and 2 spin downward
-          return sIdx === 1 ? (idx - 1 + 4) % 4 : (idx + 1) % 4;
+          const total = SLOT_DATA[sIdx].items.length;
+          return sIdx === 1 ? (idx - 1 + total) % total : (idx + 1) % total;
         })
       );
     }, 90);
@@ -174,7 +216,6 @@ export const SlotMachineHeroPreview: React.FC<SlotMachineHeroPreviewProps> = ({ 
   }, [spinning]);
 
   // 2. STRICT RULE: Sequential Turn-based Motion (Never move simultaneously!)
-  // Slot 0 moves down -> Slot 1 (Middle) moves UP -> Slot 2 moves down
   useEffect(() => {
     if (spinning.some(Boolean)) return;
 
@@ -184,21 +225,21 @@ export const SlotMachineHeroPreview: React.FC<SlotMachineHeroPreviewProps> = ({ 
       // Step 1 (t = 0.5s): Left Slot moves DOWN 1 step
       timers.push(
         setTimeout(() => {
-          setIndexes((prev) => [ (prev[0] + 1) % 4, prev[1], prev[2] ]);
+          setIndexes((prev) => [ nextIdx(0, prev[0], 'down'), prev[1], prev[2] ]);
         }, 500)
       );
 
       // Step 2 (t = 1.9s): Middle Slot moves UPWARDS 1 step! (1.4s gap)
       timers.push(
         setTimeout(() => {
-          setIndexes((prev) => [ prev[0], (prev[1] - 1 + 4) % 4, prev[2] ]);
+          setIndexes((prev) => [ prev[0], nextIdx(1, prev[1], 'up'), prev[2] ]);
         }, 1900)
       );
 
       // Step 3 (t = 3.3s): Right Slot moves DOWN 1 step! (1.4s gap)
       timers.push(
         setTimeout(() => {
-          setIndexes((prev) => [ prev[0], prev[1], (prev[2] + 1) % 4 ]);
+          setIndexes((prev) => [ prev[0], prev[1], nextIdx(2, prev[2], 'down') ]);
         }, 3300)
       );
     };
@@ -220,7 +261,7 @@ export const SlotMachineHeroPreview: React.FC<SlotMachineHeroPreviewProps> = ({ 
   const resetAutoTimer = () => {
     if (autoLoopRef.current) clearInterval(autoLoopRef.current);
     autoLoopRef.current = setInterval(() => {
-      setIndexes((prev) => [ (prev[0] + 1) % 4, prev[1], prev[2] ]);
+      setIndexes((prev) => [ nextIdx(0, prev[0], 'down'), prev[1], prev[2] ]);
     }, 6000);
   };
 
@@ -231,17 +272,9 @@ export const SlotMachineHeroPreview: React.FC<SlotMachineHeroPreviewProps> = ({ 
       const next = [...prev];
       if (slotIdx === 1) {
         // Middle slot wheel inverted
-        if (deltaY > 0) {
-          next[slotIdx] = (next[slotIdx] - 1 + 4) % 4;
-        } else {
-          next[slotIdx] = (next[slotIdx] + 1) % 4;
-        }
+        next[slotIdx] = deltaY > 0 ? nextIdx(slotIdx, next[slotIdx], 'up') : nextIdx(slotIdx, next[slotIdx], 'down');
       } else {
-        if (deltaY > 0) {
-          next[slotIdx] = (next[slotIdx] + 1) % 4;
-        } else {
-          next[slotIdx] = (next[slotIdx] - 1 + 4) % 4;
-        }
+        next[slotIdx] = deltaY > 0 ? nextIdx(slotIdx, next[slotIdx], 'down') : nextIdx(slotIdx, next[slotIdx], 'up');
       }
       return next;
     });
@@ -261,18 +294,9 @@ export const SlotMachineHeroPreview: React.FC<SlotMachineHeroPreviewProps> = ({ 
       setIndexes((prev) => {
         const next = [...prev];
         if (slotIdx === 1) {
-          // Middle slot drag inverted
-          if (diffY < 0) {
-            next[slotIdx] = (next[slotIdx] - 1 + 4) % 4;
-          } else {
-            next[slotIdx] = (next[slotIdx] + 1) % 4;
-          }
+          next[slotIdx] = diffY < 0 ? nextIdx(slotIdx, next[slotIdx], 'up') : nextIdx(slotIdx, next[slotIdx], 'down');
         } else {
-          if (diffY < 0) {
-            next[slotIdx] = (next[slotIdx] + 1) % 4;
-          } else {
-            next[slotIdx] = (next[slotIdx] - 1 + 4) % 4;
-          }
+          next[slotIdx] = diffY < 0 ? nextIdx(slotIdx, next[slotIdx], 'down') : nextIdx(slotIdx, next[slotIdx], 'up');
         }
         return next;
       });
@@ -374,7 +398,7 @@ export const SlotMachineHeroPreview: React.FC<SlotMachineHeroPreviewProps> = ({ 
                 <ChevronDown className="h-3 w-3" />
               </button>
 
-              <div className="mt-2 flex gap-1">
+              <div className="mt-2 flex flex-wrap justify-center gap-1 max-w-full px-1">
                 {col.items.map((_, dotIdx) => (
                   <span
                     key={dotIdx}
@@ -388,7 +412,7 @@ export const SlotMachineHeroPreview: React.FC<SlotMachineHeroPreviewProps> = ({ 
                     }}
                     className={`h-1.5 rounded-full transition-all cursor-pointer ${
                       dotIdx === activeIndex
-                        ? 'w-4 bg-orange-500'
+                        ? 'w-3.5 bg-orange-500'
                         : isDark
                         ? 'w-1.5 bg-slate-700 hover:bg-slate-500'
                         : 'w-1.5 bg-slate-300 hover:bg-slate-400'
