@@ -20,6 +20,7 @@ import { BillingInterval, formatThaiBaht, getPlanPrice, PlanId, PRICING_PLANS } 
 import { useTheme } from '../contexts/ThemeContext';
 import { KineticBackground } from './KineticBackground';
 import { SlotMachineHeroPreview } from './SlotMachineHeroPreview';
+import { FloatingHint } from './FloatingHint';
 
 interface MarketingSiteProps {
   onOpenAuth: (planId?: PlanId) => void;
@@ -72,9 +73,9 @@ export const MarketingSite: React.FC<MarketingSiteProps> = ({ onOpenAuth, onGoTo
           </button>
 
           <nav className="hidden items-center gap-7 md:flex">
-            <button onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })} className={`text-sm font-bold transition-colors ${isDark ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-950'}`}>ความสามารถ</button>
-            <button onClick={jumpToPricing} className={`text-sm font-bold transition-colors ${isDark ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-950'}`}>ราคา</button>
-            <button onClick={() => document.getElementById('faq')?.scrollIntoView({ behavior: 'smooth' })} className={`text-sm font-bold transition-colors ${isDark ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-950'}`}>คำถามที่พบบ่อย</button>
+            <FloatingHint title="ดูความสามารถ" description="ดูเครื่องมือที่ช่วยเปลี่ยนข้อมูลสินค้าเป็นภาพพร้อมขาย"><button onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })} className={`text-sm font-bold transition-colors ${isDark ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-950'}`}>ความสามารถ</button></FloatingHint>
+            <FloatingHint title="แพ็กเกจและราคา" description="เปรียบเทียบเครดิตและเลือกแผนที่เหมาะกับร้านของคุณ"><button onClick={jumpToPricing} className={`text-sm font-bold transition-colors ${isDark ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-950'}`}>ราคา</button></FloatingHint>
+            <FloatingHint title="คำถามที่พบบ่อย" description="ดูคำตอบเรื่องเครดิต การชำระเงิน และความปลอดภัย"><button onClick={() => document.getElementById('faq')?.scrollIntoView({ behavior: 'smooth' })} className={`text-sm font-bold transition-colors ${isDark ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-950'}`}>คำถามที่พบบ่อย</button></FloatingHint>
           </nav>
 
           <div className="hidden items-center gap-3 md:flex">
@@ -82,7 +83,7 @@ export const MarketingSite: React.FC<MarketingSiteProps> = ({ onOpenAuth, onGoTo
               {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
             <button onClick={isSignedIn ? returnToStudio : () => onOpenAuth()} className={`rounded-xl px-4 py-2 text-sm font-bold transition-colors ${isDark ? 'text-slate-200 hover:bg-white/10' : 'text-slate-600 hover:bg-slate-100'}`}>{isSignedIn ? 'กลับไป Studio' : 'เข้าสู่ระบบ'}</button>
-            <button onClick={isSignedIn ? returnToStudio : () => onOpenAuth()} className="rounded-xl bg-orange-500 px-4 py-2 text-sm font-black text-white shadow-lg shadow-orange-500/25 transition hover:bg-orange-600">{isSignedIn ? 'เปิด Studio' : 'ทดลองใช้งานฟรี'}</button>
+            <FloatingHint title={isSignedIn ? 'เปิด Studio' : 'ทดลองใช้ฟรี 10 เครดิต'} description={isSignedIn ? 'กลับไปสร้างและจัดการภาพสินค้า' : 'สมัครเพื่อเริ่มใช้งานโดยไม่ต้องใช้บัตรเครดิต'} align="right"><button onClick={isSignedIn ? returnToStudio : () => onOpenAuth()} className="rounded-xl bg-orange-500 px-4 py-2 text-sm font-black text-white shadow-lg shadow-orange-500/25 transition hover:bg-orange-600">{isSignedIn ? 'เปิด Studio' : 'ทดลองใช้งานฟรี'}</button></FloatingHint>
           </div>
 
           <div className="flex items-center gap-2 md:hidden">
@@ -114,7 +115,7 @@ export const MarketingSite: React.FC<MarketingSiteProps> = ({ onOpenAuth, onGoTo
                 ดึงสินค้าและตัวเลือกจาก Shopee, สร้างภาพ Thai Ads, อินโฟกราฟิก และ Size Chart ที่ควบคุมรายละเอียดได้ในขั้นตอนเดียว
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <button onClick={isSignedIn ? returnToStudio : () => onOpenAuth()} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-6 py-3.5 text-sm font-black text-white shadow-xl shadow-orange-500/25 transition hover:-translate-y-0.5 hover:bg-orange-600">ทดลองใช้งานฟรี <ArrowRight className="h-4 w-4" /></button>
+                <FloatingHint title="เริ่มทดลองใช้ฟรี" description="รับ 10 เครดิตเพื่อทดลองวิเคราะห์สินค้าและสร้างภาพชุดแรก"><button onClick={isSignedIn ? returnToStudio : () => onOpenAuth()} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-6 py-3.5 text-sm font-black text-white shadow-xl shadow-orange-500/25 transition hover:-translate-y-0.5 hover:bg-orange-600">ทดลองใช้งานฟรี <ArrowRight className="h-4 w-4" /></button></FloatingHint>
                 <button onClick={isSignedIn ? returnToStudio : () => onOpenAuth()} className={`inline-flex items-center justify-center rounded-2xl border px-6 py-3.5 text-sm font-black transition ${isDark ? 'border-white/15 bg-white/5 text-white hover:bg-white/10' : 'border-slate-200 bg-white text-slate-800 hover:border-slate-300'}`}>{isSignedIn ? 'กลับไป Studio' : 'เข้าสู่ระบบ'}</button>
               </div>
               <div className={`mt-8 flex flex-wrap gap-x-5 gap-y-3 text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
