@@ -237,6 +237,17 @@ export async function generateProductImage(
   styleIndex?: number,
   adBrief?: ShopeeAdBrief,
 ): Promise<ImageGenerationResult> {
+  // ThaiAds cards also carry imageUrl and prompt history for the UI. Never send
+  // those large fields to the prompt orchestrator; it only needs this brief.
+  const safeAdBrief = adBrief ? {
+    role: adBrief.role,
+    title: adBrief.title,
+    objective: adBrief.objective,
+    facts: adBrief.facts.filter(Boolean).slice(0, 24),
+    thaiCopy: adBrief.thaiCopy.filter(Boolean).slice(0, 8),
+    includePerson: adBrief.includePerson,
+    personBrief: adBrief.personBrief,
+  } : undefined;
   // Construct prompt based on category (simplified — full prompt construction
   // happens on client side using the same logic as before)
   let prompt = '';
@@ -269,7 +280,7 @@ export async function generateProductImage(
     style,
     customPrompt,
     productData: { ...productData, images: apiImages || [] },
-    adBrief,
+    adBrief: safeAdBrief,
   });
 
   // Build thaiTexts for reference

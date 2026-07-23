@@ -445,6 +445,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const ratioDesc = RATIO_DESCRIPTIONS[aspectRatio] || RATIO_DESCRIPTIONS['1:1'];
     const productContext = buildProductContext(productData, category);
     const legacyPrompt = [productContext, prompt || customPrompt].filter(Boolean).join('\n\n');
+    // Defend the orchestrator against UI-only card state (especially data-URL
+    // imageUrl values) being accidentally included in a ThaiAds brief.
+    const safeAdBrief = adBrief && typeof adBrief === 'object' ? {
+      role: typeof adBrief.role === 'string' ? adBrief.role : undefined,
+      title: typeof adBrief.title === 'string' ? adBrief.title : undefined,
+      objective: typeof adBrief.objective === 'string' ? adBrief.objective : undefined,
+      facts: Array.isArray(adBrief.facts) ? adBrief.facts.filter(Boolean).map(String).slice(0, 24) : [],
+      thaiCopy: Array.isArray(adBrief.thaiCopy) ? adBrief.thaiCopy.filter(Boolean).map(String).slice(0, 8) : [],
+      includePerson: Boolean(adBrief.includePerson),
+      personBrief: typeof adBrief.personBrief === 'string' ? adBrief.personBrief : undefined,
+    } : undefined;
 
     const orchestrated = await orchestratePrompt({
       productContext,
@@ -453,7 +464,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       aspectRatio,
       category,
       style,
-      adBrief,
+      adBrief: safeAdBrief,
       imageParts,
     });
 
