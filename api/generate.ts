@@ -194,7 +194,7 @@ STYLE: ${args.style || 'default'}
 
 ${args.adBrief ? `SHOPEE THAI ADS BRIEF (facts are the only permitted product claims):
 ${JSON.stringify(args.adBrief)}
-For this workflow, preserve the exact product and create clean intentional zones for the supplied Thai copy. Do not try to render Thai text in the generated pixels: the client will place it as an editable overlay. Never add prices, discounts, ratings, certifications, measurements, or accessories that are not explicitly confirmed. The generated image must not contain English marketing copy, Latin placeholders, or mixed-language labels; if text cannot be rendered reliably in Thai, omit it and leave the zone clean. For a specification/size card, render no new text, numbers, tables, badges, icons, or measurement labels at all; show scale visually with a hand or iPhone and reserve a clean area for verified overlays.` : ''}
+For this workflow, preserve the exact product and create clean intentional zones for the supplied Thai copy. Do not try to render Thai marketing copy in the generated pixels: the client will place it as an editable overlay. Never add prices, discounts, ratings, certifications, measurements, or accessories that are not explicitly confirmed. The generated image must not contain English marketing copy, Latin placeholders, or mixed-language labels; if text cannot be rendered reliably in Thai, omit it and leave the zone clean. For a specification/size card, you may design a Thai spec table and dimension callouts, but use confirmed measurements only. When a measurement is missing, use clearly marked editable placeholders such as "กรอกความยาว: ____ ซม." and "รอตรวจสอบ"—never invent plausible numeric values.` : ''}
 
 LEGACY CREATIVE DIRECTION:
 ${args.legacyPrompt}
