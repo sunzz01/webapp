@@ -56,9 +56,13 @@ const landingAdSlots = [
     label: 'จุดเด่น',
     delay: 5,
     images: [
-      'https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&w=640&q=85',
-      'https://images.unsplash.com/photo-1503602642458-232111445657?auto=format&fit=crop&w=640&q=85',
-      'https://images.unsplash.com/photo-1494438639946-1ebd1d20bf85?auto=format&fit=crop&w=640&q=85',
+      'https://6a61a95d2c9be6b62f95a2a6.imgix.net/feature/0_%E0%B8%A7%E0%B8%B4%E0%B8%98%E0%B8%B5%E0%B9%83%E0%B8%8A%E0%B9%89%E0%B8%87%E0%B8%B2%E0%B8%99%20(Tutorial)%E0%B8%AB%E0%B8%B1%E0%B8%A7%E0%B8%9B%E0%B8%A3%E0%B8%B1%E0%B8%9A%E0%B9%81%E0%B8%81%E0%B9%87%E0%B8%AA%E0%B9%81%E0%B8%A3%E0%B8%87%E0%B8%94%E0%B8%B1%E0%B8%99%E0%B8%AA%E0%B8%B9%E0%B8%87.png',
+      'https://6a61a95d2c9be6b62f95a2a6.imgix.net/feature/0_%E0%B8%A7%E0%B8%B4%E0%B8%98%E0%B8%B5%E0%B9%83%E0%B8%8A%E0%B9%89%E0%B8%87%E0%B8%B2%E0%B8%99%20(Tutorial)%E0%B8%AB%E0%B8%B1%E0%B8%A7%E0%B8%9B%E0%B8%A3%E0%B8%B1%E0%B8%9A%E0%B9%81%E0%B8%81%E0%B9%87%E0%B8%AA%E0%B9%81%E0%B8%A3%E0%B8%87%E0%B8%94%E0%B8%B1%E0%B8%99%E0%B8%AA%E0%B8%B9%E0%B8%87%20(1).png',
+      'https://6a61a95d2c9be6b62f95a2a6.imgix.net/feature/Feature-%20(05).jpeg',
+      'https://6a61a95d2c9be6b62f95a2a6.imgix.net/feature/Feature-%20(04).jpeg',
+      'https://6a61a95d2c9be6b62f95a2a6.imgix.net/feature/Feature-%20(03).jpeg',
+      'https://6a61a95d2c9be6b62f95a2a6.imgix.net/feature/Feature-%20(02).jpeg',
+      'https://6a61a95d2c9be6b62f95a2a6.imgix.net/feature/feature-01.png',
     ],
   },
   {
