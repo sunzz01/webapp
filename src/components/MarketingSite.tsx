@@ -5,6 +5,7 @@ import {
   ChevronDown,
   CircleDollarSign,
   CreditCard,
+  Download,
   ImageIcon,
   Menu,
   Moon,
@@ -41,6 +42,8 @@ const faqs = [
   ['ข้อมูลบัตรถูกเก็บไว้ที่ PicSeller หรือไม่?', 'ไม่เก็บ เลขบัตรจะถูกส่งตรงไปยังผู้ให้บริการรับชำระเงินเพื่อแปลงเป็น token ที่ปลอดภัย'],
 ];
 
+const EXTENSION_REPOSITORY_URL = 'https://github.com/sunzz01/Combo-Shopee-Image-Generate-V.2';
+
 export const MarketingSite: React.FC<MarketingSiteProps> = ({ onOpenAuth, onGoToStudio, onSelectPlan }) => {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === 'dark';
@@ -76,6 +79,7 @@ export const MarketingSite: React.FC<MarketingSiteProps> = ({ onOpenAuth, onGoTo
             <FloatingHint title="ดูความสามารถ" description="ดูเครื่องมือที่ช่วยเปลี่ยนข้อมูลสินค้าเป็นภาพพร้อมขาย"><button onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })} className={`text-sm font-bold transition-colors ${isDark ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-950'}`}>ความสามารถ</button></FloatingHint>
             <FloatingHint title="แพ็กเกจและราคา" description="เปรียบเทียบเครดิตและเลือกแผนที่เหมาะกับร้านของคุณ"><button onClick={jumpToPricing} className={`text-sm font-bold transition-colors ${isDark ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-950'}`}>ราคา</button></FloatingHint>
             <FloatingHint title="คำถามที่พบบ่อย" description="ดูคำตอบเรื่องเครดิต การชำระเงิน และความปลอดภัย"><button onClick={() => document.getElementById('faq')?.scrollIntoView({ behavior: 'smooth' })} className={`text-sm font-bold transition-colors ${isDark ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-950'}`}>คำถามที่พบบ่อย</button></FloatingHint>
+            <a href={EXTENSION_REPOSITORY_URL} target="_blank" rel="noreferrer" className={`inline-flex items-center gap-1.5 text-sm font-bold transition-colors ${isDark ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-950'}`}><Download className="h-3.5 w-3.5" />ดาวน์โหลด Extension</a>
           </nav>
 
           <div className="hidden items-center gap-3 md:flex">
@@ -94,6 +98,7 @@ export const MarketingSite: React.FC<MarketingSiteProps> = ({ onOpenAuth, onGoTo
         {menuOpen && <div className={`border-t px-5 py-4 md:hidden ${isDark ? 'border-white/10 bg-[#0c192b]' : 'border-slate-200 bg-white'}`}>
           <div className="grid gap-2">
             <button onClick={() => { setMenuOpen(false); jumpToPricing(); }} className="rounded-xl px-3 py-2 text-left text-sm font-bold">ราคาและแพ็กเกจ</button>
+            <a href={EXTENSION_REPOSITORY_URL} target="_blank" rel="noreferrer" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-bold"><Download className="h-4 w-4 text-orange-500" />ดาวน์โหลด Extension</a>
             <button onClick={() => { setMenuOpen(false); isSignedIn ? returnToStudio() : onOpenAuth(); }} className="rounded-xl bg-orange-500 px-3 py-2 text-left text-sm font-black text-white">{isSignedIn ? 'กลับไป Studio' : 'ทดลองใช้งานฟรี'}</button>
           </div>
         </div>}

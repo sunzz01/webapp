@@ -58,6 +58,9 @@ import { PricingCheckoutModal } from './src/components/PricingCheckoutModal';
 import { KineticBackground } from './src/components/KineticBackground';
 import type { PlanId } from './pricing';
 
+const APP_RELEASE = '1.0.0';
+const APP_BUILD = import.meta.env.VITE_APP_BUILD || 'local';
+
 type ResultsDensity = 'overview' | 'standard' | 'focus';
 type ScaleReferenceId = 'iphone-15' | 'iphone-15-pro' | 'hand' | 'custom';
 
@@ -2013,6 +2016,9 @@ const App: React.FC = () => {
           <div className="cursor-pointer group" onClick={() => setShowPublicLanding(true)}>
             <div className="flex items-center gap-2">
               <h1 className="font-black text-xl tracking-tight group-hover:text-orange-500 transition-colors uppercase">PICSELLER</h1>
+              <span className="rounded-full border border-slate-400/30 px-1.5 py-0.5 text-[9px] font-black tracking-wide text-slate-400" title={`Build ${APP_BUILD}`}>
+                v{APP_RELEASE} · {APP_BUILD}
+              </span>
               <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${theme === 'dark' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-emerald-50 text-emerald-600 border border-emerald-200'} tracking-wider`} title="Last updated: 2026-03-11 — Security Hardening">
                 PLUS
               </span>
