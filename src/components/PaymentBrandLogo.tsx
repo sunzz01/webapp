@@ -28,7 +28,10 @@ export const PaymentBrandLogo: React.FC<{ brand: PaymentBrand; className?: strin
   }
 
   if (brand === 'card') {
-    return <span className={`${className} inline-flex items-center justify-center rounded-md bg-slate-900 px-1.5 text-[10px] font-black tracking-tight text-white`} aria-label="Credit and debit cards">VISA&nbsp;MC</span>;
+    return <span className={`${className} inline-flex items-center justify-center gap-1`} aria-label="Visa and Mastercard" role="img">
+      <img src="https://cdn.simpleicons.org/visa/1A1F71" alt="Visa" className="h-5 w-6 object-contain" loading="lazy" referrerPolicy="no-referrer" />
+      <img src="https://cdn.simpleicons.org/mastercard/EB001B" alt="Mastercard" className="h-5 w-6 object-contain" loading="lazy" referrerPolicy="no-referrer" />
+    </span>;
   }
 
   const logo = externalBrands[brand]!;
