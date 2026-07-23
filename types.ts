@@ -26,6 +26,8 @@ export interface ProductData {
   name: string;
   description: string;
   images: string[];
+  /** Optional semantic reference order for multimodal generation (product, package, logo). */
+  referenceImages?: string[];
   features: string[];
   price?: ProductPrice;
   variantGroups?: ProductVariantGroup[];

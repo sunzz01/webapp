@@ -264,7 +264,7 @@ export async function generateProductImage(
     );
   }
 
-  const apiImages = await prepareImagesForApi(productData.images, 3);
+  const apiImages = await prepareImagesForApi(productData.referenceImages || productData.images, 4);
   const result = await apiPost<{
     imageUrl: string;
     promptUsed: string;
@@ -321,7 +321,7 @@ export async function generateShopeeAdImage(
     'Preserve product identity exactly: shape, color, materials, labels, proportions, included pieces. Never invent measurements, certifications, prices, promotions, reviews, accessories, variants, or performance claims.',
   ].filter(Boolean).join('\n\n');
 
-  const apiImages = await prepareImagesForApi(productData.images, 3);
+  const apiImages = await prepareImagesForApi(productData.referenceImages || productData.images, 4);
   const result = await apiPost<{ imageUrl: string; promptUsed: string; model: string; thaiTextPlan?: string[] }>('/api/generate', {
     prompt,
     images: apiImages,
