@@ -413,13 +413,19 @@ export function ShopeeAdsStudio({ dark, imageModel, session, setSession }: {
     setSession(prev => ({ ...prev, isGenerating: false, notice: 'สร้างภาพครบคิวแล้ว คุณเลือกสลับโหมดข้อความ AI / แอป / ภาพคลีน ได้รายภาพ' }));
   };
   const regenerate = async (card: ThaiAdsCard) => {
-    if (!allImages.length) return;
-    updateCard(card.id, { status: 'generating', error: undefined });
+    if (!allImages.length || card.status === 'generating') return;
+    // Clear the previous image while the request is in flight. The result card
+    // then renders its spinner instead of silently leaving the old image visible.
+    updateCard(card.id, { status: 'generating', error: undefined, imageUrl: undefined });
+    setSession(prev => ({ ...prev, notice: `กำลังสร้างภาพใหม่: ${card.title}…` }));
     try {
       const result = await generateProductImage(categoryForCard(card.id), productForGeneration(), 'shopee', buildThaiAdsPrompt(card, campaignDirection), imageModel, '1:1');
       updateCard(card.id, { status: 'completed', imageUrl: result.imageUrl, thaiCopy: card.thaiCopy.length ? card.thaiCopy : result.thaiTexts, modelUsed: result.modelUsed, promptUsed: result.promptUsed });
+      setSession(prev => ({ ...prev, notice: `สร้างภาพใหม่แล้ว: ${card.title}` }));
     } catch (error) {
-      updateCard(card.id, { status: 'error', error: error instanceof Error ? error.message : 'สร้างภาพไม่สำเร็จ' });
+      const message = error instanceof Error ? error.message : 'สร้างภาพไม่สำเร็จ';
+      updateCard(card.id, { status: 'error', error: message, imageUrl: undefined });
+      setSession(prev => ({ ...prev, notice: `สร้างภาพใหม่ไม่สำเร็จ: ${message}` }));
     }
   };
   const download = async (card: ThaiAdsCard) => {
