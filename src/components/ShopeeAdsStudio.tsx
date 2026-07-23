@@ -344,6 +344,11 @@ async function imageWithCopy(
     canvas.toBlob(blob => (blob ? resolve(blob) : reject(new Error('Export failed'))), 'image/png')
   );
 }
+const imageToBlob = async (url: string): Promise<Blob> => {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`ไม่สามารถดาวน์โหลดภาพได้ (HTTP ${response.status})`);
+  return response.blob();
+};
 
 export function ShopeeAdsStudio({ dark, imageModel, session, setSession }: {
   dark: boolean;
@@ -419,15 +424,9 @@ export function ShopeeAdsStudio({ dark, imageModel, session, setSession }: {
   };
   const download = async (card: ThaiAdsCard) => {
     if (!card.imageUrl) return;
-    const blob = await imageWithCopy(
-      card.imageUrl,
-      card.thaiCopy,
-      isHeroCard(card.id),
-      card.textOverlayStyle || '3d-outlined',
-      card.badgeText,
-      card.thaiFont || 'Prompt',
-      card.textRenderingMode || 'ai-native'
-    );
+    // Export the original AI output. Thai copy is kept editable in the card
+    // controls and must not be permanently painted onto every downloaded image.
+    const blob = await imageToBlob(card.imageUrl);
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = `${cleanName(name)}-${card.id}.png`;
@@ -442,15 +441,7 @@ export function ShopeeAdsStudio({ dark, imageModel, session, setSession }: {
     for (const card of complete) {
       zip.file(
         `${cleanName(name)}-${card.id}.png`,
-        await imageWithCopy(
-          card.imageUrl!,
-          card.thaiCopy,
-          isHeroCard(card.id),
-          card.textOverlayStyle || '3d-outlined',
-          card.badgeText,
-          card.thaiFont || 'Prompt',
-          card.textRenderingMode || 'ai-native'
-        )
+        await imageToBlob(card.imageUrl!)
       );
     }
     const blob = await zip.generateAsync({ type: 'blob' });
