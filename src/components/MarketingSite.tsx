@@ -19,6 +19,7 @@ import {
 import { BillingInterval, formatThaiBaht, getPlanPrice, PlanId, PRICING_PLANS } from '../../pricing';
 import { useTheme } from '../contexts/ThemeContext';
 import { PaymentBrand, PaymentBrandLogo } from './PaymentBrandLogo';
+import { AmbientMotionBackground } from './AmbientMotionBackground';
 
 interface MarketingSiteProps {
   onOpenAuth: (planId?: PlanId) => void;
@@ -57,7 +58,9 @@ export const MarketingSite: React.FC<MarketingSiteProps> = ({ onOpenAuth, onGoTo
   const selectPlan = (planId: PlanId) => onSelectPlan ? onSelectPlan(planId) : onOpenAuth(planId);
 
   return (
-    <div className={isDark ? 'min-h-screen bg-[#08111f] text-slate-100' : 'min-h-screen bg-[#f8fafc] text-slate-900'}>
+    <div className={isDark ? 'relative isolate min-h-screen overflow-hidden bg-[#08111f] text-slate-100' : 'relative isolate min-h-screen overflow-hidden bg-[#f8fafc] text-slate-900'}>
+      <AmbientMotionBackground isDark={isDark} />
+      <div className="relative z-10">
       <header className={`sticky top-0 z-40 border-b backdrop-blur-xl ${isDark ? 'border-white/10 bg-[#08111f]/80' : 'border-slate-200/80 bg-white/80'}`}>
         <div className="mx-auto flex h-18 max-w-7xl items-center justify-between px-5 py-3 lg:px-8">
           <button className="flex items-center gap-3 text-left" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
@@ -186,6 +189,7 @@ export const MarketingSite: React.FC<MarketingSiteProps> = ({ onOpenAuth, onGoTo
       </main>
 
       <footer className={`border-t px-5 py-8 ${isDark ? 'border-white/10 text-slate-500' : 'border-slate-200 text-slate-500'}`}><div className="mx-auto flex max-w-7xl flex-col justify-between gap-2 text-xs sm:flex-row"><span>© {new Date().getFullYear()} PicSeller. Visual commerce for Thai sellers.</span><span className="inline-flex items-center gap-1"><ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />Payment is confirmed server-side before credits are granted.</span></div></footer>
+      </div>
     </div>
   );
 };
