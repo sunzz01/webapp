@@ -131,9 +131,9 @@ export const MarketingSite: React.FC<MarketingSiteProps> = ({ onOpenAuth, onGoTo
                   <span className={`text-[10px] font-black uppercase tracking-[0.16em] ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Thai Ads Studio</span>
                 </div>
                 <SlotMachineHeroPreview isDark={isDark} />
-                <div className={`mt-4 rounded-xl border p-3 ${isDark ? 'border-emerald-400/20 bg-emerald-400/10' : 'border-emerald-100 bg-emerald-50'}`}><div className="flex items-center gap-2 text-xs font-bold text-emerald-600"><ShieldCheck className="h-4 w-4" />ล็อกราคาและตัวเลือกสินค้าใน prompt</div></div>
+                <div className={`mt-4 rounded-xl border p-3 ${isDark ? 'border-emerald-400/20 bg-emerald-400/10' : 'border-emerald-100 bg-emerald-50'}`}><div className="flex items-center gap-2 text-xs font-bold text-emerald-600"><ShieldCheck className="h-4 w-4" />ภาพพร้อมใช้ขาย พร้อมคุมรายละเอียดสินค้าให้ตรงจริง</div></div>
               </div>
-              <div className={`absolute -bottom-6 -left-4 rounded-2xl border p-3 shadow-xl ${isDark ? 'border-white/10 bg-[#15253e]' : 'border-white bg-white'}`}><div className="flex items-center gap-3"><span className="rounded-xl bg-emerald-500/15 p-2 text-emerald-500"><Sparkles className="h-4 w-4" /></span><span><span className="block text-[10px] font-bold text-slate-400">สร้างภาพสำเร็จ</span><span className="block text-xs font-black">6 ภาพในแคมเปญ</span></span></div></div>
+              <div className={`mt-3 flex items-center justify-center gap-2 text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}><Sparkles className="h-4 w-4 text-emerald-500" /><span><span className="font-bold">พร้อมสร้างแคมเปญ</span><span className="mx-1 text-slate-400">·</span>6 ภาพในชุดเดียว</span></div>
             </div>
           </div>
         </section>

@@ -311,7 +311,7 @@ export const SlotMachineHeroPreview: React.FC<SlotMachineHeroPreviewProps> = ({ 
           <p className="mt-1 text-base font-black tracking-tight text-orange-500 flex items-center gap-2">
             ตัวอย่างภาพ
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-orange-500/10 text-orange-400 border border-orange-500/20">
-              สล็อตกลางเลื่อนขึ้น ⬆️ • ขยับทีละช่อง
+                เปลี่ยนไอเดียสินค้าเป็นภาพพร้อมขาย
             </span>
           </p>
         </div>
