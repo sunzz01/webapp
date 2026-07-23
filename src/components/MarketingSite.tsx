@@ -21,6 +21,8 @@ import { useTheme } from '../contexts/ThemeContext';
 
 interface MarketingSiteProps {
   onOpenAuth: (planId?: PlanId) => void;
+  onGoToStudio?: () => void;
+  onSelectPlan?: (planId: PlanId) => void;
 }
 
 const paymentMethods = [
@@ -36,7 +38,7 @@ const faqs = [
   ['ข้อมูลบัตรถูกเก็บไว้ที่ PicSeller หรือไม่?', 'ไม่เก็บ เลขบัตรจะถูกส่งตรงไปยังผู้ให้บริการรับชำระเงินเพื่อแปลงเป็น token ที่ปลอดภัย'],
 ];
 
-export const MarketingSite: React.FC<MarketingSiteProps> = ({ onOpenAuth }) => {
+export const MarketingSite: React.FC<MarketingSiteProps> = ({ onOpenAuth, onGoToStudio, onSelectPlan }) => {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === 'dark';
   const [interval, setInterval] = useState<BillingInterval>('monthly');
@@ -48,6 +50,9 @@ export const MarketingSite: React.FC<MarketingSiteProps> = ({ onOpenAuth }) => {
   }, []);
 
   const jumpToPricing = () => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const isSignedIn = Boolean(onGoToStudio);
+  const returnToStudio = () => onGoToStudio?.();
+  const selectPlan = (planId: PlanId) => onSelectPlan ? onSelectPlan(planId) : onOpenAuth(planId);
 
   return (
     <div className={isDark ? 'min-h-screen bg-[#08111f] text-slate-100' : 'min-h-screen bg-[#f8fafc] text-slate-900'}>
@@ -73,8 +78,8 @@ export const MarketingSite: React.FC<MarketingSiteProps> = ({ onOpenAuth }) => {
             <button onClick={toggleTheme} aria-label="สลับธีม" className={`rounded-xl p-2 transition-colors ${isDark ? 'bg-white/10 text-amber-300 hover:bg-white/15' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
               {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
-            <button onClick={() => onOpenAuth()} className={`rounded-xl px-4 py-2 text-sm font-bold transition-colors ${isDark ? 'text-slate-200 hover:bg-white/10' : 'text-slate-600 hover:bg-slate-100'}`}>เข้าสู่ระบบ</button>
-            <button onClick={jumpToPricing} className="rounded-xl bg-orange-500 px-4 py-2 text-sm font-black text-white shadow-lg shadow-orange-500/25 transition hover:bg-orange-600">เริ่มใช้งาน</button>
+            <button onClick={isSignedIn ? returnToStudio : () => onOpenAuth()} className={`rounded-xl px-4 py-2 text-sm font-bold transition-colors ${isDark ? 'text-slate-200 hover:bg-white/10' : 'text-slate-600 hover:bg-slate-100'}`}>{isSignedIn ? 'กลับไป Studio' : 'เข้าสู่ระบบ'}</button>
+            <button onClick={isSignedIn ? returnToStudio : jumpToPricing} className="rounded-xl bg-orange-500 px-4 py-2 text-sm font-black text-white shadow-lg shadow-orange-500/25 transition hover:bg-orange-600">{isSignedIn ? 'เปิด Studio' : 'เริ่มใช้งาน'}</button>
           </div>
 
           <div className="flex items-center gap-2 md:hidden">
@@ -85,7 +90,7 @@ export const MarketingSite: React.FC<MarketingSiteProps> = ({ onOpenAuth }) => {
         {menuOpen && <div className={`border-t px-5 py-4 md:hidden ${isDark ? 'border-white/10 bg-[#0c192b]' : 'border-slate-200 bg-white'}`}>
           <div className="grid gap-2">
             <button onClick={() => { setMenuOpen(false); jumpToPricing(); }} className="rounded-xl px-3 py-2 text-left text-sm font-bold">ราคาและแพ็กเกจ</button>
-            <button onClick={() => { setMenuOpen(false); onOpenAuth(); }} className="rounded-xl bg-orange-500 px-3 py-2 text-left text-sm font-black text-white">เข้าสู่ระบบ / สมัครสมาชิก</button>
+            <button onClick={() => { setMenuOpen(false); isSignedIn ? returnToStudio() : onOpenAuth(); }} className="rounded-xl bg-orange-500 px-3 py-2 text-left text-sm font-black text-white">{isSignedIn ? 'กลับไป Studio' : 'เข้าสู่ระบบ / สมัครสมาชิก'}</button>
           </div>
         </div>}
       </header>
@@ -111,7 +116,7 @@ export const MarketingSite: React.FC<MarketingSiteProps> = ({ onOpenAuth }) => {
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <button onClick={jumpToPricing} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-6 py-3.5 text-sm font-black text-white shadow-xl shadow-orange-500/25 transition hover:-translate-y-0.5 hover:bg-orange-600">ดูแพ็กเกจและเริ่มใช้งาน <ArrowRight className="h-4 w-4" /></button>
-                <button onClick={() => onOpenAuth()} className={`inline-flex items-center justify-center rounded-2xl border px-6 py-3.5 text-sm font-black transition ${isDark ? 'border-white/15 bg-white/5 text-white hover:bg-white/10' : 'border-slate-200 bg-white text-slate-800 hover:border-slate-300'}`}>เข้าสู่ระบบ</button>
+                <button onClick={isSignedIn ? returnToStudio : () => onOpenAuth()} className={`inline-flex items-center justify-center rounded-2xl border px-6 py-3.5 text-sm font-black transition ${isDark ? 'border-white/15 bg-white/5 text-white hover:bg-white/10' : 'border-slate-200 bg-white text-slate-800 hover:border-slate-300'}`}>{isSignedIn ? 'กลับไป Studio' : 'เข้าสู่ระบบ'}</button>
               </div>
               <div className={`mt-8 flex flex-wrap gap-x-5 gap-y-3 text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                 <span className="inline-flex items-center gap-2"><Check className="h-4 w-4 text-emerald-500" />เริ่มฟรี 5 เครดิต</span>
@@ -157,7 +162,7 @@ export const MarketingSite: React.FC<MarketingSiteProps> = ({ onOpenAuth }) => {
               <div className="mt-6 flex items-end gap-1"><span className="text-4xl font-black tracking-tight">{formatThaiBaht(price)}</span><span className={`mb-1 text-sm font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>/{interval === 'yearly' ? 'ปี' : 'เดือน'}</span></div>
               <p className="mt-2 text-sm font-black text-orange-500">{plan.credits.toLocaleString('th-TH')} เครดิตต่อรอบบิล</p>
               <ul className={`mt-6 space-y-3 border-t pt-6 text-sm ${isDark ? 'border-white/10 text-slate-300' : 'border-slate-100 text-slate-600'}`}>{plan.features.map((feature) => <li key={feature} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />{feature}</li>)}</ul>
-              <button onClick={() => onOpenAuth(plan.id)} className={`mt-8 w-full rounded-xl px-4 py-3 text-sm font-black transition ${plan.highlight ? 'bg-orange-500 text-white hover:bg-orange-600' : isDark ? 'bg-white/10 text-white hover:bg-white/15' : 'bg-slate-900 text-white hover:bg-slate-700'}`}>เลือก {plan.name}</button>
+              <button onClick={() => selectPlan(plan.id)} className={`mt-8 w-full rounded-xl px-4 py-3 text-sm font-black transition ${plan.highlight ? 'bg-orange-500 text-white hover:bg-orange-600' : isDark ? 'bg-white/10 text-white hover:bg-white/15' : 'bg-slate-900 text-white hover:bg-slate-700'}`}>เลือก {plan.name}</button>
             </article>; })}</div>
             <p className={`mt-7 text-xs ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>PromptPay QR, TrueMoney และ Alipay เป็นการชำระต่อครั้ง; สิทธิ์จะเพิ่มเมื่อผู้ให้บริการยืนยันธุรกรรมแล้ว</p>
           </div>

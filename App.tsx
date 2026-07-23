@@ -413,6 +413,7 @@ const App: React.FC = () => {
   const [isSubmittingAuth, setIsSubmittingAuth] = useState<boolean>(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState<boolean>(false);
   const [publicScreen, setPublicScreen] = useState<'landing' | 'login'>('landing');
+  const [showPublicLanding, setShowPublicLanding] = useState(false);
   const [pendingPlanId, setPendingPlanId] = useState<PlanId | undefined>();
   const [showPricingCheckout, setShowPricingCheckout] = useState(false);
   const [studioMode, setStudioMode] = useState(false);
@@ -1941,6 +1942,16 @@ const App: React.FC = () => {
 
 
   const selectedStyleName = STYLES.find(s => s.id === selectedStyle)?.name || 'Available Style';
+  const pricingCheckoutModal = showPricingCheckout ? (
+    <PricingCheckoutModal
+      initialPlanId={pendingPlanId}
+      onClose={() => { setShowPricingCheckout(false); setPendingPlanId(undefined); }}
+      onPaymentConfirmed={async () => {
+        await refreshBilling();
+        addNotification('success', 'ชำระเงินสำเร็จ', 'ระบบอัปเดตเครดิตและสิทธิ์แพ็กเกจของคุณแล้ว');
+      }}
+    />
+  ) : null;
 
   // ==========================================
   // LOGIN SCREEN — Show when user is not authenticated
@@ -1971,14 +1982,32 @@ const App: React.FC = () => {
     );
   }
 
+  if (showPublicLanding) {
+    return (
+      <>
+        <MarketingSite
+          onOpenAuth={() => setShowPublicLanding(false)}
+          onGoToStudio={() => setShowPublicLanding(false)}
+          onSelectPlan={(planId) => {
+            setPendingPlanId(planId);
+            setShowPublicLanding(false);
+            setShowPricingCheckout(true);
+          }}
+        />
+        {pricingCheckoutModal}
+        <NotificationSystem notifications={notifications} onRemove={removeNotification} />
+      </>
+    );
+  }
+
   return (
     <div className={`min-h-screen flex flex-col ${theme === 'dark' ? 'bg-gray-900 text-white' : 'bg-[#F8FAFC] text-slate-900'}`}>
       <header className={`${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-slate-200'} sticky top-0 z-50 px-6 py-4 flex items-center justify-between shadow-sm`}>
         <div className="flex items-center gap-2">
-          <div className={`${theme === 'dark' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-orange-500 hover:bg-orange-600'} p-2 rounded-xl cursor-pointer transition-all shadow-orange-100 shadow-lg`} onClick={() => setStep(1)}>
+          <div className={`${theme === 'dark' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-orange-500 hover:bg-orange-600'} p-2 rounded-xl cursor-pointer transition-all shadow-orange-100 shadow-lg`} onClick={() => setShowPublicLanding(true)}>
             <Sparkles className="text-white w-6 h-6" />
           </div>
-          <div className="cursor-pointer group" onClick={() => setStep(1)}>
+          <div className="cursor-pointer group" onClick={() => setShowPublicLanding(true)}>
             <div className="flex items-center gap-2">
               <h1 className="font-black text-xl tracking-tight group-hover:text-orange-500 transition-colors uppercase">Shopee Master</h1>
               <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${theme === 'dark' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-emerald-50 text-emerald-600 border border-emerald-200'} tracking-wider`} title="Last updated: 2026-03-11 — Security Hardening">
@@ -1990,6 +2019,12 @@ const App: React.FC = () => {
         </div>
 
         <nav className="hidden md:flex items-center gap-1 bg-slate-100 p-1.5 rounded-2xl dark:bg-gray-700">
+          <button
+            onClick={() => setShowPublicLanding(true)}
+            className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${theme === 'dark' ? 'text-gray-300 hover:bg-gray-600 hover:text-orange-400' : 'text-slate-500 hover:bg-white hover:text-orange-600'}`}
+          >
+            <Sparkles className="w-4 h-4" /> หน้าแรก
+          </button>
           {[1, 2, 3].map((s) => (
             <button
               key={s}
@@ -3520,16 +3555,7 @@ const App: React.FC = () => {
         onSave={handleSaveEditedImage}
         removeBgApiHandler={callRemoveBgApi}
       />
-      {showPricingCheckout && (
-        <PricingCheckoutModal
-          initialPlanId={pendingPlanId}
-          onClose={() => { setShowPricingCheckout(false); setPendingPlanId(undefined); }}
-          onPaymentConfirmed={async () => {
-            await refreshBilling();
-            addNotification('success', 'ชำระเงินสำเร็จ', 'ระบบอัปเดตเครดิตและสิทธิ์แพ็กเกจของคุณแล้ว');
-          }}
-        />
-      )}
+      {pricingCheckoutModal}
     </div>
   );
 };
