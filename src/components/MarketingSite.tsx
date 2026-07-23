@@ -82,7 +82,7 @@ export const MarketingSite: React.FC<MarketingSiteProps> = ({ onOpenAuth, onGoTo
               {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
             <button onClick={isSignedIn ? returnToStudio : () => onOpenAuth()} className={`rounded-xl px-4 py-2 text-sm font-bold transition-colors ${isDark ? 'text-slate-200 hover:bg-white/10' : 'text-slate-600 hover:bg-slate-100'}`}>{isSignedIn ? 'กลับไป Studio' : 'เข้าสู่ระบบ'}</button>
-            <button onClick={isSignedIn ? returnToStudio : jumpToPricing} className="rounded-xl bg-orange-500 px-4 py-2 text-sm font-black text-white shadow-lg shadow-orange-500/25 transition hover:bg-orange-600">{isSignedIn ? 'เปิด Studio' : 'เริ่มใช้งาน'}</button>
+            <button onClick={isSignedIn ? returnToStudio : () => onOpenAuth()} className="rounded-xl bg-orange-500 px-4 py-2 text-sm font-black text-white shadow-lg shadow-orange-500/25 transition hover:bg-orange-600">{isSignedIn ? 'เปิด Studio' : 'ทดลองใช้งานฟรี'}</button>
           </div>
 
           <div className="flex items-center gap-2 md:hidden">
@@ -93,7 +93,7 @@ export const MarketingSite: React.FC<MarketingSiteProps> = ({ onOpenAuth, onGoTo
         {menuOpen && <div className={`border-t px-5 py-4 md:hidden ${isDark ? 'border-white/10 bg-[#0c192b]' : 'border-slate-200 bg-white'}`}>
           <div className="grid gap-2">
             <button onClick={() => { setMenuOpen(false); jumpToPricing(); }} className="rounded-xl px-3 py-2 text-left text-sm font-bold">ราคาและแพ็กเกจ</button>
-            <button onClick={() => { setMenuOpen(false); isSignedIn ? returnToStudio() : onOpenAuth(); }} className="rounded-xl bg-orange-500 px-3 py-2 text-left text-sm font-black text-white">{isSignedIn ? 'กลับไป Studio' : 'เข้าสู่ระบบ / สมัครสมาชิก'}</button>
+            <button onClick={() => { setMenuOpen(false); isSignedIn ? returnToStudio() : onOpenAuth(); }} className="rounded-xl bg-orange-500 px-3 py-2 text-left text-sm font-black text-white">{isSignedIn ? 'กลับไป Studio' : 'ทดลองใช้งานฟรี'}</button>
           </div>
         </div>}
       </header>
@@ -114,7 +114,7 @@ export const MarketingSite: React.FC<MarketingSiteProps> = ({ onOpenAuth, onGoTo
                 ดึงสินค้าและตัวเลือกจาก Shopee, สร้างภาพ Thai Ads, อินโฟกราฟิก และ Size Chart ที่ควบคุมรายละเอียดได้ในขั้นตอนเดียว
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <button onClick={jumpToPricing} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-6 py-3.5 text-sm font-black text-white shadow-xl shadow-orange-500/25 transition hover:-translate-y-0.5 hover:bg-orange-600">ดูแพ็กเกจและเริ่มใช้งาน <ArrowRight className="h-4 w-4" /></button>
+                <button onClick={isSignedIn ? returnToStudio : () => onOpenAuth()} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-6 py-3.5 text-sm font-black text-white shadow-xl shadow-orange-500/25 transition hover:-translate-y-0.5 hover:bg-orange-600">ทดลองใช้งานฟรี <ArrowRight className="h-4 w-4" /></button>
                 <button onClick={isSignedIn ? returnToStudio : () => onOpenAuth()} className={`inline-flex items-center justify-center rounded-2xl border px-6 py-3.5 text-sm font-black transition ${isDark ? 'border-white/15 bg-white/5 text-white hover:bg-white/10' : 'border-slate-200 bg-white text-slate-800 hover:border-slate-300'}`}>{isSignedIn ? 'กลับไป Studio' : 'เข้าสู่ระบบ'}</button>
               </div>
               <div className={`mt-8 flex flex-wrap gap-x-5 gap-y-3 text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
