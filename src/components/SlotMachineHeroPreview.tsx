@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, ChevronUp, ChevronDown } from 'lucide-react';
+import { ChevronUp, ChevronDown } from 'lucide-react';
 
 interface SlotItem {
   id: string;
@@ -20,31 +20,31 @@ const SLOT_DATA: { category: string; color: string; items: SlotItem[] }[] = [
     items: [
       {
         id: 'c1',
-        image: 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=600&auto=format&fit=crop&q=80',
+        image: 'https://6a61a95d2c9be6b62f95a2a6.imgix.net/cover/cover-10.png',
         label: 'ภาพปก',
-        tag: 'รุ่นใหม่ 5 ลิตร',
-        tagColor: 'bg-amber-500/90 text-white',
+        tag: 'ปกแคมเปญ',
+        tagColor: 'bg-orange-500/90 text-white',
       },
       {
         id: 'c2',
-        image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80',
+        image: 'https://6a61a95d2c9be6b62f95a2a6.imgix.net/cover-06.jpeg',
         label: 'ภาพปก',
-        tag: 'ลด 50%',
-        tagColor: 'bg-rose-500/90 text-white',
+        tag: 'สินค้าหลัก',
+        tagColor: 'bg-amber-500/90 text-white',
       },
       {
         id: 'c3',
-        image: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=600&auto=format&fit=crop&q=80',
+        image: 'https://6a61a95d2c9be6b62f95a2a6.imgix.net/cover-07.jpeg',
         label: 'ภาพปก',
-        tag: 'ขายดีอันดับ 1',
-        tagColor: 'bg-emerald-500/90 text-white',
+        tag: 'ลดพิเศษ',
+        tagColor: 'bg-rose-500/90 text-white',
       },
       {
         id: 'c4',
-        image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80',
+        image: 'https://6a61a95d2c9be6b62f95a2a6.imgix.net/cover-08.jpeg',
         label: 'ภาพปก',
-        tag: 'ส่งฟรี 0 บาท',
-        tagColor: 'bg-indigo-500/90 text-white',
+        tag: 'พร้อมส่ง',
+        tagColor: 'bg-emerald-500/90 text-white',
       },
     ],
   },
@@ -54,30 +54,30 @@ const SLOT_DATA: { category: string; color: string; items: SlotItem[] }[] = [
     items: [
       {
         id: 'h1',
-        image: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&auto=format&fit=crop&q=80',
+        image: 'https://6a61a95d2c9be6b62f95a2a6.imgix.net/feature/feature-01.png',
         label: 'จุดเด่น',
-        tag: 'ดีไซน์มินิมอล',
+        tag: 'จุดเด่นสินค้า',
         tagColor: 'bg-cyan-600/90 text-white',
       },
       {
         id: 'h2',
-        image: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=600&auto=format&fit=crop&q=80',
+        image: 'https://6a61a95d2c9be6b62f95a2a6.imgix.net/feature/Feature-%20(02).jpeg',
         label: 'จุดเด่น',
-        tag: 'ตัดเสียงรบกวน',
+        tag: 'ใช้งานง่าย',
         tagColor: 'bg-blue-600/90 text-white',
       },
       {
         id: 'h3',
-        image: 'https://images.unsplash.com/photo-1608248597560-841459a99723?w=600&auto=format&fit=crop&q=80',
+        image: 'https://6a61a95d2c9be6b62f95a2a6.imgix.net/feature/Feature-%20(03).jpeg',
         label: 'จุดเด่น',
-        tag: 'ออร์แกนิก 100%',
+        tag: 'คุณภาพสูง',
         tagColor: 'bg-teal-600/90 text-white',
       },
       {
         id: 'h4',
-        image: 'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?w=600&auto=format&fit=crop&q=80',
+        image: 'https://6a61a95d2c9be6b62f95a2a6.imgix.net/feature/Feature-%20(04).jpeg',
         label: 'จุดเด่น',
-        tag: 'จอ AMOLED คมชัด',
+        tag: 'สเปกครบถ้วน',
         tagColor: 'bg-purple-600/90 text-white',
       },
     ],
@@ -88,31 +88,31 @@ const SLOT_DATA: { category: string; color: string; items: SlotItem[] }[] = [
     items: [
       {
         id: 's1',
-        image: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=600&auto=format&fit=crop&q=80',
+        image: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=640&q=85',
         label: 'ขนาดจริง',
-        tag: 'ขนาด 30×25 ซม.',
+        tag: 'มิติขนาดจริง',
         tagColor: 'bg-violet-600/90 text-white',
       },
       {
         id: 's2',
-        image: 'https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=600&auto=format&fit=crop&q=80',
+        image: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=640&q=85',
         label: 'ขนาดจริง',
-        tag: 'แบตเตอรี่ 40 ชม.',
+        tag: 'เทียบขนาด',
         tagColor: 'bg-amber-600/90 text-white',
       },
       {
         id: 's3',
-        image: 'https://images.unsplash.com/photo-1571781926291-c477ebfd024b?w=600&auto=format&fit=crop&q=80',
+        image: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=640&q=85',
         label: 'ขนาดจริง',
-        tag: 'ความจุ 100 มล.',
-        tagColor: 'bg-pink-600/90 text-white',
+        tag: 'รายละเอียดสเกล',
+        tagColor: 'bg-indigo-600/90 text-white',
       },
       {
         id: 's4',
-        image: 'https://images.unsplash.com/photo-1524805444758-089113d48a6d?w=600&auto=format&fit=crop&q=80',
+        image: 'https://6a61a95d2c9be6b62f95a2a6.imgix.net/feature/Feature-%20(05).jpeg',
         label: 'ขนาดจริง',
-        tag: 'ขนาดตัวเรือน 44มม.',
-        tagColor: 'bg-indigo-600/90 text-white',
+        tag: 'ขนาดมาตรฐาน',
+        tagColor: 'bg-pink-600/90 text-white',
       },
     ],
   },
@@ -127,10 +127,8 @@ export const SlotMachineHeroPreview: React.FC<SlotMachineHeroPreviewProps> = ({ 
 
   // 1. Initial Arcade Slot Machine Spinning Effect on page load
   useEffect(() => {
-    // Fast initial spinning loop with staggered deceleration
     const timers: NodeJS.Timeout[] = [];
 
-    // Slot 1 stops after 1.2s
     timers.push(
       setTimeout(() => {
         setSpinning((prev) => [false, prev[1], prev[2]]);
@@ -138,7 +136,6 @@ export const SlotMachineHeroPreview: React.FC<SlotMachineHeroPreviewProps> = ({ 
       }, 1200)
     );
 
-    // Slot 2 stops after 1.6s
     timers.push(
       setTimeout(() => {
         setSpinning((prev) => [prev[0], false, prev[2]]);
@@ -146,7 +143,6 @@ export const SlotMachineHeroPreview: React.FC<SlotMachineHeroPreviewProps> = ({ 
       }, 1600)
     );
 
-    // Slot 3 stops after 2.0s
     timers.push(
       setTimeout(() => {
         setSpinning((prev) => [prev[0], prev[1], false]);
@@ -233,7 +229,6 @@ export const SlotMachineHeroPreview: React.FC<SlotMachineHeroPreviewProps> = ({ 
 
   return (
     <div className={`rounded-2xl p-5 ${isDark ? 'bg-[#0a1425]' : 'bg-slate-50'}`}>
-      {/* Title section updated to "ตัวอย่างภาพ" */}
       <div className="flex items-center justify-between">
         <div>
           <p className={`text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>แคมเปญสินค้า</p>
@@ -249,7 +244,6 @@ export const SlotMachineHeroPreview: React.FC<SlotMachineHeroPreviewProps> = ({ 
         </span>
       </div>
 
-      {/* 3-Column Slot Machine Reels with 1:1 Aspect Ratio */}
       <div className="mt-5 grid grid-cols-3 gap-3">
         {SLOT_DATA.map((col, slotIdx) => {
           const activeIndex = indexes[slotIdx];
@@ -257,7 +251,6 @@ export const SlotMachineHeroPreview: React.FC<SlotMachineHeroPreviewProps> = ({ 
 
           return (
             <div key={col.category} className="group relative flex flex-col items-center">
-              {/* Manual navigation hover hints */}
               <button
                 onClick={() => handleWheel(slotIdx, -1)}
                 className={`absolute -top-3 z-20 rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 transition-opacity ${
@@ -268,7 +261,6 @@ export const SlotMachineHeroPreview: React.FC<SlotMachineHeroPreviewProps> = ({ 
                 <ChevronUp className="h-3 w-3" />
               </button>
 
-              {/* 1:1 Square Slot Container */}
               <div
                 className={`relative w-full aspect-square overflow-hidden rounded-2xl border cursor-grab active:cursor-grabbing select-none transition-all shadow-md ${
                   isDark ? 'border-white/15 bg-slate-900/80 hover:border-orange-500/50' : 'border-slate-200 bg-white hover:border-orange-400'
@@ -280,7 +272,6 @@ export const SlotMachineHeroPreview: React.FC<SlotMachineHeroPreviewProps> = ({ 
                 onPointerDown={(e) => handlePointerDown(slotIdx, e.clientY)}
                 onPointerUp={(e) => handlePointerUp(slotIdx, e.clientY)}
               >
-                {/* Vertical Reel Strip */}
                 <div
                   className={`w-full h-full flex flex-col ${
                     isSlotSpinning ? 'transition-none' : 'transition-transform duration-700 ease-out'
@@ -299,7 +290,6 @@ export const SlotMachineHeroPreview: React.FC<SlotMachineHeroPreviewProps> = ({ 
                         className="w-full h-full object-cover select-none"
                       />
 
-                      {/* Floating Badge Tag */}
                       {item.tag && (
                         <span
                           className={`absolute top-2 right-2 rounded-md px-2 py-0.5 text-[9px] font-black shadow-lg backdrop-blur-md ${
@@ -310,7 +300,6 @@ export const SlotMachineHeroPreview: React.FC<SlotMachineHeroPreviewProps> = ({ 
                         </span>
                       )}
 
-                      {/* Label Overlay */}
                       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/85 via-slate-950/40 to-transparent p-2.5 pt-6 text-left">
                         <p className="text-[10px] font-black text-white tracking-tight leading-tight">
                           {col.category}
@@ -320,7 +309,6 @@ export const SlotMachineHeroPreview: React.FC<SlotMachineHeroPreviewProps> = ({ 
                   ))}
                 </div>
 
-                {/* Reel Edge Shadow Overlay */}
                 <div className="pointer-events-none absolute inset-0 rounded-2xl shadow-[inset_0_0_15px_rgba(0,0,0,0.3)]" />
               </div>
 
@@ -334,7 +322,6 @@ export const SlotMachineHeroPreview: React.FC<SlotMachineHeroPreviewProps> = ({ 
                 <ChevronDown className="h-3 w-3" />
               </button>
 
-              {/* Slot Indicator Dots */}
               <div className="mt-2 flex gap-1">
                 {col.items.map((_, dotIdx) => (
                   <span
