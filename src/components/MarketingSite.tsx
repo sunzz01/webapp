@@ -49,6 +49,7 @@ const landingAdSlots = [
       'https://6a61a95d2c9be6b62f95a2a6.imgix.net/cover-06.jpeg',
       'https://6a61a95d2c9be6b62f95a2a6.imgix.net/cover-07.jpeg',
       'https://6a61a95d2c9be6b62f95a2a6.imgix.net/cover-08.jpeg',
+      'https://6a61a95d2c9be6b62f95a2a6.imgix.net/cover/cover-10.png',
     ],
   },
   {
