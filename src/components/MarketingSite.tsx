@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { BillingInterval, formatThaiBaht, getPlanPrice, PlanId, PRICING_PLANS } from '../../pricing';
 import { useTheme } from '../contexts/ThemeContext';
+import { PaymentBrand, PaymentBrandLogo } from './PaymentBrandLogo';
 
 interface MarketingSiteProps {
   onOpenAuth: (planId?: PlanId) => void;
@@ -25,11 +26,12 @@ interface MarketingSiteProps {
   onSelectPlan?: (planId: PlanId) => void;
 }
 
-const paymentMethods = [
-  { icon: QrCode, title: 'PromptPay QR', description: 'สแกนจ่ายได้ทุกธนาคาร' },
-  { icon: WalletCards, title: 'TrueMoney', description: 'ยืนยันผ่าน Wallet ของคุณ' },
-  { icon: CreditCard, title: 'บัตรเครดิต/เดบิต', description: 'ชำระผ่านหน้ารับบัตรที่ปลอดภัย' },
-  { icon: CircleDollarSign, title: 'Alipay', description: 'รองรับลูกค้าข้ามพรมแดน' },
+const paymentMethods: { brand: PaymentBrand; title: string; description: string }[] = [
+  { brand: 'promptpay', title: 'PromptPay QR', description: 'สแกนจ่ายได้ทุกธนาคาร' },
+  { brand: 'truemoney', title: 'TrueMoney', description: 'ยืนยันผ่าน Wallet ของคุณ' },
+  { brand: 'card', title: 'บัตรเครดิต/เดบิต', description: 'ชำระผ่านหน้ารับบัตรที่ปลอดภัย' },
+  { brand: 'alipay', title: 'Alipay', description: 'รองรับลูกค้าข้ามพรมแดน' },
+  { brand: 'stripe', title: 'Stripe Checkout', description: 'หน้าชำระเงินมาตรฐานสากล' },
 ];
 
 const faqs = [
@@ -174,8 +176,8 @@ export const MarketingSite: React.FC<MarketingSiteProps> = ({ onOpenAuth, onGoTo
               <div><p className="text-xs font-black uppercase tracking-[0.18em] text-orange-500">Payment options</p><h2 className="mt-3 text-2xl font-black">จ่ายด้วยวิธีที่ลูกค้าคุ้นเคย</h2></div>
               <p className={`max-w-md text-sm leading-6 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>เช็กเอาต์จะแสดงวิธีจ่ายที่ร้านเปิดใช้งานจริง และไม่เปิดเผยข้อมูลสำคัญของผู้ใช้</p>
             </div>
-            <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {paymentMethods.map(({ icon: Icon, title, description }) => <div key={title} className={`rounded-2xl border p-4 ${isDark ? 'border-white/10 bg-[#0c192b]' : 'border-slate-200 bg-slate-50'}`}><Icon className="h-5 w-5 text-orange-500" /><p className="mt-4 text-sm font-black">{title}</p><p className={`mt-1 text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{description}</p></div>)}
+            <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              {paymentMethods.map(({ brand, title, description }) => <div key={title} className={`rounded-2xl border p-4 ${isDark ? 'border-white/10 bg-[#0c192b]' : 'border-slate-200 bg-slate-50'}`}><span className={`flex h-10 w-16 items-center justify-center rounded-lg ${isDark ? 'bg-white' : 'bg-white'}`}><PaymentBrandLogo brand={brand} /></span><p className="mt-4 text-sm font-black">{title}</p><p className={`mt-1 text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{description}</p></div>)}
             </div>
           </div>
         </section>
