@@ -17,18 +17,18 @@ export const KineticBackground: React.FC = () => {
       <style>{`
         @keyframes calm-ambient-drift {
           0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-          50% { transform: translate3d(2%, -1.5%, 0) scale(1.04); }
+          50% { transform: translate3d(3%, -2%, 0) scale(1.04); }
         }
         @keyframes calm-ambient-drift-reverse {
           0%, 100% { transform: translate3d(0, 0, 0) scale(1.03); }
-          50% { transform: translate3d(-2%, 1.5%, 0) scale(1); }
+          50% { transform: translate3d(-3%, 2%, 0) scale(1); }
         }
         .calm-ambient-blob {
-          animation: calm-ambient-drift 24s ease-in-out infinite;
+          animation: calm-ambient-drift 12s ease-in-out infinite;
           will-change: transform;
         }
         .calm-ambient-blob-reverse {
-          animation: calm-ambient-drift-reverse 30s ease-in-out infinite;
+          animation: calm-ambient-drift-reverse 16s ease-in-out infinite;
           will-change: transform;
         }
         @media (prefers-reduced-motion: reduce) {
