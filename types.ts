@@ -64,6 +64,8 @@ export interface GeneratedImage {
   modelUsed?: string;      // โมเดลจริงที่ backend ใช้ หลัง fallback
   variantLabel?: string;   // ตัวเลือกสินค้า สำหรับภาพที่สร้างแยกรายตัวเลือก
   visualStyle?: string;    // รูปแบบภาพที่เลือกเฉพาะการ์ด
+  originalUrl?: string;    // ภาพ AI เดิม ก่อนสร้างแผนภูมิเทียบสเกลแบบ manual
+  isManualScale?: boolean; // ผลลัพธ์นี้สร้างจาก Manual Scale Canvas ไม่ใช่การเดาของ AI
   error?: string;          // ข้อความแสดงข้อผิดพลาดถ้ามี
 }
 

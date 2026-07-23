@@ -39,7 +39,8 @@ import {
   Edit2,
   ZoomIn,
   ZoomOut,
-  Move
+  Move,
+  Ruler
 } from 'lucide-react';
 import JSZip from 'jszip';
 import { ImageCategory, IMAGE_CATEGORIES_METADATA, ProductData, GeneratedImage, ProductPrice, ProductVariantGroup } from './types';
@@ -54,12 +55,46 @@ import LoginPage from './src/components/LoginPage';
 import { ShopeeAdsStudio, createThaiAdsSession, type ThaiAdsSession } from './src/components/ShopeeAdsStudio';
 
 type ResultsDensity = 'overview' | 'standard' | 'focus';
+type ScaleReferenceId = 'iphone-15' | 'iphone-15-pro' | 'hand' | 'custom';
+
+type ManualScaleDraft = {
+  variantId: string;
+  variantLabel: string;
+  widthCm: string;
+  lengthCm: string;
+  depthCm: string;
+  meshCellMm: string;
+  referenceId: ScaleReferenceId;
+  customReferenceLabel: string;
+  customReferenceWidthMm: string;
+  customReferenceHeightMm: string;
+};
 
 const RESULTS_DENSITIES: { id: ResultsDensity; label: string; description: string; gridClass: string }[] = [
   { id: 'overview', label: 'ภาพรวม', description: '4–5 ภาพต่อแถว', gridClass: 'grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-5' },
   { id: 'standard', label: 'ปกติ', description: '3 ภาพต่อแถว', gridClass: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10' },
   { id: 'focus', label: 'ใหญ่', description: '1–2 ภาพต่อแถว', gridClass: 'grid-cols-1 md:grid-cols-2 gap-10' },
 ];
+
+const SCALE_REFERENCE_PRESETS: { id: ScaleReferenceId; label: string; widthMm: number; heightMm: number; isApproximate?: boolean }[] = [
+  { id: 'iphone-15', label: 'iPhone 15 (71.6 × 147.6 มม.)', widthMm: 71.6, heightMm: 147.6 },
+  { id: 'iphone-15-pro', label: 'iPhone 15 Pro (70.6 × 146.6 มม.)', widthMm: 70.6, heightMm: 146.6 },
+  { id: 'hand', label: 'มือผู้ใหญ่โดยประมาณ (85 × 175 มม.)', widthMm: 85, heightMm: 175, isApproximate: true },
+  { id: 'custom', label: 'วัตถุอ้างอิงกำหนดเอง', widthMm: 71.6, heightMm: 147.6 },
+];
+
+const createManualScaleDraft = (): ManualScaleDraft => ({
+  variantId: '',
+  variantLabel: '',
+  widthCm: '',
+  lengthCm: '',
+  depthCm: '',
+  meshCellMm: '',
+  referenceId: 'iphone-15',
+  customReferenceLabel: 'วัตถุอ้างอิง',
+  customReferenceWidthMm: '71.6',
+  customReferenceHeightMm: '147.6',
+});
 
 const STYLES = [
   {
@@ -443,6 +478,8 @@ const App: React.FC = () => {
   const [isPreviewDragging, setIsPreviewDragging] = useState(false);
   const previewDragStart = useRef<{ pointerId: number; x: number; y: number; originX: number; originY: number } | null>(null);
   const [resultsDensity, setResultsDensity] = useState<ResultsDensity>('standard');
+  const [isManualScaleOpen, setIsManualScaleOpen] = useState(false);
+  const [manualScaleDraft, setManualScaleDraft] = useState<ManualScaleDraft>(createManualScaleDraft);
 
   const resetPreviewView = () => {
     previewDragStart.current = null;
@@ -616,6 +653,7 @@ const App: React.FC = () => {
            if (Array.isArray(savedState.selectedVariantOptionIds)) setSelectedVariantOptionIds(savedState.selectedVariantOptionIds);
            if (savedState.cardVisualStyles) setCardVisualStyles(savedState.cardVisualStyles);
            if (savedState.resultsDensity === 'overview' || savedState.resultsDensity === 'standard' || savedState.resultsDensity === 'focus') setResultsDensity(savedState.resultsDensity);
+           if (savedState.manualScaleDraft && typeof savedState.manualScaleDraft === 'object') setManualScaleDraft(previous => ({ ...previous, ...savedState.manualScaleDraft }));
           if (savedState.scrapedImages) {
             setScrapedImages(savedState.scrapedImages);
             setOriginalScrapedImages(savedState.scrapedImages);
@@ -663,6 +701,7 @@ const App: React.FC = () => {
        selectedVariantOptionIds,
        cardVisualStyles,
        resultsDensity,
+       manualScaleDraft,
       scrapedImages,
       localImages,
       generatedImages,
@@ -684,6 +723,7 @@ const App: React.FC = () => {
     selectedVariantOptionIds,
     cardVisualStyles,
     resultsDensity,
+    manualScaleDraft,
     scrapedImages,
     localImages,
     generatedImages,
@@ -895,6 +935,236 @@ const App: React.FC = () => {
       name: 'ตัวเลือกสินค้า',
       options: [{ id: `${id}-option-1`, label: 'ตัวเลือกใหม่' }],
     }]);
+  };
+
+  const openManualScaleCorrection = () => {
+    const firstOption = variantGroups.flatMap(group => group.options.map(option => ({
+      id: option.id,
+      label: `${group.name}: ${option.label}`,
+    })))[0];
+    setManualScaleDraft(previous => ({
+      ...previous,
+      variantId: previous.variantId || firstOption?.id || '',
+      variantLabel: previous.variantLabel || firstOption?.label || productName || 'สินค้า',
+    }));
+    setIsManualScaleOpen(true);
+  };
+
+  const restoreOriginalSizeChart = () => {
+    setGeneratedImages(previous => previous.map(image => (
+      image.category === ImageCategory.SIZE_CHART && !image.variantLabel && image.isManualScale && image.originalUrl
+        ? { ...image, url: image.originalUrl, originalUrl: undefined, isManualScale: false, modelUsed: 'AI Size Chart (restored)' }
+        : image
+    )));
+    addNotification('success', 'กลับสู่ภาพ AI แล้ว', 'คืนภาพ Size Chart ก่อนแก้สเกลเรียบร้อย');
+  };
+
+  const createManualScaleChart = () => {
+    const toNumber = (value: string) => Number(value.replace(/,/g, '').trim());
+    const widthCm = toNumber(manualScaleDraft.widthCm);
+    const lengthCm = toNumber(manualScaleDraft.lengthCm);
+    const depthCm = manualScaleDraft.depthCm.trim() ? toNumber(manualScaleDraft.depthCm) : undefined;
+    const meshCellMm = manualScaleDraft.meshCellMm.trim() ? toNumber(manualScaleDraft.meshCellMm) : undefined;
+    const preset = SCALE_REFERENCE_PRESETS.find(reference => reference.id === manualScaleDraft.referenceId) || SCALE_REFERENCE_PRESETS[0];
+    const referenceWidthMm = preset.id === 'custom' ? toNumber(manualScaleDraft.customReferenceWidthMm) : preset.widthMm;
+    const referenceHeightMm = preset.id === 'custom' ? toNumber(manualScaleDraft.customReferenceHeightMm) : preset.heightMm;
+
+    if (!Number.isFinite(widthCm) || widthCm <= 0 || !Number.isFinite(lengthCm) || lengthCm <= 0) {
+      addNotification('error', 'กรอกขนาดจริงก่อน', 'ระบุกว้างและยาวของสินค้าหน่วยเซนติเมตรเพื่อคำนวณสเกล');
+      return;
+    }
+    if (!Number.isFinite(referenceWidthMm) || referenceWidthMm <= 0 || !Number.isFinite(referenceHeightMm) || referenceHeightMm <= 0) {
+      addNotification('error', 'ขนาดวัตถุอ้างอิงไม่ถูกต้อง', 'กรอกกว้างและสูงของวัตถุอ้างอิงเป็นมิลลิเมตร');
+      return;
+    }
+    if (meshCellMm !== undefined && (!Number.isFinite(meshCellMm) || meshCellMm <= 0)) {
+      addNotification('error', 'ขนาดช่องตะแกรงไม่ถูกต้อง', 'กรอกขนาดช่องตะแกรงเป็นมิลลิเมตร หรือเว้นว่างไว้');
+      return;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 1600;
+    canvas.height = 1600;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const roundedRect = (x: number, y: number, width: number, height: number, radius: number) => {
+      const r = Math.min(radius, width / 2, height / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + width, y, x + width, y + height, r);
+      ctx.arcTo(x + width, y + height, x, y + height, r);
+      ctx.arcTo(x, y + height, x, y, r);
+      ctx.arcTo(x, y, x + width, y, r);
+      ctx.closePath();
+    };
+    const drawArrow = (x1: number, y1: number, x2: number, y2: number, label: string, labelX: number, labelY: number) => {
+      const angle = Math.atan2(y2 - y1, x2 - x1);
+      const arrow = 12;
+      ctx.strokeStyle = '#ea580c';
+      ctx.fillStyle = '#9a3412';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+      [[x1, y1, angle + Math.PI], [x2, y2, angle]].forEach(([x, y, direction]) => {
+        ctx.beginPath();
+        ctx.moveTo(x as number, y as number);
+        ctx.lineTo((x as number) - arrow * Math.cos((direction as number) - .45), (y as number) - arrow * Math.sin((direction as number) - .45));
+        ctx.lineTo((x as number) - arrow * Math.cos((direction as number) + .45), (y as number) - arrow * Math.sin((direction as number) + .45));
+        ctx.closePath();
+        ctx.fill();
+      });
+      ctx.font = '700 29px "Noto Sans Thai", Tahoma, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(label, labelX, labelY);
+    };
+    const format = (value: number) => value.toLocaleString('th-TH', { maximumFractionDigits: 2 });
+
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = 'rgba(148, 163, 184, .14)';
+    ctx.lineWidth = 1;
+    for (let position = 0; position <= 1600; position += 50) {
+      ctx.beginPath(); ctx.moveTo(position, 0); ctx.lineTo(position, 1600); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, position); ctx.lineTo(1600, position); ctx.stroke();
+    }
+
+    const productWidthMm = widthCm * 10;
+    const productLengthMm = lengthCm * 10;
+    const visualHeight = 760;
+    const visualWidth = 1250;
+    const gapMm = 65;
+    const pixelsPerMm = Math.min(visualHeight / Math.max(productLengthMm, referenceHeightMm), visualWidth / (productWidthMm + referenceWidthMm + gapMm));
+    const productWidthPx = productWidthMm * pixelsPerMm;
+    const productLengthPx = productLengthMm * pixelsPerMm;
+    const referenceWidthPx = referenceWidthMm * pixelsPerMm;
+    const referenceHeightPx = referenceHeightMm * pixelsPerMm;
+    const allWidthPx = productWidthPx + referenceWidthPx + gapMm * pixelsPerMm;
+    const productX = (canvas.width - allWidthPx) / 2;
+    const productY = 270 + (visualHeight - productLengthPx) / 2;
+    const referenceX = productX + productWidthPx + gapMm * pixelsPerMm;
+    const referenceY = 270 + (visualHeight - referenceHeightPx) / 2;
+    const productLabel = manualScaleDraft.variantLabel.trim() || productName || 'สินค้า';
+    const referenceLabel = preset.id === 'custom'
+      ? manualScaleDraft.customReferenceLabel.trim() || 'วัตถุอ้างอิง'
+      : preset.label.split(' (')[0];
+
+    ctx.fillStyle = '#0f172a';
+    ctx.font = '800 52px "Noto Sans Thai", Tahoma, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('เทียบสเกลตามขนาดจริง', 110, 105);
+    ctx.fillStyle = '#64748b';
+    ctx.font = '600 27px "Noto Sans Thai", Tahoma, sans-serif';
+    ctx.fillText(`${productLabel}  •  สเกลคำนวณจากข้อมูลที่กรอก ไม่ใช่การเดาของ AI`, 110, 150);
+
+    roundedRect(productX, productY, productWidthPx, productLengthPx, 18);
+    ctx.fillStyle = '#fdba74';
+    ctx.fill();
+    ctx.strokeStyle = '#c2410c';
+    ctx.lineWidth = 6;
+    ctx.stroke();
+    if (meshCellMm !== undefined) {
+      const cellPx = meshCellMm * pixelsPerMm;
+      const columnCount = Math.floor(productWidthPx / cellPx);
+      const rowCount = Math.floor(productLengthPx / cellPx);
+      const skip = Math.max(1, Math.ceil(Math.max(columnCount, rowCount) / 65));
+      ctx.strokeStyle = 'rgba(124, 45, 18, .6)';
+      ctx.lineWidth = Math.max(1, Math.min(3, cellPx * .09));
+      for (let column = 1; column <= columnCount; column += skip) {
+        const x = productX + column * cellPx;
+        ctx.beginPath(); ctx.moveTo(x, productY); ctx.lineTo(x, productY + productLengthPx); ctx.stroke();
+      }
+      for (let row = 1; row <= rowCount; row += skip) {
+        const y = productY + row * cellPx;
+        ctx.beginPath(); ctx.moveTo(productX, y); ctx.lineTo(productX + productWidthPx, y); ctx.stroke();
+      }
+    }
+
+    if (preset.id === 'hand') {
+      ctx.fillStyle = '#d9a77c';
+      roundedRect(referenceX + referenceWidthPx * .14, referenceY + referenceHeightPx * .28, referenceWidthPx * .72, referenceHeightPx * .58, referenceWidthPx * .22);
+      ctx.fill();
+      const fingerWidth = referenceWidthPx * .13;
+      for (let finger = 0; finger < 4; finger++) {
+        roundedRect(referenceX + referenceWidthPx * (.16 + finger * .18), referenceY, fingerWidth, referenceHeightPx * (.36 - (finger === 0 || finger === 3 ? .05 : 0)), fingerWidth / 2);
+        ctx.fill();
+      }
+      roundedRect(referenceX, referenceY + referenceHeightPx * .4, referenceWidthPx * .28, referenceHeightPx * .22, fingerWidth / 2);
+      ctx.fill();
+    } else {
+      roundedRect(referenceX, referenceY, referenceWidthPx, referenceHeightPx, referenceWidthPx * .16);
+      ctx.fillStyle = '#111827';
+      ctx.fill();
+      roundedRect(referenceX + referenceWidthPx * .055, referenceY + referenceHeightPx * .055, referenceWidthPx * .89, referenceHeightPx * .89, referenceWidthPx * .12);
+      ctx.fillStyle = '#dbeafe';
+      ctx.fill();
+      ctx.fillStyle = '#111827';
+      roundedRect(referenceX + referenceWidthPx * .38, referenceY + referenceHeightPx * .07, referenceWidthPx * .24, referenceHeightPx * .024, referenceWidthPx * .02);
+      ctx.fill();
+    }
+
+    ctx.fillStyle = '#0f172a';
+    ctx.font = '800 27px "Noto Sans Thai", Tahoma, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(productLabel, productX + productWidthPx / 2, productY - 28);
+    ctx.fillText(referenceLabel, referenceX + referenceWidthPx / 2, referenceY - 28);
+    drawArrow(productX, productY + productLengthPx + 58, productX + productWidthPx, productY + productLengthPx + 58, `กว้าง ${format(widthCm)} ซม.`, productX + productWidthPx / 2, productY + productLengthPx + 105);
+    drawArrow(productX - 56, productY, productX - 56, productY + productLengthPx, `ยาว ${format(lengthCm)} ซม.`, productX - 120, productY + productLengthPx / 2);
+
+    const scaleBarMm = productWidthMm >= 500 ? 100 : productWidthMm >= 200 ? 50 : 10;
+    const scaleBarPx = scaleBarMm * pixelsPerMm;
+    const scaleBarX = 110;
+    const scaleBarY = 1360;
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 8;
+    ctx.beginPath(); ctx.moveTo(scaleBarX, scaleBarY); ctx.lineTo(scaleBarX + scaleBarPx, scaleBarY); ctx.stroke();
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(scaleBarX, scaleBarY - 16); ctx.lineTo(scaleBarX, scaleBarY + 16); ctx.moveTo(scaleBarX + scaleBarPx, scaleBarY - 16); ctx.lineTo(scaleBarX + scaleBarPx, scaleBarY + 16); ctx.stroke();
+    ctx.font = '700 24px "Noto Sans Thai", Tahoma, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#334155';
+    ctx.fillText(`${scaleBarMm} มม.`, scaleBarX, scaleBarY + 48);
+    const dimensionsText = [`${format(widthCm)} × ${format(lengthCm)} ซม.`, depthCm !== undefined && Number.isFinite(depthCm) ? `ลึก ${format(depthCm)} ซม.` : '', meshCellMm !== undefined ? `ช่องตะแกรง ${format(meshCellMm)} มม.` : ''].filter(Boolean).join('  •  ');
+    ctx.font = '800 34px "Noto Sans Thai", Tahoma, sans-serif';
+    ctx.fillStyle = '#0f172a';
+    ctx.fillText(dimensionsText, 110, 1470);
+    ctx.font = '600 22px "Noto Sans Thai", Tahoma, sans-serif';
+    ctx.fillStyle = '#64748b';
+    ctx.fillText(preset.isApproximate ? 'หมายเหตุ: มือผู้ใหญ่ใช้เพื่อให้เห็นภาพโดยประมาณเท่านั้น' : `Reference: ${referenceLabel} ${format(referenceWidthMm)} × ${format(referenceHeightMm)} มม.`, 110, 1520);
+
+    const imageUrl = canvas.toDataURL('image/png');
+    const manualPrompt = `Manual Scale Canvas — ${productLabel}; exact footprint ${format(widthCm)} × ${format(lengthCm)} cm; reference ${referenceLabel} ${format(referenceWidthMm)} × ${format(referenceHeightMm)} mm.`;
+    const thaiTexts = [productLabel, `ขนาดจริง ${format(widthCm)} × ${format(lengthCm)} ซม.`, depthCm !== undefined && Number.isFinite(depthCm) ? `ลึก ${format(depthCm)} ซม.` : '', meshCellMm !== undefined ? `ช่องตะแกรง ${format(meshCellMm)} มม.` : ''].filter(Boolean);
+    setGeneratedImages(previous => {
+      const current = previous.find(image => image.category === ImageCategory.SIZE_CHART && !image.variantLabel);
+      if (!current) return [...previous, {
+        id: `manual-size-${Date.now()}`,
+        category: ImageCategory.SIZE_CHART,
+        url: imageUrl,
+        prompt: manualPrompt,
+        status: 'completed',
+        thaiTexts,
+        promptUsed: manualPrompt,
+        modelUsed: 'Manual Scale Canvas (exact ratio)',
+        isManualScale: true,
+      }];
+      return previous.map(image => image.id === current.id ? {
+        ...image,
+        url: imageUrl,
+        status: 'completed',
+        thaiTexts,
+        promptUsed: manualPrompt,
+        modelUsed: 'Manual Scale Canvas (exact ratio)',
+        originalUrl: image.isManualScale ? image.originalUrl : image.url,
+        isManualScale: true,
+        error: undefined,
+      } : image);
+    });
+    setIsManualScaleOpen(false);
+    setStep(3);
+    openPreview(imageUrl);
+    addNotification('success', 'สร้าง Size Chart ตามสเกลจริงแล้ว', 'คำนวณอัตราส่วนจากมิติที่กรอกและวัตถุอ้างอิง โดยไม่ใช้ AI เดาขนาด');
   };
 
   const sendToThaiAds = async () => {
@@ -2611,6 +2881,11 @@ const App: React.FC = () => {
                                 AI: {img.modelUsed}
                               </div>
                             )}
+                            {img.isManualScale && (
+                              <div className="absolute bottom-4 left-4 rounded-full border border-orange-200/40 bg-orange-500/90 px-3 py-1.5 text-[9px] font-black tracking-wide text-white shadow-lg backdrop-blur-md">
+                                <Ruler className="mr-1 inline h-3 w-3" />ล็อกสเกลจริง
+                              </div>
+                            )}
 
                             {/* Preview Button */}
                             <button
@@ -2738,7 +3013,7 @@ const App: React.FC = () => {
 
                                 {/* Size Chart Style Dropdown - แสดงเฉพาะ SIZE_CHART */}
                                 {catKey === 'SIZE_CHART' && (
-                                  <div className="mb-2">
+                                  <div className="mb-3 space-y-2">
                                     <select
                                       value={selectedSizeChartStyle[catKey] || '0'}
                                       onChange={(e) => setSelectedSizeChartStyle(prev => ({
@@ -2753,6 +3028,20 @@ const App: React.FC = () => {
                                         </option>
                                       ))}
                                     </select>
+                                    <button
+                                      onClick={(event) => { event.stopPropagation(); openManualScaleCorrection(); }}
+                                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-orange-300 bg-orange-500/90 px-3 py-2 text-[10px] font-black text-white shadow-lg transition hover:bg-orange-600"
+                                    >
+                                      <Ruler className="h-3.5 w-3.5" />{img.isManualScale ? 'ปรับสเกลจริงอีกครั้ง' : 'ขนาดไม่ตรง? ปรับสเกลจริง'}
+                                    </button>
+                                    {img.isManualScale && img.originalUrl && (
+                                      <button
+                                        onClick={(event) => { event.stopPropagation(); restoreOriginalSizeChart(); }}
+                                        className="w-full rounded-xl border border-white/30 bg-white/10 px-3 py-2 text-[10px] font-black text-white transition hover:bg-white/20"
+                                      >
+                                        กลับไปใช้ภาพ AI เดิม
+                                      </button>
+                                    )}
                                   </div>
                                 )}
 
@@ -3096,6 +3385,47 @@ const App: React.FC = () => {
           </div>
         </div>
       </footer>
+
+      {isManualScaleOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm" onMouseDown={() => setIsManualScaleOpen(false)}>
+          <section className={`max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-[2rem] border p-5 shadow-2xl md:p-8 ${theme === 'dark' ? 'border-slate-700 bg-slate-900 text-white' : 'border-white bg-white text-slate-900'}`} onMouseDown={event => event.stopPropagation()}>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[.16em] text-orange-500"><Ruler className="h-4 w-4" /> Manual Scale Correction</div>
+                <h3 className="mt-2 text-2xl font-black">สร้าง Size Chart จากขนาดจริง</h3>
+                <p className={`mt-2 text-sm leading-6 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-500'}`}>ระบบจะคำนวณสัดส่วนสินค้าและวัตถุอ้างอิงบน Canvas โดยตรง จึงไม่ให้ AI เดาขนาดใหม่</p>
+              </div>
+              <button onClick={() => setIsManualScaleOpen(false)} className={`rounded-xl p-2 ${theme === 'dark' ? 'hover:bg-slate-800' : 'hover:bg-slate-100'}`} aria-label="ปิด"><X className="h-5 w-5" /></button>
+            </div>
+
+            <div className="mt-6 grid gap-5 md:grid-cols-2">
+              <label className="text-xs font-black">รุ่น/ตัวเลือกสินค้า<select value={manualScaleDraft.variantId} onChange={event => { const match = variantGroups.flatMap(group => group.options.map(option => ({ id: option.id, label: `${group.name}: ${option.label}` }))).find(option => option.id === event.target.value); setManualScaleDraft(previous => ({ ...previous, variantId: event.target.value, variantLabel: match?.label || previous.variantLabel })); }} className={`mt-2 w-full rounded-xl border px-3 py-3 text-sm outline-none ${theme === 'dark' ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}><option value="">กำหนดชื่อเอง</option>{variantGroups.flatMap(group => group.options.map(option => <option key={option.id} value={option.id}>{group.name}: {option.label}</option>))}</select></label>
+              <label className="text-xs font-black">ชื่อที่แสดงบนภาพ<input value={manualScaleDraft.variantLabel} onChange={event => setManualScaleDraft(previous => ({ ...previous, variantLabel: event.target.value }))} placeholder="เช่น ตะแกรง 30 × 40 ซม." className={`mt-2 w-full rounded-xl border px-3 py-3 text-sm outline-none ${theme === 'dark' ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}/></label>
+            </div>
+
+            <div className={`mt-5 rounded-2xl border p-4 ${theme === 'dark' ? 'border-orange-900/70 bg-orange-950/20' : 'border-orange-100 bg-orange-50/60'}`}>
+              <h4 className="text-sm font-black text-orange-600">1. มิติสินค้าจริง</h4>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <label className="text-xs font-bold">กว้าง (ซม.)<input inputMode="decimal" value={manualScaleDraft.widthCm} onChange={event => setManualScaleDraft(previous => ({ ...previous, widthCm: event.target.value }))} placeholder="30" className={`mt-1 w-full rounded-xl border px-3 py-2.5 text-sm outline-none ${theme === 'dark' ? 'border-slate-700 bg-slate-900' : 'border-orange-100 bg-white'}`}/></label>
+                <label className="text-xs font-bold">ยาว (ซม.)<input inputMode="decimal" value={manualScaleDraft.lengthCm} onChange={event => setManualScaleDraft(previous => ({ ...previous, lengthCm: event.target.value }))} placeholder="40" className={`mt-1 w-full rounded-xl border px-3 py-2.5 text-sm outline-none ${theme === 'dark' ? 'border-slate-700 bg-slate-900' : 'border-orange-100 bg-white'}`}/></label>
+                <label className="text-xs font-bold">ลึก/หนา (ซม.)<input inputMode="decimal" value={manualScaleDraft.depthCm} onChange={event => setManualScaleDraft(previous => ({ ...previous, depthCm: event.target.value }))} placeholder="ไม่จำเป็น" className={`mt-1 w-full rounded-xl border px-3 py-2.5 text-sm outline-none ${theme === 'dark' ? 'border-slate-700 bg-slate-900' : 'border-orange-100 bg-white'}`}/></label>
+                <label className="text-xs font-bold">ช่องตะแกรง (มม.)<input inputMode="decimal" value={manualScaleDraft.meshCellMm} onChange={event => setManualScaleDraft(previous => ({ ...previous, meshCellMm: event.target.value }))} placeholder="เช่น 10" className={`mt-1 w-full rounded-xl border px-3 py-2.5 text-sm outline-none ${theme === 'dark' ? 'border-slate-700 bg-slate-900' : 'border-orange-100 bg-white'}`}/></label>
+              </div>
+              <p className={`mt-3 text-[11px] leading-5 ${theme === 'dark' ? 'text-orange-200/80' : 'text-orange-800/80'}`}>สำหรับตะแกรง: ระบุขนาดช่องเพียงครั้งเดียวได้ แม้แต่ละรุ่นจะมีขนาดภายนอกต่างกัน</p>
+            </div>
+
+            <div className={`mt-5 rounded-2xl border p-4 ${theme === 'dark' ? 'border-blue-900/70 bg-blue-950/20' : 'border-blue-100 bg-blue-50/60'}`}>
+              <h4 className="text-sm font-black text-blue-600">2. วัตถุอ้างอิงสเกล</h4>
+              <label className="mt-3 block text-xs font-bold">เลือก reference<select value={manualScaleDraft.referenceId} onChange={event => setManualScaleDraft(previous => ({ ...previous, referenceId: event.target.value as ScaleReferenceId }))} className={`mt-1 w-full rounded-xl border px-3 py-2.5 text-sm outline-none ${theme === 'dark' ? 'border-slate-700 bg-slate-900' : 'border-blue-100 bg-white'}`}>{SCALE_REFERENCE_PRESETS.map(reference => <option key={reference.id} value={reference.id}>{reference.label}</option>)}</select></label>
+              {manualScaleDraft.referenceId === 'custom' && <div className="mt-3 grid gap-3 sm:grid-cols-3"><label className="text-xs font-bold">ชื่อ reference<input value={manualScaleDraft.customReferenceLabel} onChange={event => setManualScaleDraft(previous => ({ ...previous, customReferenceLabel: event.target.value }))} className={`mt-1 w-full rounded-xl border px-3 py-2.5 text-sm outline-none ${theme === 'dark' ? 'border-slate-700 bg-slate-900' : 'border-blue-100 bg-white'}`}/></label><label className="text-xs font-bold">กว้าง (มม.)<input inputMode="decimal" value={manualScaleDraft.customReferenceWidthMm} onChange={event => setManualScaleDraft(previous => ({ ...previous, customReferenceWidthMm: event.target.value }))} className={`mt-1 w-full rounded-xl border px-3 py-2.5 text-sm outline-none ${theme === 'dark' ? 'border-slate-700 bg-slate-900' : 'border-blue-100 bg-white'}`}/></label><label className="text-xs font-bold">สูง (มม.)<input inputMode="decimal" value={manualScaleDraft.customReferenceHeightMm} onChange={event => setManualScaleDraft(previous => ({ ...previous, customReferenceHeightMm: event.target.value }))} className={`mt-1 w-full rounded-xl border px-3 py-2.5 text-sm outline-none ${theme === 'dark' ? 'border-slate-700 bg-slate-900' : 'border-blue-100 bg-white'}`}/></label></div>}
+              {manualScaleDraft.referenceId === 'hand' && <p className={`mt-3 text-[11px] ${theme === 'dark' ? 'text-blue-200/80' : 'text-blue-800/80'}`}>มือใช้สำหรับให้ลูกค้าเห็นภาพคร่าว ๆ เท่านั้น — หากต้องการอัตราส่วนที่ตรวจสอบได้ ให้ใช้ iPhone หรือวัตถุที่กำหนดขนาดเอง</p>}
+            </div>
+
+            <div className={`mt-5 rounded-xl border px-4 py-3 text-xs leading-5 ${theme === 'dark' ? 'border-slate-700 bg-slate-800 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-600'}`}><b>ผลลัพธ์:</b> เป็น Technical Size Chart แบบมุมบนที่ล็อก footprint กว้าง×ยาวและ reference ตามมิติที่กรอก ภาพนี้ไม่บิดสินค้าเพื่อให้ดูใหญ่หรือเล็กเกินจริง</div>
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button onClick={() => setIsManualScaleOpen(false)} className={`rounded-xl px-5 py-3 text-sm font-black ${theme === 'dark' ? 'bg-slate-800 text-slate-200' : 'bg-slate-100 text-slate-600'}`}>ยกเลิก</button><button onClick={createManualScaleChart} className="flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-5 py-3 text-sm font-black text-white shadow-lg shadow-orange-500/25 transition hover:bg-orange-600"><Ruler className="h-4 w-4" />สร้าง Size Chart สเกลจริง</button></div>
+          </section>
+        </div>
+      )}
 
       {/* Image Preview Modal */}
       {previewImage && (
