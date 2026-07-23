@@ -35,6 +35,48 @@ const paymentMethods: { brand: PaymentBrand; title: string; description: string 
   { brand: 'stripe', title: 'Stripe Checkout', description: 'หน้าชำระเงินมาตรฐานสากล' },
 ];
 
+const landingAdSlots = [
+  {
+    label: 'ภาพปก',
+    delay: 3,
+    images: [
+      'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=640&q=85',
+      'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=640&q=85',
+      'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=640&q=85',
+    ],
+  },
+  {
+    label: 'จุดเด่น',
+    delay: 5,
+    images: [
+      'https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&w=640&q=85',
+      'https://images.unsplash.com/photo-1503602642458-232111445657?auto=format&fit=crop&w=640&q=85',
+      'https://images.unsplash.com/photo-1494438639946-1ebd1d20bf85?auto=format&fit=crop&w=640&q=85',
+    ],
+  },
+  {
+    label: 'ขนาดจริง',
+    delay: 7,
+    images: [
+      'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=640&q=85',
+      'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=640&q=85',
+      'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=640&q=85',
+    ],
+  },
+];
+
+const LandingAdPreviewSlot: React.FC<{ slot: typeof landingAdSlots[number]; isDark: boolean }> = ({ slot, isDark }) => (
+  <div className={`overflow-hidden rounded-xl border ${isDark ? 'border-white/10 bg-white/5' : 'border-slate-200 bg-white'}`}>
+    <div className="relative h-20 overflow-hidden">
+      <div className="landing-ad-slot-track" style={{ animationDelay: `${slot.delay}s` }}>
+        {[...slot.images, slot.images[0]].map((src, index) => <img key={`${src}-${index}`} src={src} alt="" className="h-20 w-full object-cover" loading={index === 0 ? 'eager' : 'lazy'} />)}
+      </div>
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/25 via-transparent to-white/10" />
+    </div>
+    <p className="truncate px-2 py-2 text-[10px] font-black">{slot.label}</p>
+  </div>
+);
+
 const faqs = [
   ['เครดิตใช้ทำอะไรได้บ้าง?', '1 เครดิตใช้กับการวิเคราะห์สินค้าหรือภาพที่สร้างสำเร็จ 1 ภาพ โดยระบบจะแจ้งก่อนเริ่มงานเสมอ'],
   ['ทำไม QR และ Wallet ไม่ตัดเงินรายเดือนอัตโนมัติ?', 'ช่องทางเหล่านี้เป็นการชำระแต่ละครั้ง เมื่อถึงรอบใหม่คุณเลือกต่ออายุเองได้ ส่วนสิทธิ์จะเพิ่มหลังระบบยืนยันการชำระเงินแล้ว'],
@@ -59,6 +101,19 @@ export const MarketingSite: React.FC<MarketingSiteProps> = ({ onOpenAuth, onGoTo
 
   return (
     <div className={isDark ? 'relative isolate min-h-screen overflow-hidden bg-[#08111f] text-slate-100' : 'relative isolate min-h-screen overflow-hidden bg-[#f8fafc] text-slate-900'}>
+      <style>{`
+        @keyframes landing-ad-slot-rotate {
+          0% { transform: translateY(0); }
+          5% { transform: translateY(-25%); }
+          33.333% { transform: translateY(-25%); }
+          38.333% { transform: translateY(-50%); }
+          66.667% { transform: translateY(-50%); }
+          71.667% { transform: translateY(-75%); }
+          100% { transform: translateY(-75%); }
+        }
+        .landing-ad-slot-track { animation: landing-ad-slot-rotate 30s cubic-bezier(.4,0,.2,1) infinite; will-change: transform; }
+        @media (prefers-reduced-motion: reduce) { .landing-ad-slot-track { animation: none !important; } }
+      `}</style>
       <KineticBackground />
       <div className="relative z-10">
       <header className={`sticky top-0 z-40 border-b backdrop-blur-xl ${isDark ? 'border-white/10 bg-[#08111f]/80' : 'border-slate-200/80 bg-white/80'}`}>
@@ -142,7 +197,7 @@ export const MarketingSite: React.FC<MarketingSiteProps> = ({ onOpenAuth, onGoTo
                     <span className="rounded-lg bg-orange-500/15 px-2.5 py-1 text-[10px] font-black text-orange-500">พร้อมสร้าง</span>
                   </div>
                   <div className="mt-5 grid grid-cols-3 gap-3">
-                    {[['ภาพปก', 'bg-orange-500'], ['จุดเด่น', 'bg-cyan-500'], ['ขนาดจริง', 'bg-violet-500']].map(([label, color]) => <div key={label} className={`overflow-hidden rounded-xl border ${isDark ? 'border-white/10 bg-white/5' : 'border-slate-200 bg-white'}`}><div className={`h-20 ${color} opacity-90`} /><p className="truncate px-2 py-2 text-[10px] font-black">{label}</p></div>)}
+                    {landingAdSlots.map(slot => <LandingAdPreviewSlot key={slot.label} slot={slot} isDark={isDark} />)}
                   </div>
                   <div className={`mt-4 rounded-xl border p-3 ${isDark ? 'border-emerald-400/20 bg-emerald-400/10' : 'border-emerald-100 bg-emerald-50'}`}><div className="flex items-center gap-2 text-xs font-bold text-emerald-600"><ShieldCheck className="h-4 w-4" />ล็อกราคาและตัวเลือกสินค้าใน prompt</div></div>
                 </div>
