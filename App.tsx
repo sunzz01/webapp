@@ -178,6 +178,14 @@ const STYLES = [
   },
 
   {
+    id: 'brand-ambassador',
+    name: 'Brand Ambassador Cover',
+    emoji: '✨',
+    color: 'text-rose-500',
+    desc: 'พรีเซนเตอร์ไทย + สินค้าเด่น + Hook ใหญ่',
+    promptTemplate: 'Thai marketplace brand ambassador cover: a warm credible Thai or Asian presenter naturally holding, using, or introducing the exact product. Product is large, sharp, and unobstructed in the foreground; one bold short Thai headline plus one smaller verified supporting line only. No long text, fake discounts, badges, frames, or side panels. Regenerate with a new pose, camera angle, composition, headline placement, and relevant props while preserving the same product identity and presenter-led campaign character.'
+  },
+  {
     id: 'lazada',
     name: 'Lazada Style',
     emoji: '💜',
@@ -1488,7 +1496,10 @@ const App: React.FC = () => {
       const attemptCount = regenerationAttempts[category] || 1;
       const styleToUse = styleOverride || cardVisualStyles[category] || (category === ImageCategory.COVER ? selectedCoverStyle || selectedStyle : selectedStyle);
       const ratio = imageAspectRatios[category] || selectedAspectRatio;
-      const result = await generateProductImage(category, productData, styleToUse, customPrompt, selectedImageModel, ratio, styleIndex);
+      const coverVariationIndex = category === ImageCategory.COVER && styleToUse === 'brand-ambassador'
+        ? attemptCount
+        : styleIndex;
+      const result = await generateProductImage(category, productData, styleToUse, customPrompt, selectedImageModel, ratio, coverVariationIndex);
 
       // อัปเดตเฉพาะภาพที่เลือก
       setGeneratedImages(prev => prev.map(img =>
