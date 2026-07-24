@@ -179,11 +179,27 @@ const STYLES = [
 
   {
     id: 'brand-ambassador',
-    name: 'Brand Ambassador Cover',
+    name: 'Brand Ambassador (สุ่ม)',
     emoji: '✨',
     color: 'text-rose-500',
     desc: 'พรีเซนเตอร์ไทย + สินค้าเด่น + Hook ใหญ่',
     promptTemplate: 'Thai marketplace brand ambassador cover: a warm credible Thai or Asian presenter naturally holding, using, or introducing the exact product. Product is large, sharp, and unobstructed in the foreground; one bold short Thai headline plus one smaller verified supporting line only. No long text, fake discounts, badges, frames, or side panels. Regenerate with a new pose, camera angle, composition, headline placement, and relevant props while preserving the same product identity and presenter-led campaign character.'
+  },
+  {
+    id: 'brand-ambassador-female',
+    name: 'Brand Ambassador ผู้หญิง',
+    emoji: '✨',
+    color: 'text-rose-500',
+    desc: 'พรีเซนเตอร์ผู้หญิง + สินค้าเด่น + Hook ใหญ่',
+    promptTemplate: 'Thai marketplace brand ambassador cover: exactly one warm credible adult Thai or Asian woman naturally holding, using, or introducing the exact product. Product is large, sharp, and unobstructed in the foreground; one bold short Thai headline plus one smaller verified supporting line only. No long text, fake discounts, badges, frames, or side panels. Regenerate with a new pose, camera angle, composition, headline placement, and relevant props while preserving the same product identity and female presenter-led campaign character.'
+  },
+  {
+    id: 'brand-ambassador-male',
+    name: 'Brand Ambassador ผู้ชาย',
+    emoji: '✨',
+    color: 'text-sky-500',
+    desc: 'พรีเซนเตอร์ผู้ชาย + สินค้าเด่น + Hook ใหญ่',
+    promptTemplate: 'Thai marketplace brand ambassador cover: exactly one warm credible adult Thai or Asian man naturally holding, using, or introducing the exact product. Product is large, sharp, and unobstructed in the foreground; one bold short Thai headline plus one smaller verified supporting line only. No long text, fake discounts, badges, frames, or side panels. Regenerate with a new pose, camera angle, composition, headline placement, and relevant props while preserving the same product identity and male presenter-led campaign character.'
   },
   {
     id: 'lazada',
@@ -1496,7 +1512,7 @@ const App: React.FC = () => {
       const attemptCount = regenerationAttempts[category] || 1;
       const styleToUse = styleOverride || cardVisualStyles[category] || (category === ImageCategory.COVER ? selectedCoverStyle || selectedStyle : selectedStyle);
       const ratio = imageAspectRatios[category] || selectedAspectRatio;
-      const coverVariationIndex = category === ImageCategory.COVER && styleToUse === 'brand-ambassador'
+      const coverVariationIndex = category === ImageCategory.COVER && styleToUse.startsWith('brand-ambassador')
         ? attemptCount
         : styleIndex;
       const result = await generateProductImage(category, productData, styleToUse, customPrompt, selectedImageModel, ratio, coverVariationIndex);

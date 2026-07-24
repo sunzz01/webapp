@@ -412,7 +412,12 @@ function buildCategoryPrompt(
 ): string {
   switch (category) {
     case ImageCategory.COVER: {
-      if (style === 'brand-ambassador') {
+      if (['brand-ambassador', 'brand-ambassador-female', 'brand-ambassador-male'].includes(style)) {
+        const presenter = style === 'brand-ambassador-male'
+          ? 'one friendly, credible adult Thai or Asian man'
+          : style === 'brand-ambassador-female'
+            ? 'one friendly, credible adult Thai or Asian woman'
+            : 'one friendly, credible Thai or Asian adult presenter';
         const variations = [
           'Presenter on the right, product large in the lower-left foreground, headline in the upper-left.',
           'Presenter on the left gesturing naturally toward the product on the right, headline in the upper-right.',
@@ -420,7 +425,7 @@ function buildCategoryPrompt(
           'Presenter actively demonstrating the product in a relevant Thai lifestyle setting, product still larger than the presenter, headline in a clean upper zone.',
         ];
         const variation = variations[((styleIndex || 1) - 1) % variations.length];
-        return `Thai Marketplace Brand Ambassador product cover for "${productData.name}". Use one friendly, credible Thai or Asian adult presenter who naturally holds, uses, or introduces the exact reference product. The product must be the main purchase object: large, sharp, unobstructed, and faithful to the reference in shape, logo, colour, materials, proportions, labels, and included pieces. Render exactly one bold Thai selling hook of 2–6 words plus one smaller Thai supporting line using only confirmed product information. No paragraph, bullet list, fake price, fake discount, badge wall, border, rounded frame, side panel, or platform UI. ${variation} On every regeneration change the pose, camera angle, composition, hook placement, and relevant props, while preserving the same product identity, credible brand-ambassador character, and campaign mood.`;
+        return `Thai Marketplace Brand Ambassador product cover for "${productData.name}". Use exactly ${presenter} who naturally holds, uses, or introduces the exact reference product. The product must be the main purchase object: large, sharp, unobstructed, and faithful to the reference in shape, logo, colour, materials, proportions, labels, and included pieces. Render exactly one bold Thai selling hook of 2–6 words plus one smaller Thai supporting line using only confirmed product information. No paragraph, bullet list, fake price, fake discount, badge wall, border, rounded frame, side panel, or platform UI. ${variation} On every regeneration change the pose, camera angle, composition, hook placement, and relevant props, while preserving the same product identity, credible brand-ambassador character, and campaign mood.`;
       }
       return `High-impact commercial E-Commerce COVER image (ภาพปกสินค้า) for "${productData.name}". Product Description: ${productData.description}. Visual Style: ${style}. Product is large and unmistakable in the foreground. All headlines, price tags, and promotional badges MUST be in THAI LANGUAGE ONLY (ภาษาไทยเท่านั้น). Professional studio lighting, sharp product details.`;
     }
