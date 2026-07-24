@@ -136,14 +136,28 @@ async function apiPost<T>(path: string, body: any): Promise<T> {
     throw new Error('กรุณาเข้าสู่ระบบก่อนใช้งาน AI');
   }
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(body),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw new Error('คำขอสร้างภาพใช้เวลานานเกินไป (Timeout 60 วินาที) กรุณากดสร้างใหม่อีกครั้ง');
+    }
+    throw err;
+  }
 
   const contentType = response.headers.get('content-type') || '';
   const rawBody = await response.text();
@@ -382,25 +396,6 @@ const SIZE_CHART_VARIATIONS_API = [
   (name: string) => `Multi-variant size display. White background with subtle pattern. Product in 3 sizes side by side (S/M/L) at proportional scale. Below each: dimensions, weight, use case. Color-coded badges (green=small, blue=medium, orange=large). Easy to compare at a glance.`,
   (name: string) => `Flat-lay size chart. White surface or light wood table. Product with physical ruler/tape measure alongside. Hand entering frame for scale. Common objects nearby (pen, phone). Thin measurement line overlays. Instagram flat-lay aesthetic with measurement info.`,
 ];
-
-// ─── SOCIAL_PROOF Default Variations (4 สไตล์) ───────────────────
-const SOCIAL_PROOF_VARIATIONS_API = [
-  (name: string) => `Customer review collage. Soft gradient background (warm peach to cream). Product center with glowing halo. 3-4 floating review cards with star ratings (4.8★, 5★). Quotes: "Amazing quality!", "Fast shipping!". Counter: "2,847 happy customers". Warm, trustworthy. Gold stars.`,
-  (name: string) => `Trust badge display. Deep navy/forest green background. Product on pedestal. Floating trust badges in circle: "✓ 100% Authentic", "⭐ Top Rated", "🚚 Fast Delivery", "🔄 Easy Returns". Large "4.9★" rating with review distribution bar. White text, gold accents. Premium trust-building.`,
-  (name: string) => `Before/after comparison. Split design — left gray/muted, right vibrant. "Without" left, "With ${name}" right. Bold "VS" divider. Bottom: "Sold 5,000+" counter. High contrast, persuasive marketing visual.`,
-  (name: string) => `Social media testimonial. Instagram gradient background (pink→purple→blue). Product with "Most Loved" badge. Floating hearts, comment bubbles, "Saved 1.2K". Mock "4.9/5" rating. User avatar thumbnails with reviews. Vibrant, FOMO-inducing, trendy.`,
-];
-
-// ─── TUTORIAL Variations (6 สไตล์) ───────────────────────────────
-const TUTORIAL_VARIATIONS_API = [
-  (steps: string[]) => `Clean 2×2 grid tutorial. Each cell: one step with product photo, numbered circle badge (1-4). Step 1: ${steps[0]}. Step 2: ${steps[1]}. Step 3: ${steps[2]}. Step 4: ${steps[3]}. White backgrounds, consistent lighting, thin borders. Accent color for badges (teal, coral, or violet). Modern e-commerce tutorial.`,
-  (steps: string[]) => `Horizontal timeline infographic. Soft gradient background. 4 steps left-to-right connected by dotted timeline. Step 1: ${steps[0]}. Step 2: ${steps[1]}. Step 3: ${steps[2]}. Step 4: ${steps[3]}. Circular photos + number badges, alternating above/below. Electric blue, coral, or emerald timeline.`,
-  (steps: string[]) => `Magazine editorial how-to guide. Textured paper background. Staggered editorial layout. Step 1: ${steps[0]}. Step 2: ${steps[1]}. Step 3: ${steps[2]}. Step 4: ${steps[3]}. Serif headings + sans-serif descriptions. Asymmetric layout, gold dividers. Muted earth tones. Sophisticated magazine spread.`,
-  (steps: string[]) => `Dark tech-style guide. Dark charcoal background with hex grid. S-curve layout, glowing cards. Step 1: ${steps[0]}. Step 2: ${steps[1]}. Step 3: ${steps[2]}. Step 4: ${steps[3]}. Neon glow (cyan/purple/green) on numbers and lines. Geometric sans-serif. Futuristic dark UI.`,
-  (steps: string[]) => `Hand-drawn sketch tutorial. Kraft paper texture. Organic layout with hand-drawn arrows. Step 1: ${steps[0]}. Step 2: ${steps[1]}. Step 3: ${steps[2]}. Step 4: ${steps[3]}. Sketch borders, handwritten font, doodle decorations. Pencil gray + marker accent. DIY craft aesthetic.`,
-  (steps: string[]) => `Vertical story-style tutorial. Bold connecting arrows downward. Step 1: ${steps[0]}. Step 2: ${steps[1]}. Step 3: ${steps[2]}. Step 4: ${steps[3]}. Extra bold sans-serif, large step numbers as watermarks (01-04). Vibrant gradient (orange→pink→purple→blue). Social media native, TikTok aesthetic.`,
-];
-
 function buildCategoryPrompt(
   category: ImageCategory,
   productData: ProductData,
