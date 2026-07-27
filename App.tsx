@@ -454,6 +454,10 @@ const App: React.FC = () => {
   const [productPrice, setProductPrice] = useState<ProductPrice>({ currency: 'THB' });
   const [variantGroups, setVariantGroups] = useState<ProductVariantGroup[]>([]);
   const [selectedVariantOptionIds, setSelectedVariantOptionIds] = useState<string[]>([]);
+  // Commerce data is useful, but must be consciously opted into because
+  // incomplete marketplace data can make an image prompt less reliable.
+  const [usePriceInGeneration, setUsePriceInGeneration] = useState(false);
+  const [useVariantsInGeneration, setUseVariantsInGeneration] = useState(false);
   const [cardVisualStyles, setCardVisualStyles] = useState<Record<string, string>>({});
   const [summaryLength, setSummaryLength] = useState<'short' | 'medium' | 'long'>('medium');
   const [isSavingToFolder, setIsSavingToFolder] = useState(false);
@@ -634,6 +638,8 @@ const App: React.FC = () => {
        setProductPrice({ currency: 'THB' });
        setVariantGroups([]);
        setSelectedVariantOptionIds([]);
+       setUsePriceInGeneration(false);
+       setUseVariantsInGeneration(false);
 
       // ตั้งค่าข้อมูลใหม่
       if (productUrl) {
@@ -692,6 +698,8 @@ const App: React.FC = () => {
            if (savedState.productPrice) setProductPrice({ currency: 'THB', ...savedState.productPrice });
            if (Array.isArray(savedState.variantGroups)) setVariantGroups(savedState.variantGroups);
            if (Array.isArray(savedState.selectedVariantOptionIds)) setSelectedVariantOptionIds(savedState.selectedVariantOptionIds);
+           if (typeof savedState.usePriceInGeneration === 'boolean') setUsePriceInGeneration(savedState.usePriceInGeneration);
+           if (typeof savedState.useVariantsInGeneration === 'boolean') setUseVariantsInGeneration(savedState.useVariantsInGeneration);
            if (savedState.cardVisualStyles) setCardVisualStyles(savedState.cardVisualStyles);
            if (savedState.resultsDensity === 'overview' || savedState.resultsDensity === 'standard' || savedState.resultsDensity === 'focus') setResultsDensity(savedState.resultsDensity);
            if (savedState.manualScaleDraft && typeof savedState.manualScaleDraft === 'object') setManualScaleDraft(previous => ({ ...previous, ...savedState.manualScaleDraft }));
@@ -740,6 +748,8 @@ const App: React.FC = () => {
        productPrice,
        variantGroups,
        selectedVariantOptionIds,
+       usePriceInGeneration,
+       useVariantsInGeneration,
        cardVisualStyles,
        resultsDensity,
        manualScaleDraft,
@@ -762,6 +772,8 @@ const App: React.FC = () => {
     productPrice,
     variantGroups,
     selectedVariantOptionIds,
+    usePriceInGeneration,
+    useVariantsInGeneration,
     cardVisualStyles,
     resultsDensity,
     manualScaleDraft,
@@ -933,10 +945,13 @@ const App: React.FC = () => {
   };
 
   const buildCurrentProductData = (images: string[], variantLabel?: string): ProductData => {
-    const optionFacts = variantGroups.flatMap(group => group.options.slice(0, 12).map(option => `${group.name}: ${option.label}${option.price?.display ? ` (${option.price.display})` : ''}`));
+    const optionFacts = useVariantsInGeneration
+      ? variantGroups.flatMap(group => group.options.slice(0, 12).map(option => `${group.name}: ${option.label}${usePriceInGeneration && option.price?.display ? ` (${option.price.display})` : ''}`))
+      : [];
+    const confirmedPrice = usePriceInGeneration ? getPriceDisplay() : '';
     const description = [
       productDesc || 'ไม่มีรายละเอียด',
-      getPriceDisplay() ? `ราคาที่ยืนยันแล้ว: ${getPriceDisplay()}` : '',
+      confirmedPrice ? `ราคาที่ยืนยันแล้ว: ${confirmedPrice}` : '',
       variantLabel ? `ตัวเลือกที่ต้องสร้างภาพนี้: ${variantLabel}` : '',
     ].filter(Boolean).join('\n');
     return {
@@ -944,8 +959,8 @@ const App: React.FC = () => {
       description,
       images,
       features: [...productDesc.split('\n').map(line => line.replace(/^[-*•\s]+/, '').trim()).filter(line => line.length > 2).slice(0, 8), ...optionFacts].slice(0, 12),
-      price: productPrice,
-      variantGroups,
+      price: usePriceInGeneration ? productPrice : undefined,
+      variantGroups: useVariantsInGeneration ? variantGroups : [],
     };
   };
 
@@ -1246,8 +1261,8 @@ const App: React.FC = () => {
       factsText: facts.join('\n'),
       price: productPrice,
       variantGroups,
-      usePrice: false,
-      useVariants: false,
+      usePrice: usePriceInGeneration,
+      useVariants: useVariantsInGeneration,
       notice: `รับข้อมูลสินค้าจาก Analyze แล้ว — ราคาและตัวเลือกปิดไว้เป็นค่าเริ่มต้น (${images.length} รูป)`,
     });
     setStudioMode(true);
@@ -1606,7 +1621,7 @@ const App: React.FC = () => {
           ImageCategory.COVER,
           buildCurrentProductData(images, target.label),
           cardVisualStyles.COVER || selectedStyle,
-          `Create a dedicated, exact-variant product cover for "${target.label}". Clearly distinguish only this confirmed purchasable option from other variants. Leave a clean editable Thai overlay zone for the exact variant name and confirmed price.`,
+          `Create a dedicated, exact-variant product cover for "${target.label}". Clearly distinguish only this confirmed purchasable option from other variants. Leave a clean editable Thai overlay zone for the exact variant name${usePriceInGeneration ? ' and confirmed price' : ''}.`,
           selectedImageModel,
           selectedAspectRatio,
           undefined,
@@ -2320,6 +2335,17 @@ const App: React.FC = () => {
                     <div><h3 className={`font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>ราคาและตัวเลือกสินค้า</h3><p className={`mt-1 text-xs ${theme === 'dark' ? 'text-emerald-200/70' : 'text-emerald-800/70'}`}>ตรวจ แก้ไข และเลือกตัวเลือกที่จะสร้างภาพแยกก่อนเริ่ม Generate</p></div>
                     <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-emerald-700 shadow-sm">{getPriceDisplay() || 'ยังไม่ได้ระบุราคา'}</span>
                   </div>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <label className={`flex cursor-pointer items-center justify-between gap-3 rounded-2xl border p-3 transition-colors ${usePriceInGeneration ? 'border-orange-300 bg-orange-50' : 'border-slate-200 bg-white/70'}`}>
+                      <span><span className="block text-xs font-black text-slate-800">ใช้ราคายืนยันในการสร้างภาพ</span><span className="mt-0.5 block text-[11px] text-slate-500">ปิดอยู่: AI จะไม่เห็นข้อมูลราคา</span></span>
+                      <input type="checkbox" checked={usePriceInGeneration} onChange={event => setUsePriceInGeneration(event.target.checked)} className="h-5 w-5 shrink-0 accent-orange-500" aria-label="ใช้ราคายืนยันในการสร้างภาพ" />
+                    </label>
+                    <label className={`flex cursor-pointer items-center justify-between gap-3 rounded-2xl border p-3 transition-colors ${useVariantsInGeneration ? 'border-orange-300 bg-orange-50' : 'border-slate-200 bg-white/70'}`}>
+                      <span><span className="block text-xs font-black text-slate-800">ใช้รุ่น / ตัวเลือกในการสร้างภาพ</span><span className="mt-0.5 block text-[11px] text-slate-500">ปิดอยู่: AI จะไม่เห็นสี ขนาด หรือรุ่น</span></span>
+                      <input type="checkbox" checked={useVariantsInGeneration} onChange={event => setUseVariantsInGeneration(event.target.checked)} className="h-5 w-5 shrink-0 accent-orange-500" aria-label="ใช้รุ่นและตัวเลือกในการสร้างภาพ" />
+                    </label>
+                  </div>
+                  <p className={`mt-2 text-[11px] font-medium ${theme === 'dark' ? 'text-emerald-100/70' : 'text-emerald-800/75'}`}>ข้อมูลที่ปิดจะไม่ถูกส่งไปยัง AI · การสร้างภาพแยกจากตัวเลือกที่เลือก จะใช้ตัวเลือกนั้นโดยตรง</p>
                   <div className="mt-4 grid gap-3 sm:grid-cols-3">
                     <label className="text-xs font-bold text-slate-600 dark:text-slate-300">ราคาแสดง<input value={productPrice.display || ''} onChange={event => setProductPrice(previous => ({ ...previous, currency: 'THB', display: event.target.value }))} placeholder="เช่น ฿199 หรือ ฿199 - ฿299" className="mt-1 w-full rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-emerald-500"/></label>
                     <label className="text-xs font-bold text-slate-600 dark:text-slate-300">ราคาต่ำสุด<input type="number" min="0" value={productPrice.min ?? productPrice.current ?? ''} onChange={event => updateProductPrice('min', event.target.value)} placeholder="199" className="mt-1 w-full rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-emerald-500"/></label>
