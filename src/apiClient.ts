@@ -9,6 +9,7 @@
 
 import { ImageCategory, ImageGenerationResult, ProductData } from '../types';
 import { auth } from './firebase';
+import { uploadImageToStorage } from './imageStorage';
 
 // ═══════════════════════════════════════════════════════════════
 //  Config
@@ -98,9 +99,29 @@ async function shrinkImageForApi(
   return canvas.toDataURL('image/jpeg', qualitySteps[qualitySteps.length - 1] ?? 0.42);
 }
 
-async function prepareImagesForApi(images?: string[], maxImages: number = 4): Promise<string[] | undefined> {
-  if (!images?.length) return undefined;
+interface PreparedImages {
+  images?: string[];
+  storagePaths?: string[];
+}
+
+const imageJobIds = new Map<string, string>();
+
+async function prepareImagesForApi(images?: string[], maxImages: number = 4): Promise<PreparedImages> {
+  if (!images?.length) return {};
   const sourceImages = images.filter(Boolean).slice(0, maxImages);
+  const fingerprint = sourceImages.map((source) => `${source.length}:${source.slice(0, 64)}`).join('|');
+  const jobId = imageJobIds.get(fingerprint) || crypto.randomUUID();
+  imageJobIds.set(fingerprint, jobId);
+  const stored = await Promise.allSettled(sourceImages.map((source, index) => uploadImageToStorage(source, jobId, index)));
+  const storagePaths = stored
+    .filter((result): result is PromiseFulfilledResult<Awaited<ReturnType<typeof uploadImageToStorage>>> => result.status === 'fulfilled')
+    .map(result => result.value.path);
+  const uploadFailed = sourceImages.filter((_, index) => stored[index]?.status !== 'fulfilled');
+
+  // A failed Storage upload should not block the existing workflow. Compress only
+  // those images and send them inline as the temporary fallback.
+  if (!uploadFailed.length) return { storagePaths };
+
   const compressionProfiles = [
     { maxEdge: 900, qualitySteps: [0.72, 0.62, 0.52, 0.44] },
     { maxEdge: 720, qualitySteps: [0.64, 0.54, 0.46, 0.38] },
@@ -111,13 +132,13 @@ async function prepareImagesForApi(images?: string[], maxImages: number = 4): Pr
   let bestEffort: string[] = [];
   for (const profile of compressionProfiles) {
     const prepared = await Promise.all(
-      sourceImages.map((image) => shrinkImageForApi(image, profile.maxEdge, profile.qualitySteps)),
+      uploadFailed.map((image) => shrinkImageForApi(image, profile.maxEdge, profile.qualitySteps)),
     );
     const totalBytes = prepared.reduce((sum, image) => sum + estimateBase64Bytes(image), 0);
     bestEffort = prepared;
 
     if (totalBytes <= MAX_API_PAYLOAD_BYTES) {
-      return prepared;
+      return { storagePaths: storagePaths.length ? storagePaths : undefined, images: prepared };
     }
   }
 
@@ -130,7 +151,7 @@ async function prepareImagesForApi(images?: string[], maxImages: number = 4): Pr
     totalBytes += imageBytes;
   }
 
-  return packed.length ? packed : undefined;
+  return { storagePaths: storagePaths.length ? storagePaths : undefined, images: packed.length ? packed : undefined };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -223,10 +244,10 @@ export async function analyzeProduct(
   productInfo: string,
   images?: string[],
 ): Promise<ProductAnalysis> {
-  const apiImages = await prepareImagesForApi(images, 4);
+  const preparedImages = await prepareImagesForApi(images, 4);
   return apiPost<ProductAnalysis>('/api/analyze', {
     productInfo,
-    images: apiImages,
+    ...preparedImages,
   });
 }
 
@@ -272,7 +293,7 @@ export async function generateProductImage(
     );
   }
 
-  const apiImages = await prepareImagesForApi(productData.referenceImages || productData.images, 4);
+  const preparedImages = await prepareImagesForApi(productData.referenceImages || productData.images, 4);
   const result = await apiPost<{
     imageUrl: string;
     promptUsed: string;
@@ -281,7 +302,7 @@ export async function generateProductImage(
     thaiTextPlan?: string[];
   }>('/api/generate', {
     prompt,
-    images: apiImages,
+    ...preparedImages,
     model: imageModel,
     aspectRatio,
     category,
@@ -329,10 +350,10 @@ export async function generateShopeeAdImage(
     'Preserve product identity exactly: shape, color, materials, labels, proportions, included pieces. Never invent measurements, certifications, prices, promotions, reviews, accessories, variants, or performance claims.',
   ].filter(Boolean).join('\n\n');
 
-  const apiImages = await prepareImagesForApi(productData.referenceImages || productData.images, 4);
+  const preparedImages = await prepareImagesForApi(productData.referenceImages || productData.images, 4);
   const result = await apiPost<{ imageUrl: string; promptUsed: string; model: string; thaiTextPlan?: string[] }>('/api/generate', {
     prompt,
-    images: apiImages,
+    ...preparedImages,
     model: imageModel,
     aspectRatio: '1:1',
     category: 'SHOPEE_THAI_AD',
@@ -357,10 +378,10 @@ export async function summarizeProductDescription(
   images?: string[],
   summaryLength: 'short' | 'medium' | 'long' = 'medium',
 ): Promise<string> {
-  const apiImages = await prepareImagesForApi(images, 3);
+  const preparedImages = await prepareImagesForApi(images, 3);
   const result = await apiPost<{ summary: string }>('/api/summarize', {
     currentDesc,
-    images: apiImages,
+    ...preparedImages,
     summaryLength,
   });
   return result.summary;

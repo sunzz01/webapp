@@ -13,6 +13,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { smartRetry, MODEL_REGISTRY } from './_lib/vertex.js';
 import { generateGeminiText } from './_lib/geminiFallback.js';
 import { requireFirebaseUser } from './_lib/firebaseAdmin.js';
+import { resolveImageParts } from './_lib/storageImages.js';
 
 function extractVertexText(response: any): string {
   return response?.response?.candidates?.[0]?.content?.parts
@@ -40,28 +41,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    await requireFirebaseUser(req);
+    const firebaseUser = await requireFirebaseUser(req);
 
-    const { productInfo, images } = req.body;
+    const { productInfo, images, storagePaths } = req.body;
 
-    if (!productInfo && (!images || images.length === 0)) {
+    if (!productInfo && (!images?.length && !storagePaths?.length)) {
       return res.status(400).json({ error: 'Provide productInfo or images' });
     }
 
     // Build multimodal content parts
     const parts: any[] = [];
 
-    if (images && images.length > 0) {
-      for (const img of images.slice(0, 4)) {
-        const base64Data = img.includes('base64,') ? img.split('base64,')[1] : img;
-        parts.push({
-          inlineData: {
-            mimeType: 'image/png',
-            data: base64Data,
-          },
-        });
-      }
-    }
+    parts.push(...await resolveImageParts(firebaseUser.uid, images, storagePaths));
 
     parts.push({
       text: `Analyze this Shopee product based on the provided ${images?.length ? 'images and ' : ''}description.

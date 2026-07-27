@@ -9,6 +9,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Modality } from '@google/genai';
 import { getServiceAccountCredentials, getVertexAIForLocation, getVertexAccessToken, getVertexEnvironment } from './_lib/vertex.js';
 import { requireFirebaseUser } from './_lib/firebaseAdmin.js';
+import { resolveImageParts } from './_lib/storageImages.js';
 
 const RATIO_DESCRIPTIONS: Record<string, string> = {
   '1:1': 'square format (1:1 aspect ratio)',
@@ -422,6 +423,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const {
       prompt,
       images,
+      storagePaths,
       aspectRatio = '1:1',
       customPrompt,
       category,
@@ -435,7 +437,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Provide prompt or customPrompt' });
     }
 
-    const imageParts = parseSourceImages(images);
+    const imageParts = await resolveImageParts(firebaseUser.uid, images, storagePaths);
     if (imageParts.length === 0) {
       return res.status(400).json({
         error: 'Product Recontext pipeline requires at least one source product image.',
