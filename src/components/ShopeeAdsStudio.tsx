@@ -6,7 +6,17 @@ import { ImageCategory, type ProductData, type ProductPrice, type ProductVariant
 
 type AssetKind = 'product' | 'package' | 'logo';
 type AdStatus = 'ready' | 'generating' | 'completed' | 'error';
-type CampaignStyle = 'thai-premium' | 'clean-editorial' | 'vibrant-shopee' | 'warm-lifestyle' | 'dark-tech';
+type CampaignStyle =
+  | 'thai-premium'
+  | 'emerald-gold-premium'
+  | 'rose-gold-premium'
+  | 'royal-violet-premium'
+  | 'ruby-crimson-premium'
+  | 'monochrome-luxury'
+  | 'clean-editorial'
+  | 'vibrant-shopee'
+  | 'warm-lifestyle'
+  | 'dark-tech';
 type HeroCreativeMode = 'human-product-female' | 'human-product-male' | 'human-product-couple' | 'product-dominant' | 'short-hook' | 'price-ready' | 'human-product';
 type TextOverlayStyle = '3d-outlined' | 'top-banner' | 'modern-card';
 type TextRenderingMode = 'ai-native' | 'app-overlay' | 'clean';
@@ -22,11 +32,66 @@ const THAI_FONTS: { id: string; label: string }[] = [
 ];
 
 const CAMPAIGN_STYLES: { id: CampaignStyle; label: string; description: string; direction: string }[] = [
-  { id: 'thai-premium', label: 'Thai Premium', description: 'ส้ม–กรมท่า หรู สะอาด อ่านง่าย', direction: 'Thai premium ecommerce campaign. Use deep navy, warm Shopee orange accents, soft studio lighting, refined matte surfaces, confident but clean information hierarchy.' },
-  { id: 'clean-editorial', label: 'Clean Editorial', description: 'ขาวสะอาด มินิมอล เน้นสินค้า', direction: 'Clean editorial product campaign. Use warm white backgrounds, restrained neutral palette, soft daylight, generous whitespace, premium catalogue composition.' },
-  { id: 'vibrant-shopee', label: 'Vibrant Shopee', description: 'สดใส ชัดเจน เหมาะกับแคมเปญโปรโมชัน', direction: 'Vibrant Thai marketplace campaign. Use energetic orange-red accents, high clarity, friendly light, bold but tidy visual hierarchy, never cluttered.' },
-  { id: 'warm-lifestyle', label: 'Warm Lifestyle', description: 'อบอุ่น เป็นธรรมชาติ เห็นการใช้งาน', direction: 'Warm lifestyle campaign. Use golden natural light, tactile home or everyday settings, approachable Thai lifestyle mood, cohesive warm palette.' },
-  { id: 'dark-tech', label: 'Dark Tech', description: 'โมเดิร์น คอนทราสต์สูง สำหรับสินค้าเทค', direction: 'Modern dark technology campaign. Use charcoal or deep navy backgrounds, controlled highlights, precise product edges, premium high-contrast studio lighting.' },
+  {
+    id: 'thai-premium',
+    label: '✨ Thai Premium (ส้ม–กรมท่า)',
+    description: 'กรมท่าพรีเมียม ตัดส้ม Shopee หรู สะอาด',
+    direction: 'Thai premium ecommerce campaign. Use deep rich navy canvas, warm Shopee orange gradient accents, soft studio rim lighting, refined matte surfaces, confident but clean typography hierarchy.'
+  },
+  {
+    id: 'emerald-gold-premium',
+    label: '🟢 Emerald & Gold (เขียวมรกต–ทองคำ)',
+    description: 'เขียวมรกตหรูหรา ตัดทองคำแท้ เหมาะกับสุขภาพ/ออร์แกนิก/เครื่องครัว',
+    direction: 'High-end luxury emerald green and gold ecommerce campaign. Deep polished emerald green background, rich metallic gold borders, golden banner badges, warm luxury studio spotlighting, elegant high-class aesthetic.'
+  },
+  {
+    id: 'rose-gold-premium',
+    label: '🌸 Rose Gold Luxury (ชมพูโรสโกลด์–เบจ)',
+    description: 'ชมพูโรสโกลด์ สวยหรู สไตล์สกินแคร์/บิวตี้/แฟชั่น',
+    direction: 'Luxury Rose Gold & warm cream beige aesthetic. Soft satin background, rose gold metallic accent banners, romantic soft studio glow, high-end cosmetic and lifestyle brand atmosphere.'
+  },
+  {
+    id: 'royal-violet-premium',
+    label: '💜 Royal Violet & Gold (ม่วงรอยัล–ทอง)',
+    description: 'ม่วงเข้มราชวงศ์ ตัดทองคำ เพิ่มมูลค่าสินค้า VIP',
+    direction: 'Exclusive VIP Royal Violet and gold campaign. Deep regal violet purple background, polished gold badge framing, high-contrast luxury studio rim lighting, premium high-value product atmosphere.'
+  },
+  {
+    id: 'ruby-crimson-premium',
+    label: '🔴 Ruby Crimson & Gold (แดงรูบี้–ทอง)',
+    description: 'แดงมงคล/ตรุษจีน/แคมเปญใหญ่ ตัดทองคำ หยุดสายตา',
+    direction: 'High-converting festive & mega-campaign aesthetic. Rich deep ruby crimson red canvas, vibrant gold accent badges, energetic studio lighting, striking high-visibility commercial presentation.'
+  },
+  {
+    id: 'monochrome-luxury',
+    label: '🖤 Monochrome Luxury (ดำ–เทา–เงิน)',
+    description: 'ดำเรียบหรูสตรีท/ไฮเอนด์ ตัดเงินเมทัลลิก สไตล์สินค้าเทค/โมเดิร์น',
+    direction: 'Sleek modern monochrome luxury campaign. Deep charcoal black and dark slate background, metallic silver accent highlights, high-contrast crisp studio rim lighting, high-fashion minimalist aesthetics.'
+  },
+  {
+    id: 'clean-editorial',
+    label: '🤍 Clean Editorial (ขาวมินิมอล)',
+    description: 'ขาวสะอาด สไตล์แคตตาล็อกแบรนด์ชั้นนำ',
+    direction: 'Clean editorial product campaign. Use warm white backgrounds, restrained neutral palette, soft daylight, generous whitespace, premium catalogue composition.'
+  },
+  {
+    id: 'vibrant-shopee',
+    label: '🧡 Vibrant Shopee (ส้ม–สดใส)',
+    description: 'เน้นโปรโมชัน สีสดใส ดึงดูดความสนใจ',
+    direction: 'Vibrant Thai marketplace campaign. Use energetic orange-red accents, high clarity, friendly light, bold but tidy visual hierarchy, never cluttered.'
+  },
+  {
+    id: 'warm-lifestyle',
+    label: '☀️ Warm Lifestyle (อบอุ่น–โกลเด้น)',
+    description: 'โทนอบอุ่น ฟีลบ้านและธรรมชาติ',
+    direction: 'Warm lifestyle campaign. Use golden natural light, tactile home or everyday settings, approachable Thai lifestyle mood, cohesive warm palette.'
+  },
+  {
+    id: 'dark-tech',
+    label: '⚡ Dark Tech (ไอที–นีออน)',
+    description: 'เข้ม ดุดัน สไตล์อุปกรณ์ไอที & แก็ดเจ็ต',
+    direction: 'Modern dark technology campaign. Use charcoal or deep navy backgrounds, controlled highlights, precise product edges, premium high-contrast studio lighting.'
+  },
 ];
 
 const HERO_CREATIVE_MODES: { id: HeroCreativeMode; label: string; description: string; direction: string }[] = [
