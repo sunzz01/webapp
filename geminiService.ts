@@ -1063,12 +1063,13 @@ export const generateProductImage = async (
   customPrompt?: string,  // เพิ่มพารามิเตอร์สำหรับ custom prompt
   imageModel: string = 'gemini-2.5-flash-image',  // รองรับการเลือกโมเดล (Nano Banana default)
   aspectRatio: string = '1:1',  // อัตราส่วนภาพ default 1:1
-  styleIndex?: number  // สไตล์เจาะจง (0=random, 1-6=specific variation)
+  styleIndex?: number,  // สไตล์เจาะจง (0=random, 1-6=specific variation)
+  signal?: AbortSignal,
 ): Promise<ImageGenerationResult> => {
   // ─── Vertex AI Mode: call serverless API ────────────────────
   if (USE_VERTEX_AI) {
     console.log('[generateProductImage] Using Vertex AI API route');
-    return apiGenerateProductImage(category, productData, style, customPrompt, imageModel, aspectRatio, styleIndex);
+    return apiGenerateProductImage(category, productData, style, customPrompt, imageModel, aspectRatio, styleIndex, undefined, signal);
   }
 
   // ─── Direct Gemini API Mode (Development) ───────────────────

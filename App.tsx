@@ -462,6 +462,7 @@ const App: React.FC = () => {
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [isScrapingOnly, setIsScrapingOnly] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const activeGenerationRef = useRef<AbortController | null>(null);
   const [scrapedImages, setScrapedImages] = useState<string[]>([]);
   const [originalScrapedImages, setOriginalScrapedImages] = useState<string[]>([]); // Backup for undo
   const [localImages, setLocalImages] = useState<string[]>([]);
@@ -1366,6 +1367,21 @@ const App: React.FC = () => {
     }
   };
 
+  const stopResultsGeneration = () => {
+    const controller = activeGenerationRef.current;
+    if (!controller || !isGenerating) return;
+    const confirmed = window.confirm('หยุดการสร้างภาพตอนนี้หรือไม่?\n\nคำขอถูกส่งให้ AI แล้ว เครดิตอาจถูกใช้ไปแล้วและไม่สามารถคืนอัตโนมัติได้ คุณยืนยันที่จะหยุดใช่หรือไม่?');
+    if (!confirmed) return;
+
+    controller.abort();
+    activeGenerationRef.current = null;
+    setIsGenerating(false);
+    setGeneratedImages(previous => previous.map(image => image.status === 'generating'
+      ? { ...image, status: 'idle', url: '', error: undefined }
+      : image));
+    addNotification('warning', 'หยุดการสร้างแล้ว', 'เครดิตของคำขอที่ส่งถึง AI ไปแล้วอาจถูกใช้ไปแล้ว คุณสามารถกดสร้างใหม่ได้ทันที');
+  };
+
   const startGeneration = async () => {
     if (selectedCategories.size === 0) {
       addNotification('warning', 'เลือกหมวดหมู่ก่อน', 'กรุณาเลือกอย่างน้อย 1 หมวดหมู่ที่ต้องการสร้างภาพ');
@@ -1392,6 +1408,8 @@ const App: React.FC = () => {
       }
     }
 
+    const generationController = new AbortController();
+    activeGenerationRef.current = generationController;
     setIsGenerating(true);
     const initialGenerated: GeneratedImage[] = categoriesToGenerate.map(cat => ({
       id: Math.random().toString(36).substr(2, 9),
@@ -1415,17 +1433,20 @@ const App: React.FC = () => {
       addNotification('error', 'อ่านรูปสินค้าไม่ได้', 'ระบบไม่สามารถแปลงรูปสินค้าเป็นไฟล์สำหรับส่งให้ AI ได้ กรุณาอัปโหลดรูปใหม่หรือใช้รูปที่มีขนาดเล็กลง');
       setGeneratedImages([]);
       setThaiAdsSession(createThaiAdsSession());
+      if (activeGenerationRef.current === generationController) activeGenerationRef.current = null;
       setIsGenerating(false);
       setStep(2);
       return;
     }
 
+    if (generationController.signal.aborted) return;
     const productData = buildCurrentProductData(validImages);
 
     addNotification('info', 'เริ่มระบบสร้างภาพ AI', `กำลังติดต่อโมเดล ${selectedImageModel} เพื่อสร้างภาพตามหมวดหมู่...`);
 
     let successCount = 0;
     for (const cat of categoriesToGenerate) {
+      if (generationController.signal.aborted) break;
       setGeneratedImages(prev => prev.map(p => p.category === cat && !p.variantLabel ? { ...p, status: 'generating' } : p));
       try {
         const customPromptForTutorial = cat === ImageCategory.TUTORIAL
@@ -1444,10 +1465,11 @@ const App: React.FC = () => {
           styleIdx = parseInt(val) || undefined;
         }
         const styleForCard = cardVisualStyles[cat] || (cat === ImageCategory.COVER ? selectedCoverStyle || selectedStyle : selectedStyle);
-        const result = await generateProductImage(cat, productData, styleForCard, customPromptForTutorial, selectedImageModel, imageAspectRatios[cat] || selectedAspectRatio, styleIdx);
+        const result = await generateProductImage(cat, productData, styleForCard, customPromptForTutorial, selectedImageModel, imageAspectRatios[cat] || selectedAspectRatio, styleIdx, generationController.signal);
         setGeneratedImages(prev => prev.map(p => p.category === cat && !p.variantLabel ? { ...p, url: result.imageUrl, status: 'completed', thaiTexts: result.thaiTexts, promptUsed: result.promptUsed, modelUsed: result.modelUsed, visualStyle: styleForCard } : p));
         successCount++;
       } catch (err) {
+        if (generationController.signal.aborted) break;
         setGeneratedImages(prev => prev.map(p => p.category === cat && !p.variantLabel ? { ...p, status: 'error', error: err instanceof Error ? err.message : 'Unknown error' } : p));
         const errMsg = err instanceof Error ? err.message : '';
         const isQuota = errMsg.includes('429') || errMsg.includes('quota') || errMsg.includes('QUOTA') || errMsg.includes('RESOURCE_EXHAUSTED');
@@ -1458,17 +1480,25 @@ const App: React.FC = () => {
       }
     }
 
+    if (generationController.signal.aborted) {
+      return;
+    }
+
     if (user && successCount > 0) {
       deductCredit(successCount);
       addNotification('success', 'สร้างภาพเสร็จสิ้น', user.unlimitedCredits ? `บัญชีทดลอง Unlimited สร้างสำเร็จ ${successCount} ภาพ โดยไม่ถูกหักเครดิต` : `ระบบหัก ${successCount} เครดิตสำหรับการสร้างภาพสำเร็จ ${successCount} ภาพ`);
     } else if (successCount > 0) {
       addNotification('success', 'สร้างภาพเสร็จสิ้น', `สร้างภาพเสร็จเรียบร้อยทั้งหมด ${successCount} ภาพ`);
     }
+    if (activeGenerationRef.current === generationController) activeGenerationRef.current = null;
     setIsGenerating(false);
   };
 
   // ฟังก์ชัน Regenerate สำหรับภาพเดี่ยว
   const regenerateImage = async (category: ImageCategory, customPrompt?: string, styleOverride?: string, styleIndex?: number) => {
+    const generationController = new AbortController();
+    activeGenerationRef.current = generationController;
+    setIsGenerating(true);
     // อัปเดตจำนวนครั้งที่พยายามสร้างใหม่
     setRegenerationAttempts(prev => ({
       ...prev,
@@ -1515,7 +1545,7 @@ const App: React.FC = () => {
       const coverVariationIndex = category === ImageCategory.COVER && styleToUse.startsWith('brand-ambassador')
         ? attemptCount
         : styleIndex;
-      const result = await generateProductImage(category, productData, styleToUse, customPrompt, selectedImageModel, ratio, coverVariationIndex);
+      const result = await generateProductImage(category, productData, styleToUse, customPrompt, selectedImageModel, ratio, coverVariationIndex, generationController.signal);
 
       // อัปเดตเฉพาะภาพที่เลือก
       setGeneratedImages(prev => prev.map(img =>
@@ -1530,6 +1560,7 @@ const App: React.FC = () => {
         } : img
       ));
     } catch (err) {
+      if (generationController.signal.aborted) return;
       // ถ้ามีข้อผิดพลาด ให้ตั้งสถานะเป็น error และบันทึกข้อความแสดงข้อผิดพลาด
       const errorMessage = err instanceof Error ? err.message : "เกิดข้อผิดพลาดในการสร้างภาพ";
 
@@ -1540,6 +1571,9 @@ const App: React.FC = () => {
           error: errorMessage
         } : img
       ));
+    } finally {
+      if (activeGenerationRef.current === generationController) activeGenerationRef.current = null;
+      setIsGenerating(false);
     }
   };
 
@@ -1559,9 +1593,12 @@ const App: React.FC = () => {
       return;
     }
 
+    const generationController = new AbortController();
+    activeGenerationRef.current = generationController;
     setIsGenerating(true);
     setStep(3);
     for (const target of targets) {
+      if (generationController.signal.aborted) break;
       const id = `variant-${target.option.id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
       setGeneratedImages(previous => [...previous, { id, category: ImageCategory.COVER, url: '', prompt: '', status: 'generating', variantLabel: target.label, visualStyle: cardVisualStyles.COVER || selectedStyle }]);
       try {
@@ -1572,12 +1609,16 @@ const App: React.FC = () => {
           `Create a dedicated, exact-variant product cover for "${target.label}". Clearly distinguish only this confirmed purchasable option from other variants. Leave a clean editable Thai overlay zone for the exact variant name and confirmed price.`,
           selectedImageModel,
           selectedAspectRatio,
+          undefined,
+          generationController.signal,
         );
         setGeneratedImages(previous => previous.map(image => image.id === id ? { ...image, url: result.imageUrl, status: 'completed', thaiTexts: [`${target.label}`, ...result.thaiTexts], promptUsed: result.promptUsed, modelUsed: result.modelUsed } : image));
       } catch (error) {
+        if (generationController.signal.aborted) break;
         setGeneratedImages(previous => previous.map(image => image.id === id ? { ...image, status: 'error', error: error instanceof Error ? error.message : 'สร้างภาพตัวเลือกไม่สำเร็จ' } : image));
       }
     }
+    if (activeGenerationRef.current === generationController) activeGenerationRef.current = null;
     setIsGenerating(false);
   };
 
@@ -2914,6 +2955,7 @@ const App: React.FC = () => {
                   </div>
                   <div className="flex gap-3 w-full mt-2">
                     <button onClick={() => setStep(2)} className={`flex-1 rounded-[1.25rem] px-5 py-3.5 ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-white border-2 border-slate-200 hover:bg-slate-50 text-slate-700'} font-black text-xs transition-all shadow-sm active:scale-95`}>ย้อนกลับ</button>
+                    {isGenerating && <button onClick={stopResultsGeneration} className="rounded-[1.25rem] border border-rose-300 bg-rose-50 px-4 py-3.5 text-xs font-black text-rose-700 shadow-sm transition hover:bg-rose-100 dark:bg-rose-950/30 dark:text-rose-200"><X className="h-4 w-4" /></button>}
                     <button
                       onClick={handleDownloadAll}
                       disabled={isGenerating || isZipping || completedCount === 0}

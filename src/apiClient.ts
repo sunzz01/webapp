@@ -137,7 +137,7 @@ async function prepareImagesForApi(images?: string[], maxImages: number = 4): Pr
 //  Generic fetch wrapper with error handling
 // ═══════════════════════════════════════════════════════════════
 
-async function apiPost<T>(path: string, body: any): Promise<T> {
+async function apiPost<T>(path: string, body: any, signal?: AbortSignal): Promise<T> {
   const url = `${API_BASE}${path}`;
   console.log(`[ApiClient] POST ${url}`);
   const token = await auth.currentUser?.getIdToken();
@@ -148,6 +148,8 @@ async function apiPost<T>(path: string, body: any): Promise<T> {
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 60000);
+  const abortFromCaller = () => controller.abort();
+  signal?.addEventListener('abort', abortFromCaller, { once: true });
 
   let response: Response;
   try {
@@ -163,10 +165,15 @@ async function apiPost<T>(path: string, body: any): Promise<T> {
     clearTimeout(timeoutId);
   } catch (err: any) {
     clearTimeout(timeoutId);
+    if (signal?.aborted) {
+      throw new Error('ผู้ใช้หยุดการสร้างภาพแล้ว');
+    }
     if (err.name === 'AbortError') {
       throw new Error('คำขอสร้างภาพใช้เวลานานเกินไป (Timeout 60 วินาที) กรุณากดสร้างใหม่อีกครั้ง');
     }
     throw err;
+  } finally {
+    signal?.removeEventListener('abort', abortFromCaller);
   }
 
   const contentType = response.headers.get('content-type') || '';
@@ -236,6 +243,7 @@ export async function generateProductImage(
   aspectRatio: string = '1:1',
   styleIndex?: number,
   adBrief?: ShopeeAdBrief,
+  signal?: AbortSignal,
 ): Promise<ImageGenerationResult> {
   // ThaiAds cards also carry imageUrl and prompt history for the UI. Never send
   // those large fields to the prompt orchestrator; it only needs this brief.
@@ -281,7 +289,7 @@ export async function generateProductImage(
     customPrompt,
     productData: { ...productData, images: apiImages || [] },
     adBrief: safeAdBrief,
-  });
+  }, signal);
 
   // Build thaiTexts for reference
   const thaiTexts = extractThaiTexts(productData, category, style);
