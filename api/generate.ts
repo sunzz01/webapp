@@ -500,57 +500,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       } catch (error) {
         console.warn(`[api/generate] Enterprise model ${selectedModel} failed; attempting Product Recontext with source image...`, error);
-        try {
-          generated = await generateProductRecontextImage({
-            prompt: orchestrated.prompt || fullGenerationPrompt,
-            imageParts,
-            aspectRatio,
-            negativePrompt: orchestrated.negativePrompt,
-          });
-        } catch (recontextError) {
-          console.warn(`[api/generate] Product Recontext fallback failed; trying Imagen text model...`, recontextError);
-          const fallbackModel = process.env.IMAGEN_FALLBACK_MODEL || 'imagen-3.0-generate-002';
-          generated = await generateImagen4TextImage({
-            modelName: fallbackModel,
-            prompt: fullGenerationPrompt,
-            aspectRatio,
-          });
-        }
-      }
-    } else if (isImagenTextModel(selectedModel)) {
-      // If user explicitly chose a text model or fallback, attempt product recontext first to preserve source image
-      try {
         generated = await generateProductRecontextImage({
           prompt: orchestrated.prompt || fullGenerationPrompt,
           imageParts,
           aspectRatio,
           negativePrompt: orchestrated.negativePrompt,
-        });
-      } catch (recontextErr) {
-        generated = await generateImagen4TextImage({
-          modelName: selectedModel,
-          prompt: fullGenerationPrompt,
-          aspectRatio,
         });
       }
     } else {
-      try {
-        generated = await generateProductRecontextImage({
-          prompt: orchestrated.prompt || fullGenerationPrompt,
-          imageParts,
-          aspectRatio,
-          negativePrompt: orchestrated.negativePrompt,
-        });
-      } catch (error) {
-        if (!isUnavailableRecontextModel(error)) throw error;
-        const fallbackModel = process.env.IMAGEN_FALLBACK_MODEL || 'imagen-3.0-generate-002';
-        console.warn(`[api/generate] Recontext is unavailable; falling back to ${fallbackModel}.`);
-        generated = await generateImagen4TextImage({
-          modelName: fallbackModel,
-          prompt: fullGenerationPrompt,
-          aspectRatio,
-        });
-      }
+      // Product Recontext with source product image preservation
+      generated = await generateProductRecontextImage({
+        prompt: orchestrated.prompt || fullGenerationPrompt,
+        imageParts,
+        aspectRatio,
+        negativePrompt: orchestrated.negativePrompt,
+      });
     }
 
     console.log('[usage] image_generation_success', {
