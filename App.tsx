@@ -2914,6 +2914,15 @@ const App: React.FC = () => {
 
         {step === 3 && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+            {isGenerating && (
+              <button
+                onClick={stopResultsGeneration}
+                className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-2xl border border-rose-300 bg-rose-600 px-5 py-3.5 text-sm font-black text-white shadow-2xl shadow-rose-950/30 transition hover:bg-rose-700 active:scale-95"
+              >
+                <X className="h-5 w-5" />
+                หยุดการสร้างภาพ
+              </button>
+            )}
             {/* Results Dashboard Header */}
             <div className={`${theme === 'dark' ? 'bg-gray-800 border-gray-700 ring-gray-700' : 'bg-white border-slate-100 ring-slate-50'} rounded-[3.5rem] p-12 border shadow-2xl mb-12 overflow-hidden relative ring-1`}>
               <div className="absolute top-0 right-0 w-80 h-80 bg-orange-100/30 rounded-full -mr-40 -mt-40 blur-[100px] -z-10"></div>
@@ -3345,6 +3354,12 @@ const App: React.FC = () => {
                               <p className={`text-lg font-black tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>กำลังรังสรรค์ภาพ...</p>
                               <p className={`text-[10px] font-black uppercase mt-2 tracking-[0.2em] ${theme === 'dark' ? 'text-gray-400' : 'text-slate-400'}`}>{meta.title}</p>
                             </div>
+                            <button
+                              onClick={(event) => { event.stopPropagation(); stopResultsGeneration(); }}
+                              className="rounded-xl border border-rose-300 bg-rose-50 px-4 py-2 text-xs font-black text-rose-700 shadow-sm transition hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-200"
+                            >
+                              หยุดการสร้าง
+                            </button>
                           </div>
                         )}
 
