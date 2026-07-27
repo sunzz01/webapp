@@ -102,6 +102,14 @@ const createManualScaleDraft = (): ManualScaleDraft => ({
 
 const STYLES = [
   {
+    id: 'shopee',
+    name: 'Shopee Style',
+    emoji: '🧡',
+    color: 'text-orange-500', // Shopee Orange
+    desc: 'Energetic Southeast Asian marketplace, flash sale bursts, vibrant orange, high contrast',
+    promptTemplate: 'Shopee style: vibrant orange gradient, flash sale badges, price drops, sold counts, energetic.'
+  },
+  {
     id: 'alibaba',
     name: 'Alibaba Style',
     emoji: '🏭',
@@ -165,14 +173,7 @@ const STYLES = [
     desc: 'Second-hand/C2C raw photography, honest real-life settings, ambient light',
     promptTemplate: 'Xianyu second-hand style: raw unedited photo, shows flaws, simple home background, authentic C2C.'
   },
-  {
-    id: 'shopee',
-    name: 'Shopee Style',
-    emoji: '🧡',
-    color: 'text-orange-500', // Shopee Orange
-    desc: 'Energetic Southeast Asian marketplace, flash sale bursts, vibrant orange, high contrast',
-    promptTemplate: 'Shopee style: vibrant orange gradient, flash sale badges, price drops, sold counts, energetic.'
-  },
+
   {
     id: 'lazada',
     name: 'Lazada Style',
@@ -429,7 +430,7 @@ const App: React.FC = () => {
   const [cardVisualStyles, setCardVisualStyles] = useState<Record<string, string>>({});
   const [summaryLength, setSummaryLength] = useState<'short' | 'medium' | 'long'>('medium');
   const [isSavingToFolder, setIsSavingToFolder] = useState(false);
-  const [selectedStyle, setSelectedStyle] = useState<string>('aliexpress');
+  const [selectedStyle, setSelectedStyle] = useState<string>('shopee');
   const [selectedImageModel, setSelectedImageModel] = useState<string>('gemini-3.1-flash-image'); // โมเดลสำหรับสร้างภาพ
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [isScrapingOnly, setIsScrapingOnly] = useState<boolean>(false);
