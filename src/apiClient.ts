@@ -340,7 +340,7 @@ export async function generateProductImage(
 export async function generateShopeeAdImage(
   productData: ProductData,
   brief: ShopeeAdBrief,
-  imageModel = 'imagen-3.0-generate-002',
+  imageModel = 'gemini-3.1-flash-image',
 ): Promise<ImageGenerationResult> {
   const facts = brief.facts.filter(Boolean).join(' | ');
   const thaiCopy = brief.thaiCopy.filter(Boolean).join(' | ');

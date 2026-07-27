@@ -358,51 +358,63 @@ async function generateEnterpriseGeminiImage(args: {
   imageParts: InlineImagePart[];
   aspectRatio: string;
 }) {
-  const { projectId } = getVertexEnvironment();
+  const { projectId, location: envLocation } = getVertexEnvironment();
   const modelName = getEnterpriseGeminiImageModel(args.modelName);
-  const ai = new GoogleGenAI({
-    enterprise: true,
-    project: projectId,
-    location: 'global',
-    apiVersion: 'v1',
-    googleAuthOptions: {
-      credentials: getServiceAccountCredentials(),
-    },
-  });
 
-  const response = await ai.models.generateContent({
-    model: modelName,
-    contents: [{
-      role: 'user',
-      parts: [
-        ...args.imageParts,
-        { text: args.prompt },
-      ],
-    }],
-    config: {
-      responseModalities: [Modality.IMAGE, Modality.TEXT],
-      imageConfig: {
-        aspectRatio: getGeminiAspectRatio(args.aspectRatio),
-        personGeneration: 'ALLOW_ADULT',
-        outputMimeType: 'image/png',
-      },
-    },
-  });
+  // Try locations in order: envLocation (default us-central1), 'us-central1', 'global'
+  const locationsToTry = Array.from(new Set([envLocation, 'us-central1', 'global']));
+  let lastError: any;
 
-  const outputPart = response.candidates
-    ?.flatMap(candidate => candidate.content?.parts || [])
-    .find(part => part.inlineData?.data);
-  const base64 = outputPart?.inlineData?.data;
-  const mimeType = outputPart?.inlineData?.mimeType || 'image/png';
+  for (const loc of locationsToTry) {
+    try {
+      const ai = new GoogleGenAI({
+        enterprise: true,
+        project: projectId,
+        location: loc,
+        apiVersion: 'v1',
+        googleAuthOptions: {
+          credentials: getServiceAccountCredentials(),
+        },
+      });
 
-  if (!base64) {
-    throw new Error(`${modelName}: no image data returned`);
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents: [{
+          role: 'user',
+          parts: [
+            ...args.imageParts,
+            { text: args.prompt },
+          ],
+        }],
+        config: {
+          responseModalities: [Modality.IMAGE, Modality.TEXT],
+          imageConfig: {
+            aspectRatio: getGeminiAspectRatio(args.aspectRatio),
+            personGeneration: 'ALLOW_ADULT',
+            outputMimeType: 'image/png',
+          },
+        },
+      });
+
+      const outputPart = response.candidates
+        ?.flatMap(candidate => candidate.content?.parts || [])
+        .find(part => part.inlineData?.data);
+      const base64 = outputPart?.inlineData?.data;
+      const mimeType = outputPart?.inlineData?.mimeType || 'image/png';
+
+      if (base64) {
+        return {
+          imageUrl: `data:${mimeType};base64,${base64}`,
+          modelName,
+        };
+      }
+    } catch (err) {
+      lastError = err;
+      console.warn(`[generateEnterpriseGeminiImage] Location "${loc}" attempt failed for model "${modelName}":`, err);
+    }
   }
 
-  return {
-    imageUrl: `data:${mimeType};base64,${base64}`,
-    modelName,
-  };
+  throw lastError || new Error(`${modelName}: no image data returned`);
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -475,8 +487,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       orchestrated.prompt ? `RECONTEXT SCENE DIRECTION: ${orchestrated.prompt}` : '',
     ].filter(Boolean).join('\n\n');
 
-    const selectedModel = typeof model === 'string' ? model : 'gemini-3.1-flash-image';
+    const selectedModel = typeof model === 'string' && model ? model : 'gemini-3.1-flash-image';
     let generated;
+
     if (ENTERPRISE_GEMINI_IMAGE_MODELS.has(selectedModel)) {
       try {
         generated = await generateEnterpriseGeminiImage({
@@ -486,25 +499,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           aspectRatio,
         });
       } catch (error) {
-        // A deployment may not yet have the Agent Platform API / model access.
-        // Return a useful listing image and report the real fallback model to UI.
-        const fallbackModel = process.env.IMAGEN_FALLBACK_MODEL || 'imagen-3.0-generate-002';
-        console.warn(`[api/generate] ${getEnterpriseGeminiImageModel(selectedModel)} is unavailable; falling back to ${fallbackModel}.`, error);
+        console.warn(`[api/generate] Enterprise model ${selectedModel} failed; attempting Product Recontext with source image...`, error);
+        try {
+          generated = await generateProductRecontextImage({
+            prompt: orchestrated.prompt || fullGenerationPrompt,
+            imageParts,
+            aspectRatio,
+            negativePrompt: orchestrated.negativePrompt,
+          });
+        } catch (recontextError) {
+          console.warn(`[api/generate] Product Recontext fallback failed; trying Imagen text model...`, recontextError);
+          const fallbackModel = process.env.IMAGEN_FALLBACK_MODEL || 'imagen-3.0-generate-002';
+          generated = await generateImagen4TextImage({
+            modelName: fallbackModel,
+            prompt: fullGenerationPrompt,
+            aspectRatio,
+          });
+        }
+      }
+    } else if (isImagenTextModel(selectedModel)) {
+      // If user explicitly chose a text model or fallback, attempt product recontext first to preserve source image
+      try {
+        generated = await generateProductRecontextImage({
+          prompt: orchestrated.prompt || fullGenerationPrompt,
+          imageParts,
+          aspectRatio,
+          negativePrompt: orchestrated.negativePrompt,
+        });
+      } catch (recontextErr) {
         generated = await generateImagen4TextImage({
-          modelName: fallbackModel,
+          modelName: selectedModel,
           prompt: fullGenerationPrompt,
           aspectRatio,
         });
       }
-    } else if (isImagenTextModel(selectedModel)) {
-      generated = await generateImagen4TextImage({
-        modelName: selectedModel,
-        prompt: fullGenerationPrompt,
-        aspectRatio,
-      });
     } else {
-      // Product Recontext is a preview/allowlisted publisher model. Projects
-      // without access still receive a generated listing image rather than 500.
       try {
         generated = await generateProductRecontextImage({
           prompt: orchestrated.prompt || fullGenerationPrompt,
