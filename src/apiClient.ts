@@ -104,6 +104,11 @@ interface PreparedImages {
   storagePaths?: string[];
 }
 
+function compactProductData(productData: ProductData): Omit<ProductData, 'images' | 'referenceImages'> {
+  const { images: _images, referenceImages: _referenceImages, ...textData } = productData;
+  return textData;
+}
+
 const imageJobIds = new Map<string, string>();
 
 async function prepareImagesForApi(images?: string[], maxImages: number = 4): Promise<PreparedImages> {
@@ -308,7 +313,7 @@ export async function generateProductImage(
     category,
     style,
     customPrompt,
-    productData: { ...productData, images: apiImages || [] },
+    productData: compactProductData(productData),
     adBrief: safeAdBrief,
   }, signal);
 
@@ -357,7 +362,7 @@ export async function generateShopeeAdImage(
     model: imageModel,
     aspectRatio: '1:1',
     category: 'SHOPEE_THAI_AD',
-    productData: { ...productData, images: apiImages || [] },
+    productData: compactProductData(productData),
     adBrief: brief,
   });
 
