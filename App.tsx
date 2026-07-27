@@ -55,6 +55,7 @@ import LoginPage from './src/components/LoginPage';
 import { ShopeeAdsStudio, createThaiAdsSession, type ThaiAdsSession } from './src/components/ShopeeAdsStudio';
 import { MarketingSite } from './src/components/MarketingSite';
 import { PricingCheckoutModal } from './src/components/PricingCheckoutModal';
+import { KineticBackground } from './src/components/KineticBackground';
 import type { PlanId } from './pricing';
 
 type ResultsDensity = 'overview' | 'standard' | 'focus';
@@ -2001,7 +2002,8 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className={`min-h-screen flex flex-col ${theme === 'dark' ? 'bg-gray-900 text-white' : 'bg-[#F8FAFC] text-slate-900'}`}>
+    <div className={`min-h-screen flex flex-col relative z-0 ${theme === 'dark' ? 'bg-gray-900/90 text-white' : 'bg-[#F8FAFC]/90 text-slate-900'}`}>
+      <KineticBackground />
       <header className={`${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-slate-200'} sticky top-0 z-50 px-6 py-4 flex items-center justify-between shadow-sm`}>
         <div className="flex items-center gap-2">
           <div className={`${theme === 'dark' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-orange-500 hover:bg-orange-600'} p-2 rounded-xl cursor-pointer transition-all shadow-orange-100 shadow-lg`} onClick={() => setShowPublicLanding(true)}>
@@ -2009,7 +2011,7 @@ const App: React.FC = () => {
           </div>
           <div className="cursor-pointer group" onClick={() => setShowPublicLanding(true)}>
             <div className="flex items-center gap-2">
-              <h1 className="font-black text-xl tracking-tight group-hover:text-orange-500 transition-colors uppercase">Shopee Master</h1>
+              <h1 className="font-black text-xl tracking-tight group-hover:text-orange-500 transition-colors uppercase">PICSELLER</h1>
               <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${theme === 'dark' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-emerald-50 text-emerald-600 border border-emerald-200'} tracking-wider`} title="Last updated: 2026-03-11 — Security Hardening">
                 PLUS
               </span>
@@ -2429,7 +2431,7 @@ const App: React.FC = () => {
                 </div>
                 <div>
                   <p className={`text-sm font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>ระบบพร้อมใช้งาน</p>
-                  <p className={`text-xs font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-500'}`}>AI Model: Shopee Master v2.0</p>
+                  <p className={`text-xs font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-500'}`}>AI Model: PicSeller v2.0</p>
                 </div>
               </div>
             </aside>
@@ -2852,7 +2854,7 @@ const App: React.FC = () => {
                   </p>
                 </div>
 
-                <div className={`${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-slate-50 border-slate-100'} p-8 rounded-[2.5rem] flex flex-col gap-5 min-w-[320px] shadow-inner border`}>
+                <div className={`${theme === 'dark' ? 'bg-gray-800/90 border-gray-700' : 'bg-slate-50 border-slate-100'} p-6 sm:p-7 rounded-[2rem] flex flex-col gap-4 min-w-[320px] shadow-inner border`}>
                   <div className={`rounded-xl px-3 py-2 text-[10px] font-mono font-bold ${theme === 'dark' ? 'bg-gray-900 text-emerald-300' : 'bg-white text-emerald-700'} border ${theme === 'dark' ? 'border-gray-700' : 'border-emerald-100'}`}>
                     กำลังเลือกใช้: {selectedImageModel}
                   </div>
@@ -2867,22 +2869,14 @@ const App: React.FC = () => {
                     ></div>
                   </div>
                   <div className="flex gap-3 w-full mt-2">
-                    <button onClick={() => setStep(2)} className={`flex-1 px-6 py-4 ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-white border-2 border-slate-200 hover:bg-slate-50'} font-black text-xs transition-all shadow-sm active:scale-95`}>ย้อนกลับ</button>
+                    <button onClick={() => setStep(2)} className={`flex-1 rounded-[1.25rem] px-5 py-3.5 ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-white border-2 border-slate-200 hover:bg-slate-50 text-slate-700'} font-black text-xs transition-all shadow-sm active:scale-95`}>ย้อนกลับ</button>
                     <button
                       onClick={handleDownloadAll}
                       disabled={isGenerating || isZipping || completedCount === 0}
-                      className="flex-1 px-6 py-4 bg-slate-900 text-white rounded-[1.5rem] hover:bg-black font-black text-xs flex items-center justify-center gap-3 shadow-xl disabled:bg-slate-200 disabled:shadow-none transition-all active:scale-95"
+                      className="flex-[1.35] rounded-[1.25rem] px-5 py-3.5 bg-orange-500 text-white hover:bg-orange-600 font-black text-xs flex items-center justify-center gap-2.5 shadow-lg shadow-orange-500/25 disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none transition-all active:scale-95"
                     >
                       {isZipping ? <Loader2 className="animate-spin w-5 h-5" /> : <FileArchive className="w-5 h-5" />}
-                      โหลด ZIP
-                    </button>
-                    <button
-                      onClick={handleDownloadToFolder}
-                      disabled={isGenerating || isSavingToFolder || completedCount === 0}
-                      className="flex-1 px-6 py-4 bg-orange-500 text-white rounded-[1.5rem] hover:bg-orange-600 font-black text-xs flex items-center justify-center gap-3 shadow-xl disabled:bg-slate-200 disabled:shadow-none transition-all active:scale-95"
-                    >
-                      {isSavingToFolder ? <Loader2 className="animate-spin w-5 h-5" /> : <Download className="w-5 h-5" />}
-                      บันทึกลงโฟลเดอร์
+                      {isZipping ? 'กำลังเตรียมไฟล์...' : 'ดาวน์โหลดภาพ'}
                     </button>
                   </div>
                 </div>
