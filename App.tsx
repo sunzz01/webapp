@@ -2287,174 +2287,234 @@ const App: React.FC = () => {
       <main className={`flex-1 w-full px-6 py-10 ${theme === 'dark' ? 'bg-[#0b1523]' : 'bg-[#f8fafc]'}`}>
         {studioMode ? <ShopeeAdsStudio dark={theme === 'dark'} imageModel={selectedImageModel} session={thaiAdsSession} setSession={setThaiAdsSession} /> : <>
         {step === 1 && (
-          <div className="mx-auto grid w-full max-w-[1320px] grid-cols-1 gap-10 lg:grid-cols-[1.08fr_0.92fr] animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <section className="space-y-7 pt-6">
-              <div>
-                <h2 className={`text-4xl font-black tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>เพิ่มข้อมูลสินค้า</h2>
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-4">
-                  <p className={`text-base font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-500'}`}>เพิ่มรายละเอียดสินค้าและอัปโหลดรูปภาพ เพื่อเริ่มการปรับแต่งด้วย AI</p>
-                  <button onClick={sendToThaiAds} disabled={!localImages.length && !scrapedImages.length} className="flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-40">
-                    <Sparkles className="h-4 w-4" /> ส่งไป Thai Ads
-                  </button>
+          <div className="mx-auto grid w-full max-w-[1280px] grid-cols-1 gap-8 lg:grid-cols-[1.1fr_0.9fr] animate-in fade-in slide-in-from-bottom-3 duration-300">
+            {/* Left Section: Product Form */}
+            <section className="space-y-6">
+              {/* Title Header */}
+              <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200/80 dark:border-slate-800/80">
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <span className="h-2.5 w-2.5 rounded-full bg-orange-500 animate-pulse" />
+                    <h2 className={`text-2xl font-black tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>เพิ่มข้อมูลสินค้า</h2>
+                    <span className="rounded-full bg-orange-500/10 border border-orange-500/20 px-2.5 py-0.5 text-[10px] font-black uppercase text-orange-500">Step 1</span>
+                  </div>
+                  <p className={`mt-1 text-xs font-medium ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>เพิ่มรายละเอียดสินค้าและอัปโหลดรูปภาพ เพื่อเริ่มการปรับแต่งด้วย AI</p>
                 </div>
+                <button onClick={sendToThaiAds} disabled={!localImages.length && !scrapedImages.length} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white text-xs font-bold px-4 py-2.5 transition-all shadow-md shadow-orange-500/20 disabled:opacity-40 active:scale-95">
+                  <Sparkles className="h-3.5 w-3.5" /> ส่งไป Thai Ads
+                </button>
               </div>
 
-              <div>
-                <label className={`mb-3 flex items-center gap-2 text-xs font-black uppercase tracking-[0.12em] ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>
-                  <Globe className="h-4 w-4 text-orange-500" />
-                  Shopee Product Link
+              {/* Shopee URL Input */}
+              <div className="space-y-2">
+                <label className={`flex items-center justify-between text-xs font-bold ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                  <span className="flex items-center gap-1.5"><Globe className="h-3.5 w-3.5 text-orange-500" /> Shopee Product Link</span>
+                  <span className="text-[11px] font-normal text-slate-400">วาง URL สแครปข้อมูลอัตโนมัติ</span>
                 </label>
-                <div className={`flex overflow-hidden rounded-2xl border shadow-sm ${theme === 'dark' ? 'border-slate-700 bg-slate-800/80 shadow-black/20' : 'border-slate-200 bg-white shadow-slate-200/80'}`}>
+                <div className={`relative flex items-center rounded-2xl border p-1.5 transition-all shadow-sm ${theme === 'dark' ? 'border-slate-800 bg-slate-900/60 focus-within:border-orange-500/80 focus-within:ring-4 focus-within:ring-orange-500/10' : 'border-slate-200 bg-white focus-within:border-orange-400 focus-within:ring-4 focus-within:ring-orange-400/10'}`}>
                   <input
                     type="text"
-                    placeholder="วางลิงก์สินค้า Shopee ของคุณที่นี่"
-                    className={`min-h-[58px] flex-1 px-5 text-sm font-bold outline-none ${theme === 'dark' ? 'bg-transparent text-white placeholder:text-slate-500' : 'bg-transparent text-slate-800 placeholder:text-slate-400'}`}
+                    placeholder="https://shopee.co.th/product/..."
+                    className={`w-full bg-transparent px-3 text-xs font-bold outline-none ${theme === 'dark' ? 'text-white placeholder:text-slate-500' : 'text-slate-800 placeholder:text-slate-400'}`}
                     value={productUrl}
                     onChange={(e) => setProductUrl(e.target.value)}
                   />
                   <button
                     onClick={handlePreviewScrape}
                     disabled={isScrapingOnly || !productUrl}
-                    className={`grid w-16 place-items-center transition-all ${theme === 'dark' ? 'bg-slate-100 text-slate-900 hover:bg-white disabled:bg-slate-700 disabled:text-slate-500' : 'bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:text-slate-300'}`}
+                    className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold shrink-0 transition-all active:scale-95 ${theme === 'dark' ? 'bg-slate-100 text-slate-900 hover:bg-white disabled:bg-slate-800 disabled:text-slate-600' : 'bg-slate-900 text-white hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-400'}`}
                     aria-label="Preview product link"
                   >
-                    {isScrapingOnly ? <Loader2 className="h-5 w-5 animate-spin" /> : <Globe className="h-5 w-5" />}
+                    {isScrapingOnly ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Globe className="h-3.5 w-3.5" />}
+                    <span>ดึงข้อมูล</span>
                   </button>
                 </div>
               </div>
 
-              <div className="space-y-5">
-                <div>
-                  <div className="mb-3 flex items-center justify-between">
-                    <label className={`text-sm font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>ชื่อสินค้า</label>
-                    <span className={`text-xs font-bold ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>{productName.length} / 120</span>
+              {/* Product Name Input */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs font-bold">
+                  <label className={theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}>ชื่อสินค้า</label>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${theme === 'dark' ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>{productName.length} / 120</span>
+                </div>
+                <input
+                  type="text"
+                  maxLength={120}
+                  placeholder="กรอกชื่อสินค้าของคุณ"
+                  className={`w-full rounded-2xl border px-4 py-3 text-xs font-bold outline-none transition-all shadow-sm ${theme === 'dark' ? 'border-slate-800 bg-slate-900/60 text-white placeholder:text-slate-500 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10' : 'border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 focus:border-orange-400 focus:ring-4 focus:ring-orange-400/10'}`}
+                  value={productName}
+                  onChange={(e) => setProductName(e.target.value)}
+                />
+              </div>
+
+              {/* Price & Variant Control Card */}
+              <div className={`rounded-3xl border p-5 shadow-xl backdrop-blur-xl space-y-4 ${theme === 'dark' ? 'border-slate-800 bg-slate-900/50 shadow-black/20' : 'border-slate-200/80 bg-white shadow-slate-200/50'}`}>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className={`text-sm font-black flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>⚙️ ราคาและตัวเลือกสินค้า</h3>
+                    <p className={`text-[11px] mt-0.5 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>เปิด-ปิด ข้อมูลราคาและตัวเลือกที่จะส่งให้ AI วิเคราะห์</p>
                   </div>
-                  <input
-                    type="text"
-                    maxLength={120}
-                    placeholder="กรอกชื่อสินค้าของคุณ"
-                    className={`min-h-[58px] w-full rounded-2xl border px-5 text-sm font-bold outline-none transition-all ${theme === 'dark' ? 'border-slate-700 bg-slate-800/80 text-white placeholder:text-slate-500 focus:border-orange-500' : 'border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 shadow-sm shadow-slate-200/80 focus:border-orange-400'}`}
-                    value={productName}
-                    onChange={(e) => setProductName(e.target.value)}
-                  />
+                  <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 text-xs font-black text-emerald-600 dark:text-emerald-400">{getPriceDisplay() || 'ยังไม่ได้ระบุราคา'}</span>
                 </div>
 
-                <div className={`rounded-3xl border p-5 ${theme === 'dark' ? 'border-emerald-900/70 bg-emerald-950/20' : 'border-emerald-100 bg-emerald-50/60'}`}>
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div><h3 className={`font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>ราคาและตัวเลือกสินค้า</h3><p className={`mt-1 text-xs ${theme === 'dark' ? 'text-emerald-200/70' : 'text-emerald-800/70'}`}>ตรวจ แก้ไข และเลือกตัวเลือกที่จะสร้างภาพแยกก่อนเริ่ม Generate</p></div>
-                    <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-emerald-700 shadow-sm">{getPriceDisplay() || 'ยังไม่ได้ระบุราคา'}</span>
-                  </div>
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    <label className={`flex cursor-pointer items-center justify-between gap-3 rounded-2xl border p-3 transition-colors ${usePriceInGeneration ? 'border-orange-300 bg-orange-50' : 'border-slate-200 bg-white/70'}`}>
-                      <span><span className="block text-xs font-black text-slate-800">ใช้ราคายืนยันในการสร้างภาพ</span><span className="mt-0.5 block text-[11px] text-slate-500">ปิดอยู่: AI จะไม่เห็นข้อมูลราคา</span></span>
-                      <input type="checkbox" checked={usePriceInGeneration} onChange={event => setUsePriceInGeneration(event.target.checked)} className="h-5 w-5 shrink-0 accent-orange-500" aria-label="ใช้ราคายืนยันในการสร้างภาพ" />
-                    </label>
-                    <label className={`flex cursor-pointer items-center justify-between gap-3 rounded-2xl border p-3 transition-colors ${useVariantsInGeneration ? 'border-orange-300 bg-orange-50' : 'border-slate-200 bg-white/70'}`}>
-                      <span><span className="block text-xs font-black text-slate-800">ใช้รุ่น / ตัวเลือกในการสร้างภาพ</span><span className="mt-0.5 block text-[11px] text-slate-500">ปิดอยู่: AI จะไม่เห็นสี ขนาด หรือรุ่น</span></span>
-                      <input type="checkbox" checked={useVariantsInGeneration} onChange={event => setUseVariantsInGeneration(event.target.checked)} className="h-5 w-5 shrink-0 accent-orange-500" aria-label="ใช้รุ่นและตัวเลือกในการสร้างภาพ" />
-                    </label>
-                  </div>
-                  <p className={`mt-2 text-[11px] font-medium ${theme === 'dark' ? 'text-emerald-100/70' : 'text-emerald-800/75'}`}>ข้อมูลที่ปิดจะไม่ถูกส่งไปยัง AI · การสร้างภาพแยกจากตัวเลือกที่เลือก จะใช้ตัวเลือกนั้นโดยตรง</p>
-                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                    <label className="text-xs font-bold text-slate-600 dark:text-slate-300">ราคาแสดง<input value={productPrice.display || ''} onChange={event => setProductPrice(previous => ({ ...previous, currency: 'THB', display: event.target.value }))} placeholder="เช่น ฿199 หรือ ฿199 - ฿299" className="mt-1 w-full rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-emerald-500"/></label>
-                    <label className="text-xs font-bold text-slate-600 dark:text-slate-300">ราคาต่ำสุด<input type="number" min="0" value={productPrice.min ?? productPrice.current ?? ''} onChange={event => updateProductPrice('min', event.target.value)} placeholder="199" className="mt-1 w-full rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-emerald-500"/></label>
-                    <label className="text-xs font-bold text-slate-600 dark:text-slate-300">ราคาสูงสุด<input type="number" min="0" value={productPrice.max ?? ''} onChange={event => updateProductPrice('max', event.target.value)} placeholder="299 (ถ้ามีช่วงราคา)" className="mt-1 w-full rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-emerald-500"/></label>
-                  </div>
-                  <div className="mt-5 space-y-3">
-                    {variantGroups.map(group => <div key={group.id} className="rounded-2xl border border-emerald-100 bg-white/80 p-3 dark:bg-slate-900/40"><div className="mb-2 flex items-center justify-between gap-2"><input value={group.name} onChange={event => setVariantGroups(previous => previous.map(item => item.id === group.id ? { ...item, name: event.target.value } : item))} className="min-w-0 bg-transparent text-sm font-black text-slate-800 outline-none dark:text-white"/><button onClick={() => addVariantOption(group.id)} className="rounded-lg border border-emerald-200 px-2 py-1 text-[10px] font-black text-emerald-700">+ เพิ่มตัวเลือก</button></div><div className="grid gap-2 sm:grid-cols-2">{group.options.map(option => <label key={option.id} className={`flex items-center gap-2 rounded-xl border px-2 py-2 text-xs ${selectedVariantOptionIds.includes(option.id) ? 'border-orange-400 bg-orange-50' : 'border-slate-200 bg-white'}`}><input type="checkbox" checked={selectedVariantOptionIds.includes(option.id)} onChange={() => toggleVariantOption(option.id)} className="accent-orange-500"/><input value={option.label} onChange={event => updateVariantOption(group.id, option.id, { label: event.target.value })} className="min-w-0 flex-1 bg-transparent font-bold text-slate-800 outline-none"/><input type="number" min="0" value={option.price?.current ?? option.price?.min ?? ''} onChange={event => { const amount = event.target.value === '' ? undefined : Number(event.target.value); updateVariantOption(group.id, option.id, { price: amount === undefined || !Number.isFinite(amount) ? undefined : { currency: 'THB', current: amount, min: amount, max: amount, display: `฿${amount.toLocaleString('th-TH')}` } }); }} placeholder="ราคา" className="w-20 rounded-lg border border-slate-200 px-2 py-1 text-right text-xs text-slate-800 outline-none focus:border-orange-400"/></label>)}</div></div>)}
-                    {!variantGroups.length && <div className="rounded-xl border border-dashed border-emerald-200 p-3 text-xs text-emerald-800"><p>ยังไม่พบสี ขนาด หรือรุ่นจากหน้าเดิม — คุณยังสร้างภาพปกและภาพรายละเอียดได้ตามปกติ</p><button onClick={addVariantGroup} className="mt-2 rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-[10px] font-black text-emerald-700">+ เพิ่มกลุ่มตัวเลือกเอง</button></div>}
-                  </div>
-                  {variantGroups.length > 0 && <button onClick={generateSelectedVariantImages} disabled={isGenerating || selectedVariantOptionIds.length === 0} className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-black text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"><Layers className="h-4 w-4"/>สร้างภาพแยก {selectedVariantOptionIds.length || ''} ตัวเลือกที่เลือก</button>}
+                {/* Sleek Toggles */}
+                <div className="grid gap-2.5 sm:grid-cols-2">
+                  <label className={`flex cursor-pointer items-center justify-between gap-3 rounded-2xl border p-3 transition-all ${usePriceInGeneration ? 'border-orange-500/40 bg-orange-500/5' : theme === 'dark' ? 'border-slate-800 bg-slate-950/40' : 'border-slate-200 bg-slate-50'}`}>
+                    <div>
+                      <span className={`block text-xs font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>ราคายืนยันในการสร้างภาพ</span>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400">{usePriceInGeneration ? 'เปิดใช้งานอยู่' : 'ปิดอยู่: AI จะไม่เห็นราคา'}</span>
+                    </div>
+                    <input type="checkbox" checked={usePriceInGeneration} onChange={e => setUsePriceInGeneration(e.target.checked)} className="h-4 w-4 rounded accent-orange-500 cursor-pointer" aria-label="ใช้ราคายืนยันในการสร้างภาพ" />
+                  </label>
+                  <label className={`flex cursor-pointer items-center justify-between gap-3 rounded-2xl border p-3 transition-all ${useVariantsInGeneration ? 'border-orange-500/40 bg-orange-500/5' : theme === 'dark' ? 'border-slate-800 bg-slate-950/40' : 'border-slate-200 bg-slate-50'}`}>
+                    <div>
+                      <span className={`block text-xs font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>รุ่น / ตัวเลือกสินค้า</span>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400">{useVariantsInGeneration ? 'เปิดใช้งานอยู่' : 'ปิดอยู่: AI จะไม่เห็นตัวเลือก'}</span>
+                    </div>
+                    <input type="checkbox" checked={useVariantsInGeneration} onChange={e => setUseVariantsInGeneration(e.target.checked)} className="h-4 w-4 rounded accent-orange-500 cursor-pointer" aria-label="ใช้รุ่นและตัวเลือกในการสร้างภาพ" />
+                  </label>
                 </div>
 
-                <div>
-                  <div className="mb-3 flex items-center justify-between">
-                    <label className={`text-sm font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>รายละเอียดสินค้า</label>
-                    <span className={`text-xs font-bold ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>{productDesc.length} / 2000</span>
-                  </div>
-                  <textarea
-                    rows={7}
-                    maxLength={2000}
-                    placeholder={`เคล็ดลับ: รายละเอียดสินค้าที่ดีจะช่วยให้ AI เข้าใจสินค้าได้ดียิ่งขึ้น\n\n• คุณสมบัติเด่นของสินค้า\n• วัสดุ / ขนาด / สี\n• จุดเด่นที่ทำให้สินค้าของคุณแตกต่าง\n• กลุ่มลูกค้าเป้าหมาย`}
-                    className={`w-full resize-y rounded-2xl border px-5 py-5 text-sm font-medium leading-7 outline-none transition-all ${theme === 'dark' ? 'border-slate-700 bg-slate-800/80 text-white placeholder:text-slate-400 focus:border-orange-500' : 'border-slate-200 bg-white text-slate-800 placeholder:text-slate-500 shadow-sm shadow-slate-200/80 focus:border-orange-400'}`}
-                    value={productDesc}
-                    onChange={(e) => setProductDesc(e.target.value)}
-                  />
+                {/* Price 3-Column Inputs */}
+                <div className="grid gap-3 sm:grid-cols-3 pt-1">
+                  <label className="space-y-1">
+                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">ราคาแสดง</span>
+                    <input value={productPrice.display || ''} onChange={e => setProductPrice(prev => ({ ...prev, currency: 'THB', display: e.target.value }))} placeholder="เช่น ฿199 - ฿299" className={`w-full rounded-xl border px-3 py-2 text-xs font-bold outline-none focus:border-orange-500 ${theme === 'dark' ? 'border-slate-800 bg-slate-950/60 text-white' : 'border-slate-200 bg-slate-50 text-slate-800'}`} />
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">ราคาต่ำสุด</span>
+                    <input type="number" min="0" value={productPrice.min ?? productPrice.current ?? ''} onChange={e => updateProductPrice('min', e.target.value)} placeholder="199" className={`w-full rounded-xl border px-3 py-2 text-xs font-bold outline-none focus:border-orange-500 ${theme === 'dark' ? 'border-slate-800 bg-slate-950/60 text-white' : 'border-slate-200 bg-slate-50 text-slate-800'}`} />
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">ราคาสูงสุด</span>
+                    <input type="number" min="0" value={productPrice.max ?? ''} onChange={e => updateProductPrice('max', e.target.value)} placeholder="299" className={`w-full rounded-xl border px-3 py-2 text-xs font-bold outline-none focus:border-orange-500 ${theme === 'dark' ? 'border-slate-800 bg-slate-950/60 text-white' : 'border-slate-200 bg-slate-50 text-slate-800'}`} />
+                  </label>
                 </div>
 
-                <div>
-                  <p className={`mb-3 text-sm font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>ความยาวรายละเอียด</p>
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { value: 'short' as const, label: 'สั้น', desc: 'กระชับ เข้าใจง่าย' },
-                      { value: 'medium' as const, label: 'ปานกลาง', desc: 'รายละเอียดครบถ้วน' },
-                      { value: 'long' as const, label: 'ละเอียด', desc: 'ข้อมูลครบทุกมิติ' },
-                    ].map(opt => (
-                      <button
-                        key={opt.value}
-                        onClick={() => setSummaryLength(opt.value)}
-                        className={`min-h-[70px] rounded-2xl border px-3 text-center transition-all ${summaryLength === opt.value
-                          ? 'border-orange-500 bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/20'
-                          : theme === 'dark'
-                            ? 'border-slate-700 bg-slate-800/80 text-slate-300 hover:border-slate-600'
-                            : 'border-slate-200 bg-white text-slate-700 shadow-sm shadow-slate-200/80 hover:border-slate-300'
-                          }`}
-                      >
-                        <span className="block text-sm font-black">{opt.label}</span>
-                        <span className={`mt-1 block text-[11px] font-bold ${summaryLength === opt.value ? 'text-orange-50' : theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>{opt.desc}</span>
-                      </button>
-                    ))}
-                  </div>
+                {/* Variants Groups List */}
+                <div className="space-y-3 pt-1">
+                  {variantGroups.map(group => (
+                    <div key={group.id} className={`rounded-2xl border p-3 space-y-2 ${theme === 'dark' ? 'border-slate-800 bg-slate-950/40' : 'border-slate-200 bg-slate-50'}`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <input value={group.name} onChange={e => setVariantGroups(prev => prev.map(item => item.id === group.id ? { ...item, name: e.target.value } : item))} className={`bg-transparent text-xs font-black outline-none ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`} />
+                        <button onClick={() => addVariantOption(group.id)} className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-[10px] font-bold text-slate-700 dark:text-slate-300 hover:border-orange-500 transition-all">+ เพิ่มตัวเลือก</button>
+                      </div>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {group.options.map(option => (
+                          <label key={option.id} className={`flex items-center gap-2 rounded-xl border px-2.5 py-1.5 text-xs transition-all ${selectedVariantOptionIds.includes(option.id) ? 'border-orange-500/50 bg-orange-500/10' : theme === 'dark' ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'}`}>
+                            <input type="checkbox" checked={selectedVariantOptionIds.includes(option.id)} onChange={() => toggleVariantOption(option.id)} className="accent-orange-500" />
+                            <input value={option.label} onChange={e => updateVariantOption(group.id, option.id, { label: e.target.value })} className={`min-w-0 flex-1 bg-transparent text-xs font-bold outline-none ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`} />
+                            <input type="number" min="0" value={option.price?.current ?? option.price?.min ?? ''} onChange={e => { const amount = e.target.value === '' ? undefined : Number(e.target.value); updateVariantOption(group.id, option.id, { price: amount === undefined || !Number.isFinite(amount) ? undefined : { currency: 'THB', current: amount, min: amount, max: amount, display: `฿${amount.toLocaleString('th-TH')}` } }); }} placeholder="ราคา" className={`w-16 rounded-lg border px-2 py-1 text-right text-[11px] font-bold outline-none ${theme === 'dark' ? 'border-slate-800 bg-slate-950 text-white' : 'border-slate-200 bg-slate-50 text-slate-800'}`} />
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  {!variantGroups.length && (
+                    <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 p-3.5 text-center text-xs text-slate-500">
+                      <p className="text-[11px]">ยังไม่พบกลุ่มสี ขนาด หรือรุ่น — คุณสามารถเพิ่มกลุ่มตัวเลือกเองได้</p>
+                      <button onClick={addVariantGroup} className="mt-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:border-orange-500 transition-all">+ เพิ่มกลุ่มตัวเลือก</button>
+                    </div>
+                  )}
                 </div>
+                {variantGroups.length > 0 && (
+                  <button onClick={generateSelectedVariantImages} disabled={isGenerating || selectedVariantOptionIds.length === 0} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 shadow-md shadow-emerald-600/20 disabled:opacity-40 transition-all">
+                    <Layers className="h-4 w-4" /> สร้างภาพแยก {selectedVariantOptionIds.length || ''} ตัวเลือกที่เลือก
+                  </button>
+                )}
+              </div>
 
+              {/* Description Input */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs font-bold">
+                  <label className={theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}>รายละเอียดสินค้า</label>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${theme === 'dark' ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>{productDesc.length} / 2000</span>
+                </div>
+                <textarea
+                  rows={5}
+                  maxLength={2000}
+                  placeholder={`เคล็ดลับ: รายละเอียดสินค้าที่ดีจะช่วยให้ AI เข้าใจสินค้าได้ดียิ่งขึ้น\n\n• คุณสมบัติเด่นของสินค้า\n• วัสดุ / ขนาด / สี\n• จุดเด่นที่ทำให้สินค้าของคุณแตกต่าง`}
+                  className={`w-full resize-y rounded-2xl border p-4 text-xs font-medium leading-relaxed outline-none transition-all shadow-sm ${theme === 'dark' ? 'border-slate-800 bg-slate-900/60 text-white placeholder:text-slate-500 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10' : 'border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 focus:border-orange-400 focus:ring-4 focus:ring-orange-400/10'}`}
+                  value={productDesc}
+                  onChange={(e) => setProductDesc(e.target.value)}
+                />
+              </div>
+
+              {/* Description Length Segmented Buttons */}
+              <div className="space-y-2">
+                <span className={`text-xs font-bold ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>ความยาวรายละเอียด</span>
+                <div className={`grid grid-cols-3 gap-1.5 rounded-2xl border p-1.5 ${theme === 'dark' ? 'border-slate-800 bg-slate-900/80' : 'border-slate-200 bg-slate-100'}`}>
+                  {[
+                    { value: 'short' as const, label: 'สั้น', desc: 'กระชับ เข้าใจง่าย' },
+                    { value: 'medium' as const, label: 'ปานกลาง', desc: 'รายละเอียดครบ' },
+                    { value: 'long' as const, label: 'ละเอียด', desc: 'ข้อมูลครบทุกมิติ' },
+                  ].map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setSummaryLength(opt.value)}
+                      className={`rounded-xl py-2 px-3 text-center transition-all ${summaryLength === opt.value
+                        ? 'bg-white dark:bg-slate-800 text-orange-600 dark:text-orange-400 shadow-md font-black'
+                        : 'text-slate-500 dark:text-slate-400 font-medium hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      <span className="block text-xs">{opt.label}</span>
+                      <span className="block text-[10px] opacity-75">{opt.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="space-y-3 pt-2">
                 <button
                   onClick={handleSummarize}
                   disabled={isSummarizing || (!productDesc && localImages.length === 0 && scrapedImages.length === 0)}
-                  className="flex min-h-[54px] w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-orange-500 to-orange-600 px-5 text-sm font-black text-white shadow-lg shadow-orange-500/20 transition-all hover:from-orange-600 hover:to-orange-700 disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-400 active:scale-[0.99]"
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-orange-500/40 bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 text-xs font-bold py-3 transition-all disabled:opacity-40 active:scale-[0.99]"
                 >
-                  {isSummarizing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Wand2 className="h-5 w-5" />}
-                  AI ช่วยเขียนรายละเอียดสินค้า
+                  {isSummarizing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                  <span>AI ช่วยเขียนรายละเอียดสินค้า</span>
                 </button>
 
                 <button
                   onClick={handleScrape}
                   disabled={isAnalyzing}
-                  className="flex min-h-[58px] w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-orange-500 to-orange-600 px-6 text-base font-black text-white shadow-xl shadow-orange-500/20 transition-all hover:from-orange-600 hover:to-orange-700 disabled:cursor-wait disabled:from-slate-300 disabled:to-slate-400 active:scale-[0.99]"
+                  className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-orange-500 via-orange-600 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white text-sm font-black py-4 shadow-xl shadow-orange-500/25 transition-all disabled:opacity-40 active:scale-[0.99]"
                 >
-                  {isAnalyzing ? <Loader2 className="h-6 w-6 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-                  เริ่มวิเคราะห์สินค้าด้วย AI
+                  {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
+                  <span>เริ่มวิเคราะห์สินค้าด้วย AI</span>
                 </button>
               </div>
 
-              <div>
-                <p className={`mb-4 text-sm font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>รูปภาพสินค้าอ้างอิง (ไม่บังคับ)</p>
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              {/* Reference Images List */}
+              <div className="space-y-3 pt-2">
+                <p className={`text-xs font-bold ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>รูปภาพสินค้าอ้างอิง (ไม่บังคับ)</p>
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                   {[...localImages, ...scrapedImages].map((src, i) => {
                     const isLocalImage = i < localImages.length;
                     return (
-                      <div key={i} className={`group relative aspect-square overflow-hidden rounded-2xl border ${theme === 'dark' ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white shadow-sm shadow-slate-200/80'}`}>
+                      <div key={i} className={`group relative aspect-square overflow-hidden rounded-2xl border ${theme === 'dark' ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white shadow-sm'}`}>
                         <img src={src} className="h-full w-full object-cover" />
                         <button
                           onClick={() => {
                             if (i < localImages.length) removeLocalImage(i);
                             else removeScrapedImage(i - localImages.length);
                           }}
-                          className="absolute right-2 top-2 rounded-full bg-white/90 p-1.5 text-red-500 opacity-0 shadow-sm transition-opacity group-hover:opacity-100"
+                          className="absolute right-1.5 top-1.5 rounded-full bg-slate-900/80 p-1 text-white opacity-0 shadow-sm transition-opacity group-hover:opacity-100"
                           aria-label="Remove image"
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-3.5 w-3.5" />
                         </button>
-                        <div className="absolute bottom-2 left-2 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+                        <div className="absolute bottom-1.5 left-1.5 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               const index = isLocalImage ? i : i - localImages.length;
                               setEditingImageParams({ isScraped: !isLocalImage, index, url: src });
                             }}
-                            className="rounded-full bg-white/90 p-1.5 text-orange-500 shadow-sm"
+                            className="rounded-full bg-white/90 p-1 text-orange-500 shadow-sm"
                             title="ตกแต่งรูปภาพ"
                           >
-                            <Edit2 className="h-4 w-4" />
+                            <Edit2 className="h-3.5 w-3.5" />
                           </button>
                           <button
                             onClick={(e) => {
@@ -2462,10 +2522,10 @@ const App: React.FC = () => {
                               const index = isLocalImage ? i : i - localImages.length;
                               removeBackground(src, index, !isLocalImage);
                             }}
-                            className="rounded-full bg-white/90 p-1.5 text-blue-500 shadow-sm"
+                            className="rounded-full bg-white/90 p-1 text-blue-500 shadow-sm"
                             title="ลบพื้นหลัง"
                           >
-                            <Scissors className="h-4 w-4" />
+                            <Scissors className="h-3.5 w-3.5" />
                           </button>
                           {((isLocalImage && src !== originalLocalImages[i]) || (!isLocalImage && src !== originalScrapedImages[i - localImages.length])) && (
                             <button
@@ -2474,10 +2534,10 @@ const App: React.FC = () => {
                                 const index = isLocalImage ? i : i - localImages.length;
                                 restoreBackground(index, !isLocalImage);
                               }}
-                              className="rounded-full bg-white/90 p-1.5 text-green-500 shadow-sm"
+                              className="rounded-full bg-white/90 p-1 text-green-500 shadow-sm"
                               title="กู้คืนภาพเดิม"
                             >
-                              <RotateCcw className="h-4 w-4" />
+                              <RotateCcw className="h-3.5 w-3.5" />
                             </button>
                           )}
                         </div>
@@ -2487,41 +2547,43 @@ const App: React.FC = () => {
 
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className={`aspect-square rounded-2xl border border-dashed p-4 transition-all ${theme === 'dark' ? 'border-slate-600 bg-slate-900/50 text-slate-300 hover:bg-slate-800' : 'border-slate-300 bg-white text-slate-600 shadow-sm shadow-slate-200/80 hover:border-orange-300'}`}
+                    className={`aspect-square flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed p-3 transition-all ${theme === 'dark' ? 'border-slate-800 bg-slate-900/40 text-slate-400 hover:border-orange-500 hover:text-orange-400' : 'border-slate-300 bg-slate-50 text-slate-500 hover:border-orange-400 hover:text-orange-600'}`}
                   >
-                    <Plus className="mx-auto mb-3 h-7 w-7" />
-                    <span className="block text-sm font-black">เพิ่มรูปภาพ</span>
-                    <span className={`mt-2 block text-xs font-bold ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>PNG, JPG, WEBP · วิเคราะห์ 4 รูปแรก</span>
+                    <Plus className="h-5 w-5" />
+                    <span className="text-[11px] font-bold">เพิ่มรูปภาพ</span>
                   </button>
                 </div>
               </div>
             </section>
 
-            <aside className="space-y-7 pt-24 lg:pt-28">
-              <div className={`rounded-3xl border p-6 shadow-xl ${theme === 'dark' ? 'border-slate-700 bg-slate-800/70 shadow-black/20' : 'border-slate-100 bg-white shadow-slate-200/70'}`}>
-                <label className={`mb-5 flex items-center gap-2 text-sm font-black uppercase tracking-wide ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+            {/* Right Section: Sidebar Uploader & Benefits */}
+            <aside className="space-y-6 pt-0">
+              {/* Manual Upload Card */}
+              <div className={`rounded-3xl border p-6 shadow-xl backdrop-blur-xl ${theme === 'dark' ? 'border-slate-800 bg-slate-900/50 shadow-black/20' : 'border-slate-200/80 bg-white shadow-slate-200/50'}`}>
+                <label className={`mb-4 flex items-center gap-2 text-xs font-black uppercase tracking-wider ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
                   <Upload className="h-4 w-4 text-orange-500" />
                   Manual Upload
                 </label>
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  className={`grid min-h-[250px] cursor-pointer place-items-center rounded-3xl border border-dashed p-8 text-center transition-all ${theme === 'dark' ? 'border-slate-600 bg-slate-900/30 hover:bg-slate-900/60' : 'border-slate-300 bg-white hover:border-orange-300'}`}
+                  className={`grid min-h-[210px] cursor-pointer place-items-center rounded-2xl border border-dashed p-6 text-center transition-all ${theme === 'dark' ? 'border-slate-800 bg-slate-950/40 hover:border-orange-500/80 hover:bg-slate-950/80' : 'border-slate-300 bg-slate-50/80 hover:border-orange-400 hover:bg-orange-50/30'}`}
                 >
                   <div>
-                    <div className={`mx-auto mb-6 grid h-16 w-16 place-items-center rounded-3xl border ${theme === 'dark' ? 'border-orange-500/50 bg-orange-500/10 text-orange-400' : 'border-orange-200 bg-orange-50 text-orange-500'}`}>
-                      <Upload className="h-8 w-8" />
+                    <div className={`mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl border transition-all ${theme === 'dark' ? 'border-orange-500/30 bg-orange-500/10 text-orange-400' : 'border-orange-200 bg-orange-50 text-orange-500'}`}>
+                      <Upload className="h-7 w-7" />
                     </div>
-                    <p className={`text-xl font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>ลากและวางไฟล์ที่นี่</p>
-                    <p className={`mt-2 text-sm font-bold ${theme === 'dark' ? 'text-slate-300' : 'text-slate-500'}`}>หรือคลิกเพื่อเลือกไฟล์</p>
-                    <p className={`mt-4 text-xs font-bold leading-6 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>รองรับ: PNG, JPG, WEBP<br />ขนาดไฟล์ละสูงสุด 10 MB<br />AI วิเคราะห์สูงสุด 4 รูปแรก<br />สร้างภาพและสรุปใช้สูงสุด 3 รูปแรก</p>
+                    <p className={`text-base font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>ลากและวางไฟล์ที่นี่</p>
+                    <p className={`mt-1 text-xs font-medium ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>หรือคลิกเพื่อเลือกไฟล์</p>
+                    <p className={`mt-3 text-[11px] font-medium leading-5 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>รองรับ: PNG, JPG, WEBP · ขนาดสูงสุด 10 MB<br />AI วิเคราะห์ 4 รูปแรก และสร้างภาพใช้ 3 รูปแรก</p>
                   </div>
                   <input type="file" multiple accept="image/*" className="hidden" ref={fileInputRef} onChange={handleFileChange} />
                 </div>
               </div>
 
-              <div className={`rounded-3xl border p-7 shadow-xl ${theme === 'dark' ? 'border-slate-700 bg-slate-800/70 shadow-black/20' : 'border-slate-100 bg-white shadow-slate-200/70'}`}>
-                <h3 className="mb-6 flex items-center gap-2 text-lg font-black text-orange-500">
-                  <Sparkles className="h-5 w-5" />
+              {/* Benefits Card */}
+              <div className={`rounded-3xl border p-6 shadow-xl backdrop-blur-xl ${theme === 'dark' ? 'border-slate-800 bg-slate-900/50 shadow-black/20' : 'border-slate-200/80 bg-white shadow-slate-200/50'}`}>
+                <h3 className="mb-4 flex items-center gap-2 text-sm font-black text-orange-500">
+                  <Sparkles className="h-4 w-4" />
                   ทำไมต้องใช้ AI ช่วยปรับแต่ง?
                 </h3>
                 {[
@@ -2532,26 +2594,27 @@ const App: React.FC = () => {
                 ].map((item) => {
                   const Icon = item.icon;
                   return (
-                    <div key={item.title} className="mb-5 flex items-start gap-4 last:mb-0">
-                      <div className={`mt-1 grid h-9 w-9 flex-none place-items-center rounded-xl ${theme === 'dark' ? 'bg-orange-500/15 text-orange-400' : 'bg-orange-50 text-orange-500'}`}>
-                        <Icon className="h-5 w-5" />
+                    <div key={item.title} className="mb-4 flex items-start gap-3 last:mb-0">
+                      <div className={`mt-0.5 grid h-8 w-8 flex-none place-items-center rounded-xl ${theme === 'dark' ? 'bg-orange-500/10 text-orange-400' : 'bg-orange-50 text-orange-500'}`}>
+                        <Icon className="h-4 w-4" />
                       </div>
                       <div>
-                        <p className={`text-sm font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{item.title}</p>
-                        <p className={`mt-1 text-sm font-medium leading-6 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-500'}`}>{item.desc}</p>
+                        <p className={`text-xs font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{item.title}</p>
+                        <p className={`mt-0.5 text-xs font-medium leading-relaxed ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>{item.desc}</p>
                       </div>
                     </div>
                   );
                 })}
               </div>
 
-              <div className={`ml-auto flex w-fit items-center gap-3 rounded-2xl border px-5 py-4 shadow-lg ${theme === 'dark' ? 'border-slate-700 bg-slate-800/80 shadow-black/20' : 'border-slate-100 bg-white shadow-slate-200/70'}`}>
-                <div className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-500 text-white">
-                  <CheckCircle2 className="h-6 w-6" />
+              {/* Status Badge */}
+              <div className={`flex items-center gap-3 rounded-2xl border px-4 py-3 shadow-lg ${theme === 'dark' ? 'border-slate-800 bg-slate-900/80' : 'border-slate-200 bg-white'}`}>
+                <div className="grid h-8 w-8 place-items-center rounded-xl bg-emerald-500 text-white shrink-0">
+                  <CheckCircle2 className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className={`text-sm font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>ระบบพร้อมใช้งาน</p>
-                  <p className={`text-xs font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-500'}`}>AI Model: PicSeller v2.0</p>
+                  <p className={`text-xs font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>ระบบพร้อมใช้งาน</p>
+                  <p className="text-[11px] font-medium text-slate-400">PicSeller SaaS v2.0</p>
                 </div>
               </div>
             </aside>
