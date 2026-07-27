@@ -141,49 +141,116 @@ const readFiles = async (files: FileList | null): Promise<string[]> => Promise.a
   reader.readAsDataURL(file);
 })));
 
-const cleanName = (value: string) => value.replace(/[\\/:*?"<>|]/g, '_').trim() || 'shopee-ad';
-const compactCoverCopy = (value: string, maxLength = 42) => {
-  const cleaned = value
-    .replace(/\*\*/g, '')
-    .replace(/^[-•\d.)\s]+/, '')
-    .split(/[.!?\n]/)[0]
-    .trim();
-  return cleaned.length > maxLength ? `${cleaned.slice(0, maxLength - 1).trim()}…` : cleaned;
-};
-const buildCoverCopy = (name: string, details: string, facts: string[]) => {
-  const hook = compactCoverCopy(facts[0] || name, 34);
-  const support = compactCoverCopy(facts[1] || details || name, 58);
-  return support && support !== hook ? [hook, support] : [hook];
+const sanitizeFactLine = (line: string) => {
+  let text = line.trim();
+  text = text.replace(/^[-•*\d.)\s]+/, '').replace(/\*\*/g, '').trim();
+  text = text.replace(/^(ราคาที่ผู้ขายยืนยัน|จุดเด่นสินค้า|รายละเอียดสินค้า|รายละเอียด|คุณสมบัติ|ราคาแสดง|ราคา|วิธีใช้งาน|คำขาย|hook|Key features|Confirmed selling price|Description|Product|Specs|Features)\s*:\s*/i, '').trim();
+  return text;
 };
 
-const categoryForCard = (id: string): ImageCategory => ({
-  hero: ImageCategory.COVER,
-  anatomy: ImageCategory.INFOGRAPHIC,
-  spec: ImageCategory.SIZE_CHART,
-  macro: ImageCategory.CLOSE_UP,
-  action: ImageCategory.LIFESTYLE_A,
-  solution: ImageCategory.INFOGRAPHIC,
-  lifestyle: ImageCategory.LIFESTYLE_A,
-  package: ImageCategory.INFOGRAPHIC,
-  'hero-lifestyle': ImageCategory.LIFESTYLE_B,
-  feature: ImageCategory.INFOGRAPHIC,
-}[id] || ImageCategory.COVER);
+const buildSegmentTailoredCopy = (
+  cardId: string,
+  cardTitle: string,
+  name: string,
+  details: string,
+  facts: string[]
+): string[] => {
+  const cleanNameText = name.replace(/^[-•*\d.)\s]+/, '').trim();
+  const cleanFacts = facts
+    .map(sanitizeFactLine)
+    .filter(f => f && !/^(ราคาที่ผู้ขายยืนยัน|ราคา|฿|\$)/i.test(f) && !/^[\d.,\s\-$฿]+$/.test(f));
 
-const styleMeta = (id: CampaignStyle) => CAMPAIGN_STYLES.find(style => style.id === id) || CAMPAIGN_STYLES[0];
-const isHeroCard = (id: string) => id === 'hero' || id === 'hero-lifestyle';
-const heroCreativeMeta = (id?: HeroCreativeMode) => HERO_CREATIVE_MODES.find(mode => mode.id === id || (id === 'human-product' && mode.id === 'human-product-female')) || HERO_CREATIVE_MODES[0];
+  const f0 = cleanFacts[0] || details || cleanNameText;
+  const f1 = cleanFacts[1] || cleanFacts[0] || details || cleanNameText;
+  const f2 = cleanFacts[2] || cleanFacts[1] || f0;
+
+  switch (cardId) {
+    case 'hero':
+      return [
+        compactCoverCopy(f0 || 'สินค้าคุณภาพพรีเมียม', 34),
+        compactCoverCopy(f1 !== f0 ? f1 : (cleanNameText || 'คุ้มค่าใช้งานยาวนาน'), 50),
+      ].filter(Boolean);
+
+    case 'hero-lifestyle':
+      return [
+        compactCoverCopy(f1 || f0 || 'ตอบโจทย์ทุกการใช้งาน', 34),
+        compactCoverCopy(f2 || f1 || 'ดีไซน์สวย ใช้งานง่าย', 50),
+      ].filter(Boolean);
+
+    case 'anatomy':
+      return [
+        'จุดเด่นสินค้า',
+        ...cleanFacts.slice(0, 3).map(f => compactCoverCopy(f, 45))
+      ].filter(Boolean);
+
+    case 'spec': {
+      const specFacts = cleanFacts.filter(f => /เบอร์|นิ้ว|ซม|มม|ขนาด|น้ำหนัก|หนา|กว้าง|ยาว|สูง/i.test(f));
+      const chosenSpecs = (specFacts.length ? specFacts : cleanFacts).slice(0, 2);
+      return [
+        'สเปกและขนาด',
+        ...chosenSpecs.map(f => compactCoverCopy(f, 45))
+      ].filter(Boolean);
+    }
+
+    case 'macro':
+      return [
+        'วัสดุและการประกอบ',
+        ...cleanFacts.slice(0, 2).map(f => compactCoverCopy(f, 45))
+      ].filter(Boolean);
+
+    case 'action':
+      return [
+        'จุดเด่นขณะใช้งาน',
+        compactCoverCopy(f0, 50)
+      ].filter(Boolean);
+
+    case 'solution':
+      return [
+        'ปัญหาและทางออก',
+        compactCoverCopy(f1 || f0, 50)
+      ].filter(Boolean);
+
+    case 'lifestyle':
+      return [
+        'การใช้งานจริง',
+        compactCoverCopy(f0, 50)
+      ].filter(Boolean);
+
+    case 'package':
+      return [
+        'ในกล่องมีอะไรบ้าง',
+        compactCoverCopy(cleanNameText || f0, 45)
+      ].filter(Boolean);
+
+    case 'feature':
+      return [
+        'อินโฟกราฟิกจุดขาย',
+        ...cleanFacts.slice(0, 2).map(f => compactCoverCopy(f, 45))
+      ].filter(Boolean);
+
+    default:
+      return [
+        cardTitle,
+        compactCoverCopy(f0, 45)
+      ].filter(Boolean);
+  }
+};
 
 const buildThaiAdsPrompt = (card: ThaiAdsCard, campaignDirection: string) => {
   const mode = card.textRenderingMode || 'ai-native';
 
   let textDirective = '';
   if (mode === 'ai-native') {
-    textDirective = `TYPOGRAPHY & VISUAL ART: Feel free to design and render high-impact, bold, stylized Thai headlines, 3D text graphics, creative fonts, and promotional badges naturally within the image composition for maximum commercial visual appeal. Thai copy to render: "${card.thaiCopy.join(' | ')}".`;
+    textDirective = `TYPOGRAPHY & VISUAL ART: Feel free to design and render high-impact, bold, stylized Thai headlines, 3D text graphics, creative fonts, and promotional badges naturally within the image composition for maximum commercial visual appeal. Thai copy to render: "${card.thaiCopy.join(' | ')}". STRICT NO-PRICE RULE: Do NOT render price numbers, price ranges, currency symbols (฿, $), or "ราคาที่ผู้ขายยืนยัน" inside the image unless explicitly included in the Thai copy above.`;
   } else if (mode === 'clean') {
-    textDirective = 'Do not render any text or words inside the image. Pure product studio photography only.';
+    textDirective = 'Do not render any text, prices, or words inside the image. Pure product studio photography only.';
   } else {
     textDirective = 'Leave a clean editable overlay zone at top or corner for client-side Thai text overlay. Do not render text inside the image.';
   }
+
+  const presenterDirective = card.includePerson
+    ? `CAMERA & POSING INSTRUCTIONS: Medium close-up chest-up shot. Include a beautiful, attractive, young Thai female/male brand ambassador (age 23–30) with a cheerful bright smile, modern hair, and glowing clear skin, posing with the product. Presenter holds/presents the exact product PROMINENTLY FORWARD TOWARDS THE CAMERA IN FOREGROUND occupying 75-80% of center canvas. ${card.personBrief || ''}`
+    : 'Do not include people unless the role requires them.';
 
   return [
     `Thai Shopee High-Impact Ads role: ${card.role}.`,
@@ -191,10 +258,8 @@ const buildThaiAdsPrompt = (card: ThaiAdsCard, campaignDirection: string) => {
     `Campaign art direction shared by the entire image set: ${campaignDirection}`,
     `This card's visual treatment: ${styleMeta(card.visualStyle).label}. Keep palette, lighting, camera language, background materials compatible with the campaign direction.`,
     'Use a clean Thai high-information ecommerce layout, with the exact reference product large and unmistakable. Preserve identity, colour, materials, labels, shape, proportions, and included pieces.',
-    card.facts.length ? `Confirmed facts only: ${card.facts.join(' | ')}.` : 'Use only visible product details; do not invent specifications.',
-    card.includePerson
-      ? `CAMERA & POSING INSTRUCTIONS: Medium close-up chest-up shot. Include an attractive adult Thai or Asian brand ambassador (male/female) smiling directly at camera. Presenter holds/presents the exact product PROMINENTLY FORWARD TOWARDS THE CAMERA IN FOREGROUND occupying 75-80% of center canvas. ${card.personBrief || ''}`
-      : 'Do not include people unless the role requires them.',
+    card.facts.length ? `Confirmed facts only: ${card.facts.filter(f => !/ราคาที่ผู้ขายยืนยัน|฿|\$/i.test(f)).join(' | ')}.` : 'Use only visible product details; do not invent specifications.',
+    presenterDirective,
     isHeroCard(card.id) ? `Cover generation mode — ${heroCreativeMeta(card.heroCreativeMode).label}: ${heroCreativeMeta(card.heroCreativeMode).direction}` : '',
     textDirective,
   ].filter(Boolean).join('\n\n');
@@ -364,7 +429,13 @@ export function ShopeeAdsStudio({ dark, imageModel, session, setSession }: {
   const fileRefs = { product: useRef<HTMLInputElement>(null), package: useRef<HTMLInputElement>(null), logo: useRef<HTMLInputElement>(null) };
   const activeGenerationRef = useRef<AbortController | null>(null);
   const allImages = useMemo(() => [...assets.product, ...assets.package, ...assets.logo], [assets]);
-  const confirmedFacts = useMemo(() => factsText.split('\n').map(x => x.trim()).filter(Boolean), [factsText]);
+  const confirmedFacts = useMemo(() => {
+    return factsText
+      .split('\n')
+      .map(sanitizeFactLine)
+      .filter(Boolean)
+      .filter(f => !/^(ราคาที่ผู้ขายยืนยัน|ราคา|฿|\$)/i.test(f) && !/^[\d.,\s\-$฿]+$/.test(f));
+  }, [factsText]);
   const commerceFacts = useMemo(() => {
     const output: string[] = [];
     if (usePrice) {
@@ -396,7 +467,7 @@ export function ShopeeAdsStudio({ dark, imageModel, session, setSession }: {
     thaiFont: 'Prompt',
     badgeText: base.id === 'hero' || base.id === 'hero-lifestyle' ? 'เกรดพรีเมียม' : undefined,
     facts: allFacts,
-    thaiCopy: isHeroCard(base.id) ? buildCoverCopy(name, details, confirmedFacts) : [base.title, ...allFacts.slice(0, 3)],
+    thaiCopy: buildSegmentTailoredCopy(base.id, base.title, name, details, confirmedFacts),
     includePerson: base.id === 'hero' || base.id === 'hero-lifestyle' ? heroWithPerson : base.includePerson,
     personBrief,
     heroCreativeMode: isHeroCard(base.id) ? 'human-product-female' as HeroCreativeMode : undefined,

@@ -1207,8 +1207,9 @@ const App: React.FC = () => {
     const facts = normalizedDescription
       .split(/\r?\n/)
       .map(line => line.replace(/^[>*•\-\s]+/, '').replace(/\*\*/g, '').trim())
+      .map(line => line.replace(/^(ราคาที่ผู้ขายยืนยัน|จุดเด่นสินค้า|รายละเอียดสินค้า|รายละเอียด|คุณสมบัติ|ราคาแสดง|ราคา|วิธีใช้งาน|คำขาย|hook|Key features|Confirmed selling price|Description|Product|Specs|Features)\s*:\s*/i, '').trim())
       .filter(line => line.length > 2)
-      .filter(line => !/^(จุดเด่นสินค้า|รายละเอียด|วิธีใช้งาน|คำขาย|hook)\s*:?$/i.test(line))
+      .filter(line => !/^(ราคาที่ผู้ขายยืนยัน|ราคา|฿|\$)/i.test(line) && !/^[\d.,\s\-$฿]+$/.test(line))
       .slice(0, 24);
     setThaiAdsSession({
       ...createThaiAdsSession(),
