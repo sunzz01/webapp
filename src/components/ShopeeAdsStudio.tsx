@@ -206,6 +206,38 @@ const readFiles = async (files: FileList | null): Promise<string[]> => Promise.a
   reader.readAsDataURL(file);
 })));
 
+const cleanName = (value: string) => value.replace(/[\\/:*?"<>|]/g, '_').trim() || 'shopee-ad';
+const compactCoverCopy = (value: string, maxLength = 42) => {
+  const cleaned = value
+    .replace(/\*\*/g, '')
+    .replace(/^[-•\d.)\s]+/, '')
+    .split(/[.!?\n]/)[0]
+    .trim();
+  return cleaned.length > maxLength ? `${cleaned.slice(0, maxLength - 1).trim()}…` : cleaned;
+};
+const buildCoverCopy = (name: string, details: string, facts: string[]) => {
+  const hook = compactCoverCopy(facts[0] || name, 34);
+  const support = compactCoverCopy(facts[1] || details || name, 58);
+  return support && support !== hook ? [hook, support] : [hook];
+};
+
+const categoryForCard = (id: string): ImageCategory => ({
+  hero: ImageCategory.COVER,
+  anatomy: ImageCategory.INFOGRAPHIC,
+  spec: ImageCategory.SIZE_CHART,
+  macro: ImageCategory.CLOSE_UP,
+  action: ImageCategory.LIFESTYLE_A,
+  solution: ImageCategory.INFOGRAPHIC,
+  lifestyle: ImageCategory.LIFESTYLE_A,
+  package: ImageCategory.INFOGRAPHIC,
+  'hero-lifestyle': ImageCategory.LIFESTYLE_B,
+  feature: ImageCategory.INFOGRAPHIC,
+}[id] || ImageCategory.COVER);
+
+const styleMeta = (id: CampaignStyle) => CAMPAIGN_STYLES.find(style => style.id === id) || CAMPAIGN_STYLES[0];
+const isHeroCard = (id: string) => id === 'hero' || id === 'hero-lifestyle';
+const heroCreativeMeta = (id?: HeroCreativeMode) => HERO_CREATIVE_MODES.find(mode => mode.id === id || (id === 'human-product' && mode.id === 'human-product-female')) || HERO_CREATIVE_MODES[0];
+
 const sanitizeFactLine = (line: string) => {
   let text = line.trim();
   text = text.replace(/^[-•*\d.)\s]+/, '').replace(/\*\*/g, '').trim();
