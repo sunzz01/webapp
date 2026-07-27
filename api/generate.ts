@@ -470,13 +470,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       imageParts,
     });
 
+    const fullGenerationPrompt = [
+      legacyPrompt,
+      orchestrated.prompt ? `RECONTEXT SCENE DIRECTION: ${orchestrated.prompt}` : '',
+    ].filter(Boolean).join('\n\n');
+
     const selectedModel = typeof model === 'string' ? model : 'gemini-3.1-flash-image';
     let generated;
     if (ENTERPRISE_GEMINI_IMAGE_MODELS.has(selectedModel)) {
       try {
         generated = await generateEnterpriseGeminiImage({
           modelName: selectedModel,
-          prompt: orchestrated.prompt,
+          prompt: fullGenerationPrompt,
           imageParts,
           aspectRatio,
         });
@@ -487,14 +492,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.warn(`[api/generate] ${getEnterpriseGeminiImageModel(selectedModel)} is unavailable; falling back to ${fallbackModel}.`, error);
         generated = await generateImagen4TextImage({
           modelName: fallbackModel,
-          prompt: orchestrated.prompt,
+          prompt: fullGenerationPrompt,
           aspectRatio,
         });
       }
     } else if (isImagenTextModel(selectedModel)) {
       generated = await generateImagen4TextImage({
         modelName: selectedModel,
-        prompt: orchestrated.prompt,
+        prompt: fullGenerationPrompt,
         aspectRatio,
       });
     } else {
@@ -502,7 +507,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // without access still receive a generated listing image rather than 500.
       try {
         generated = await generateProductRecontextImage({
-          prompt: orchestrated.prompt,
+          prompt: orchestrated.prompt || fullGenerationPrompt,
           imageParts,
           aspectRatio,
           negativePrompt: orchestrated.negativePrompt,
@@ -513,7 +518,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.warn(`[api/generate] Recontext is unavailable; falling back to ${fallbackModel}.`);
         generated = await generateImagen4TextImage({
           modelName: fallbackModel,
-          prompt: orchestrated.prompt,
+          prompt: fullGenerationPrompt,
           aspectRatio,
         });
       }

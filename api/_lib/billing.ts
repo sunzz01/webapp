@@ -2,8 +2,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { BillingInterval, findPricingPlan, PlanId, SubscriptionTier } from '../../pricing';
 import { getFirebaseAdminApp } from './firebaseAdmin';
 
-export type PaymentMethod = 'promptpay' | 'truemoney' | 'card' | 'alipay' | 'stripe';
-export type PaymentProvider = 'opn' | 'stripe';
+export type PaymentMethod = 'promptpay' | 'truemoney' | 'card' | 'alipay';
 export type BillingOrderStatus = 'pending' | 'successful' | 'failed' | 'expired';
 
 export type BillingEntitlement = {
@@ -20,7 +19,6 @@ type PendingOrderInput = {
   interval: BillingInterval;
   method: PaymentMethod;
   amount: number;
-  provider?: PaymentProvider;
 };
 
 const DEFAULT_ENTITLEMENT: BillingEntitlement = { tier: 'free', credits: 10 };
@@ -49,7 +47,7 @@ export async function createPendingOrder(input: PendingOrderInput) {
     amount: input.amount,
     currency: 'THB',
     status: 'pending' satisfies BillingOrderStatus,
-    provider: input.provider || 'opn',
+    provider: 'opn',
     providerChargeId: null,
     createdAt: now,
     updatedAt: now,
@@ -159,6 +157,5 @@ export async function getOrderForUser(orderId: string, uid: string) {
     interval: data.interval as BillingInterval,
     method: data.method as PaymentMethod,
     amount: data.amount as number,
-    provider: data.provider === 'stripe' ? 'stripe' as const : 'opn' as const,
   };
 }

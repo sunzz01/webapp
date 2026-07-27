@@ -14,7 +14,7 @@ type OpnCharge = {
 };
 
 type CreateChargeInput = {
-  method: Exclude<PaymentMethod, 'stripe'>;
+  method: PaymentMethod;
   amountSatang: number;
   orderId: string;
   uid: string;
@@ -28,7 +28,7 @@ const getSecretKey = () => process.env.OPN_SECRET_KEY || process.env.OMISE_SECRE
 const getPublicKey = () => process.env.OPN_PUBLIC_KEY || process.env.OMISE_PUBLIC_KEY || '';
 const getBaseUrl = () => (process.env.OPN_API_BASE_URL || 'https://api.omise.co').replace(/\/$/, '');
 
-const sourceTypeFor: Record<Exclude<PaymentMethod, 'card' | 'stripe'>, string> = {
+const sourceTypeFor: Record<Exclude<PaymentMethod, 'card'>, string> = {
   promptpay: process.env.OPN_PROMPTPAY_SOURCE_TYPE || 'promptpay',
   truemoney: process.env.OPN_TRUEMONEY_SOURCE_TYPE || 'truemoney',
   alipay: process.env.OPN_ALIPAY_SOURCE_TYPE || 'alipay',

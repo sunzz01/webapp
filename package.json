@@ -14,7 +14,6 @@
   "dependencies": {
     "@google-cloud/vertexai": "^1.12.0",
     "@google/genai": "^1.38.0",
-    "@thai-qr-payment/assets": "^1.1.0",
     "clsx": "^2.1.1",
     "firebase": "^12.13.0",
     "firebase-admin": "^13.10.0",
@@ -25,7 +24,6 @@
     "lucide-react": "^0.562.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
-    "stripe": "^22.3.2",
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {

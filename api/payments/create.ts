@@ -3,7 +3,6 @@ import { BillingInterval, findPricingPlan, getPlanPrice, PlanId } from '../../pr
 import { attachChargeToOrder, createPendingOrder, markOrderAsFailed, PaymentMethod } from '../_lib/billing';
 import { requireFirebaseUser } from '../_lib/firebaseAdmin';
 import { createOpnCharge, getCheckoutAction, getPaymentConnectorConfig } from '../_lib/opn';
-import { createStripeCheckoutSession, isStripeConfigured } from '../_lib/stripe';
 
 function getReturnUri(req: VercelRequest, orderId: string) {
   const configured = (process.env.PAYMENT_RETURN_URL || '').replace(/\/$/, '');
@@ -24,7 +23,7 @@ function isInterval(value: unknown): value is BillingInterval {
 }
 
 function isPaymentMethod(value: unknown): value is PaymentMethod {
-  return value === 'promptpay' || value === 'truemoney' || value === 'card' || value === 'alipay' || value === 'stripe';
+  return value === 'promptpay' || value === 'truemoney' || value === 'card' || value === 'alipay';
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -40,14 +39,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const connector = getPaymentConnectorConfig();
-    const isStripe = paymentMethod === 'stripe';
-    const enabled = isStripe ? isStripeConfigured() : connector.enabled[paymentMethod];
-    if (!enabled) {
+    if (!connector.enabled[paymentMethod]) {
       return res.status(503).json({
         code: 'PAYMENT_NOT_CONFIGURED',
-        error: isStripe
-          ? 'Stripe Checkout ยังไม่ได้ตั้งค่า STRIPE_SECRET_KEY'
-          : paymentMethod === 'card'
+        error: paymentMethod === 'card'
           ? 'บัตรเครดิตยังไม่ได้เชื่อม public key ของผู้ให้บริการรับชำระเงิน'
           : 'ช่องทางนี้ยังไม่ได้เปิดใช้งาน merchant account',
       });
@@ -69,28 +64,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       interval,
       method: paymentMethod,
       amount,
-      provider: isStripe ? 'stripe' : 'opn',
     });
 
     try {
-      if (isStripe) {
-        const returnUri = getReturnUri(req, orderId);
-        const session = await createStripeCheckoutSession({
-          orderId,
-          uid: user.uid,
-          email: user.email,
-          planName: plan.name,
-          intervalLabel: interval === 'yearly' ? 'รายปี' : 'รายเดือน',
-          amountSatang: amount * 100,
-          successUrl: `${returnUri}&stripe_session_id={CHECKOUT_SESSION_ID}`,
-          cancelUrl: `${returnUri}&payment=cancelled`,
-        });
-        if (!session.url) throw new Error('Stripe ไม่ได้ส่งลิงก์ checkout กลับมา');
-        await attachChargeToOrder(orderId, session.id);
-        return res.status(200).json({ orderId, status: session.status || 'pending', checkout: { kind: 'redirect', authorizeUri: session.url } });
-      }
       const charge = await createOpnCharge({
-        method: paymentMethod as Exclude<PaymentMethod, 'stripe'>,
+        method: paymentMethod,
         amountSatang: amount * 100,
         orderId,
         uid: user.uid,

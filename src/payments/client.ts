@@ -1,10 +1,10 @@
 import { BillingInterval, PlanId } from '../../pricing';
 import { auth } from '../firebase';
 
-export type PaymentMethod = 'promptpay' | 'truemoney' | 'card' | 'alipay' | 'stripe';
+export type PaymentMethod = 'promptpay' | 'truemoney' | 'card' | 'alipay';
 
 export type PaymentConfig = {
-  connector: 'opn' | 'stripe' | 'multi';
+  connector: 'opn';
   enabled: Record<PaymentMethod, boolean>;
   publicKey?: string;
   message?: string;

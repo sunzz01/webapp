@@ -2,7 +2,6 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { applySuccessfulCharge, getEntitlement, getOrderForUser, markOrderAsFailed } from '../_lib/billing';
 import { requireFirebaseUser } from '../_lib/firebaseAdmin';
 import { retrieveOpnCharge } from '../_lib/opn';
-import { retrieveStripeCheckoutSession } from '../_lib/stripe';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -17,20 +16,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!order) return res.status(404).json({ error: 'ไม่พบรายการชำระเงินนี้' });
 
     if (order.status === 'pending' && order.providerChargeId) {
-      if (order.provider === 'stripe') {
-        const session = await retrieveStripeCheckoutSession(order.providerChargeId);
-        if (session.payment_status === 'paid') {
-          await applySuccessfulCharge({ id: session.id, metadata: session.metadata || undefined });
-        } else if (session.status === 'expired') {
-          await markOrderAsFailed(orderId, 'expired');
-        }
-      } else {
-        const charge = await retrieveOpnCharge(order.providerChargeId);
-        if (charge.status === 'successful') {
-          await applySuccessfulCharge(charge);
-        } else if (charge.status === 'failed' || charge.status === 'expired') {
-          await markOrderAsFailed(orderId, charge.status);
-        }
+      const charge = await retrieveOpnCharge(order.providerChargeId);
+      if (charge.status === 'successful') {
+        await applySuccessfulCharge(charge);
+      } else if (charge.status === 'failed' || charge.status === 'expired') {
+        await markOrderAsFailed(orderId, charge.status);
       }
       order = await getOrderForUser(orderId, user.uid);
     }

@@ -1273,6 +1273,15 @@ const App: React.FC = () => {
     const files = e.target.files;
     if (!files) return;
 
+    const totalReferenceImages = localImages.length + scrapedImages.length + files.length;
+    if (totalReferenceImages > 4) {
+      addNotification(
+        'info',
+        'AI จะวิเคราะห์รูปอ้างอิง 4 รูปแรก',
+        'อัปโหลดรูปเพิ่มได้ แต่การวิเคราะห์ใช้สูงสุด 4 รูป; การสร้างภาพและสรุปใช้สูงสุด 3 รูป',
+      );
+    }
+
     (Array.from(files) as File[]).forEach(file => {
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -2482,7 +2491,7 @@ const App: React.FC = () => {
                   >
                     <Plus className="mx-auto mb-3 h-7 w-7" />
                     <span className="block text-sm font-black">เพิ่มรูปภาพ</span>
-                    <span className={`mt-2 block text-xs font-bold ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>PNG, JPG, WEBP</span>
+                    <span className={`mt-2 block text-xs font-bold ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>PNG, JPG, WEBP · วิเคราะห์ 4 รูปแรก</span>
                   </button>
                 </div>
               </div>
@@ -2504,7 +2513,7 @@ const App: React.FC = () => {
                     </div>
                     <p className={`text-xl font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>ลากและวางไฟล์ที่นี่</p>
                     <p className={`mt-2 text-sm font-bold ${theme === 'dark' ? 'text-slate-300' : 'text-slate-500'}`}>หรือคลิกเพื่อเลือกไฟล์</p>
-                    <p className={`mt-4 text-xs font-bold leading-6 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>รองรับ: PNG, JPG, WEBP<br />ขนาดสูงสุด 10MB</p>
+                    <p className={`mt-4 text-xs font-bold leading-6 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>รองรับ: PNG, JPG, WEBP<br />ขนาดไฟล์ละสูงสุด 10 MB<br />AI วิเคราะห์สูงสุด 4 รูปแรก<br />สร้างภาพและสรุปใช้สูงสุด 3 รูปแรก</p>
                   </div>
                   <input type="file" multiple accept="image/*" className="hidden" ref={fileInputRef} onChange={handleFileChange} />
                 </div>
