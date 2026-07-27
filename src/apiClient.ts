@@ -372,63 +372,36 @@ function buildGroundedProductPrompt(
     price ? `Confirmed selling price: ${price}. Use this only for a clear, editable client-side overlay plan; never invent or alter a price.` : '',
     variants ? `Confirmed variants/options: ${variants}. If the task names one option, show that exact option only; for a comparison task, show only these confirmed options.` : '',
     visualStyle ? `Visual direction preset: ${visualStyle}. Keep its colour palette, lighting, composition language, and typography zone consistent for this image.` : '',
+    'LANGUAGE MANDATE (CRITICAL): All text, headlines, badges, callouts, promotional tags, and dimension labels rendered inside the generated image MUST BE IN THAI LANGUAGE ONLY (ภาษาไทยเท่านั้น). Do not render any English words, pseudo-Latin, or gibberish text unless the brand name itself is explicitly in English.',
     'Use the attached product reference images as the source of truth. Preserve the same product identity, shape, color, materials, logos/labels, and visible details. Improve only the scene, lighting, background, composition, and sales presentation. Do not invent a different product.',
     `Image task: ${taskPrompt}`,
   ].filter(Boolean).join('\n\n');
 }
 
-// ─── INFOGRAPHIC Variations (6 สไตล์) ────────────────────────────
-const INFOGRAPHIC_VARIATIONS_API = [
-  (features: string[]) => `A modern flat-design product infographic. Bold gradient background (deep purple→electric blue, coral→sunrise orange, or emerald→lime). Product center-left (40%). Right: ${features.length} feature callout boxes with flat icons. Features: ${features.join(' | ')}. Flat design, no shadows, bold geometric shapes, vibrant accent colors. Thin decorative lines connecting icons. Bottom-right: "Quality Guaranteed" badge. Pure vector/flat aesthetic.`,
-  (features: string[]) => `A premium dark-themed infographic. Deep charcoal background with subtle diagonal pattern. Product hero shot center. Around it: ${features.length} neon-glow accent rings highlighting each feature. Features: ${features.join(' | ')}. Dark luxury, neon accent (electric cyan, hot pink, or gold), thin glowing lines. Clean white text, monospace for specs. Subtle grid pattern, tech-forward aesthetic.`,
-  (features: string[]) => `An editorial magazine-style infographic. Soft cream textured paper background. Product centered with generous white space. Features as elegant pull-quote callouts with thin gold dividers. Features: ${features.join(' | ')}. Serif heading + sans-serif body. Navy, gold, cream palette. "★ EDITOR'S PICK" stamp. Luxury magazine spread aesthetic.`,
-  (features: string[]) => `An isometric 3D-style infographic. Soft pastel gradient background. Product in isometric perspective (30°). ${features.length} floating isometric cards around it. Features: ${features.join(' | ')}. Isometric illustration, soft drop shadows, rounded elements. Dotted connecting lines. Soft pastels with bold accent. Modern, friendly, approachable.`,
-  (features: string[]) => `A split-color-block infographic. Canvas split diagonally into 2 contrasting blocks (e.g., deep navy + bright orange). Product on bold side. Features on lighter side with numbered circles. Features: ${features.join(' | ')}. Extra bold condensed sans-serif. Geometric accent shapes at split boundary. High-contrast, bold, attention-grabbing.`,
-  (features: string[]) => `A minimalist data-driven infographic. Pure white background. Product top-center with subtle shadow. Below: ${features.length} horizontal feature bars with thin colored left border, icon, and description. Features: ${features.join(' | ')}. Ultra-clean sans-serif, single accent color (teal, coral, or violet). Maximum white space. Apple-like minimalism.`,
-];
-
-// ─── SIZE_CHART Variations (6 สไตล์) ─────────────────────────────
-const SIZE_CHART_VARIATIONS_API = [
-  (name: string) => `Clean product size comparison grid. Light gray background. Product from two angles (front + side). Dimension lines with measurements in cm/inches. Smartphone or hand silhouette for scale. Specs table: Length | Width | Height | Weight. Monospace numbers. Technical product sheet.`,
-  (name: string) => `Lifestyle size visualization. Product in real-life context: held in hand, next to coffee mug, or on desk. Natural indoor setting. Subtle dimension annotations with thin lines. Warm natural tones. Real-world photo with professional callouts. NOT a technical diagram.`,
-  (name: string) => `Technical blueprint size chart. Dark navy background with blueprint grid lines (light blue). Product as white outline technical drawing. Dimension arrows with precise labels. Top/side/front orthographic projections. Both metric and imperial. Monospace engineering font. White lines on dark blue, cyan text.`,
-  (name: string) => `Fun playful size comparison. Vibrant gradient background. Product next to everyday objects (coins, credit card, AA battery, banana). Each with cute label. "Actual Size: XX cm" callout. Rounded playful font, bright colors (orange, pink, teal). Social media friendly. NOT technical.`,
-  (name: string) => `Multi-variant size display. White background with subtle pattern. Product in 3 sizes side by side (S/M/L) at proportional scale. Below each: dimensions, weight, use case. Color-coded badges (green=small, blue=medium, orange=large). Easy to compare at a glance.`,
-  (name: string) => `Flat-lay size chart. White surface or light wood table. Product with physical ruler/tape measure alongside. Hand entering frame for scale. Common objects nearby (pen, phone). Thin measurement line overlays. Instagram flat-lay aesthetic with measurement info.`,
-];
 function buildCategoryPrompt(
   category: ImageCategory,
   productData: ProductData,
   style: string,
-  styleIndex?: number,
 ): string {
   switch (category) {
     case ImageCategory.COVER:
-      return `Generate a new COVER image for "${productData.name}". Product Description: ${productData.description}. Style: ${style}. Professional product photography, high quality, commercial grade.`;
+      return `High-impact commercial E-Commerce COVER image (ภาพปกสินค้า) for "${productData.name}". Product Description: ${productData.description}. Visual Style: ${style}. Product is large and unmistakable in the foreground. All headlines, price tags, and promotional badges MUST be in THAI LANGUAGE ONLY (ภาษาไทยเท่านั้น). Professional studio lighting, sharp product details.`;
     case ImageCategory.INFOGRAPHIC:
-      return pickStyle(INFOGRAPHIC_VARIATIONS_API, styleIndex)(productData.features);
+      return `Product infographic for "${productData.name}". ${productData.features?.join(' | ') || ''}. ALL TEXT CALLOUTS AND HEADLINES MUST BE IN THAI LANGUAGE ONLY (ภาษาไทยเท่านั้น). Clean flat design.`;
     case ImageCategory.CLOSE_UP:
-      return `Macro extreme close-up shot of the product. Focus on material texture and high-quality details. Soft bokeh background, professional studio lighting.`;
+      return `Macro extreme close-up shot of "${productData.name}". Focus on material texture and high-quality details. Soft bokeh background.`;
     case ImageCategory.LIFESTYLE_A:
-      return `Lifestyle photography of the product being used by a person inside a cozy home environment. Warm natural light, realistic setting.`;
+      return `Lifestyle photography of "${productData.name}" being used by a Thai/Asian person inside a cozy home environment. Warm natural light.`;
     case ImageCategory.LIFESTYLE_B:
-      return `Lifestyle photography of the product in an outdoor nature setting. Bright sunny day, organic textures, adventurous and fresh feel.`;
+      return `Lifestyle photography of "${productData.name}" in an outdoor nature setting. Bright sunny day, fresh feel.`;
     case ImageCategory.LIFESTYLE_C:
-      return `Lifestyle photography of the product in a professional urban setting. Modern architecture, clean lines, corporate background.`;
+      return `Lifestyle photography of "${productData.name}" in a modern urban setting.`;
     case ImageCategory.SIZE_CHART:
-      return pickStyle(SIZE_CHART_VARIATIONS_API, styleIndex)(productData.name);
-    case ImageCategory.SOCIAL_PROOF:
-      return pickRandom(SOCIAL_PROOF_VARIATIONS_API)(productData.name);
-    case ImageCategory.TUTORIAL:
-      return pickStyle(TUTORIAL_VARIATIONS_API, styleIndex)(['Unboxing/Prepare', 'Setup/Install', 'Usage', 'Result']);
+      return `Clean product size comparison chart for "${productData.name}". Dimension annotations and specifications MUST BE IN THAI LANGUAGE ONLY (ภาษาไทยเท่านั้น, เช่น ขนาดสินค้า, ซม., มม.).`;
     default:
-      return `Generate a product image for "${productData.name}". ${productData.description}. Professional quality.`;
+      return `Generate a product image for "${productData.name}". ${productData.description}. ALL TEXT MUST BE IN THAI LANGUAGE ONLY (ภาษาไทยเท่านั้น).`;
   }
 }
-
-// ═══════════════════════════════════════════════════════════════
-//  Thai Text Extractor (for reference overlays)
-// ═══════════════════════════════════════════════════════════════
 
 function extractThaiTexts(
   productData: ProductData,

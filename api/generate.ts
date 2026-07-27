@@ -179,7 +179,7 @@ Goal:
 - Use the existing legacy prompt as creative direction, not as a final prompt.
 - Produce a concise Imagen Product Recontext prompt that keeps the exact same product but changes the scene/background.
 - Preserve product identity: shape, color, material, logo/label placement, visible accessories, and proportions.
-- The final prompt may include Thai text direction if the legacy prompt asks for Thai marketing text, but keep text concise and readable.
+- CRITICAL LANGUAGE RULE: All text, banners, headlines, badges, callouts, size labels, and promotional text rendered inside the generated image MUST BE IN THAI LANGUAGE ONLY (ภาษาไทยเท่านั้น). Do NOT generate English text, pseudo-Latin, or gibberish text unless the confirmed product brand name itself is explicitly in English.
 - Avoid overloading the image with many badges, review cards, tiny captions, or dense text.
 - Prices, variants, dimensions, and product claims are permitted only when present in PRODUCT CONTEXT. If supplied Thai copy includes a confirmed price or variant, reserve a clean editable overlay zone; do not fabricate alternative values.
 - Aspect ratio target: ${args.aspectRatio} (${args.ratioDesc}).
