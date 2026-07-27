@@ -52,10 +52,10 @@ function buildProductContext(productData: any, category?: string) {
   const isCover = category === 'COVER' || category === 'cover';
 
   return [
-    'PRODUCT CONTEXT:',
-    name ? `- Product: ${name}` : '',
-    description ? `- Summary: ${description}` : '',
-    (!isCover && features.length) ? `- Highlights: ${features.join(' | ')}` : '',
+    'PRODUCT CONTEXT (Use this real product data to synthesize original, highly relevant Thai marketing slogans):',
+    name ? `- Product Name: ${name}` : '',
+    description ? `- Product Description: ${description}` : '',
+    features.length ? `- Product Selling Points: ${features.join(' | ')}` : '',
     (!isCover && price) ? `- Price: ${price}` : '',
     (!isCover && variants.length) ? `- Options: ${variants.join(' | ')}` : '',
   ].filter(Boolean).join('\n');
@@ -175,16 +175,15 @@ async function orchestratePrompt(args: {
   });
 
   const instruction = `
-You are the Prompt Orchestrator for an ecommerce Product Recontext pipeline.
-
 Goal:
-- Analyze the attached product image(s).
+- Analyze the attached product image(s) and product context details.
 - Use the existing legacy prompt as creative direction, not as a final prompt.
 - Produce a concise Imagen Product Recontext prompt that keeps the exact same product but changes the scene/background.
 - Preserve product identity: shape, color, material, logo/label placement, visible accessories, and proportions.
+- DYNAMIC THAI SLOGAN GENERATION: Read the product description and selling points carefully. Synthesize 1 unique, highly relevant, punchy Thai marketing slogan (3-6 words) specifically created for this product. NEVER use hardcoded static template phrases like "เผาแล้ว พร้อมใช้" unless the product is specifically a pre-seasoned cast iron pan.
 - CRITICAL LANGUAGE RULE: All text, banners, headlines, badges, callouts, size labels, and promotional text rendered inside the generated image MUST BE IN THAI LANGUAGE ONLY (ภาษาไทยเท่านั้น). Do NOT generate English text, pseudo-Latin, or gibberish text unless the confirmed product brand name itself is explicitly in English.
-- STRICT NO-METADATA RULE: NEVER render system metadata headings or category headers such as "จุดเด่นสินค้า:", "ราคาที่ผู้ขายยืนยัน:", "Key features:", "Confirmed selling price:", "Description:", "Product:", "Specs:", or "Features:". If rendering text, render ONLY clean natural marketing headlines (e.g. "เผาแล้ว พร้อมใช้!"), never system category headers or label prefixes.
-- COVER IMAGE RULE: For COVER images (ภาพปกสินค้า / ImageCategory.COVER), render a clean, high-impact hero product shot (or presenter holding product). Do NOT render feature bullet points, feature lists, or metadata labels on Cover images.
+- STRICT NO-METADATA RULE: NEVER render system metadata headings or category headers such as "จุดเด่นสินค้า:", "ราคาที่ผู้ขายยืนยัน:", "Key features:", "Confirmed selling price:", "Description:", "Product:", "Specs:", or "Features:". If rendering text, render ONLY clean natural marketing slogans tailored to this specific product, never system category headers or label prefixes.
+- COVER IMAGE RULE: For COVER images (ภาพปกสินค้า / ImageCategory.COVER), render a clean, high-impact hero product shot (or presenter holding product) with 1 dynamic Thai marketing headline tailored to this product. Do NOT render feature bullet points, feature lists, or metadata labels on Cover images.
 - Avoid overloading the image with many badges, review cards, tiny captions, or dense text.
 - Aspect ratio target: ${args.aspectRatio} (${args.ratioDesc}).
 
@@ -218,7 +217,7 @@ Return valid JSON only:
     throw new Error('Prompt orchestrator did not return a valid prompt.');
   }
 
-  const systemNegative = 'จุดเด่นสินค้า, ราคาที่ผู้ขายยืนยัน, Key features, Confirmed selling price, metadata labels, category headers, specs list on cover image';
+  const systemNegative = 'เผาแล้ว พร้อมใช้, static repeated phrases, จุดเด่นสินค้า, ราคาที่ผู้ขายยืนยัน, Key features, Confirmed selling price, metadata labels, category headers, specs list on cover image';
   const finalNegativePrompt = parsed.negativePrompt ? `${parsed.negativePrompt}, ${systemNegative}` : systemNegative;
 
   return {
