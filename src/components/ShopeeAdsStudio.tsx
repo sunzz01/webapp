@@ -33,20 +33,20 @@ const HERO_CREATIVE_MODES: { id: HeroCreativeMode; label: string; description: s
   {
     id: 'human-product-female',
     label: '👩 แบรนด์แอมบาสเดอร์ ผู้หญิง + สินค้าเด่น (ขายดี ⭐)',
-    description: 'พรีเซนเตอร์หญิงไทย/เอเชีย ถือ/แสดงสินค้าลอยเด่นใน foreground ใหญ่ 75–85%',
-    direction: 'CRITICAL CAMERA FRAMING & SUBJECT POSING: Shot type MUST be a high-impact Medium Close-Up portrait (chest-up or waist-up). The presenter is an attractive, smiling adult Thai or Asian female brand ambassador with friendly direct eye contact looking straight into the camera lens. The female presenter holds or displays the exact product FORWARD TOWARDS THE CAMERA LENS IN THE FOREGROUND, occupying 75-85% of the center/lower canvas. The product is crystal clear, large, front-and-center, with vibrant commercial studio lighting, soft rim light, and warm background bokeh.'
+    description: 'พรีเซนเตอร์หญิงไทย/เอเชีย สวย น่ารัก สดใส (อายุ 23–28 ปี) ถือ/แสดงสินค้าลอยเด่นใหญ่ 75–85%',
+    direction: 'CRITICAL CAMERA FRAMING & SUBJECT POSING: Shot type MUST be a high-impact Medium Close-Up portrait (chest-up or waist-up). The presenter is a beautiful, attractive, young Thai female brand ambassador (age 23–28 years old) with a cheerful bright smile, modern stylish hair, glowing clear healthy skin, and friendly direct eye contact. The female presenter holds or displays the exact product FORWARD TOWARDS THE CAMERA LENS IN THE FOREGROUND, occupying 75-85% of the center/lower canvas. HIGH-IMPACT INFOGRAPHIC BADGE TYPOGRAPHY: Render Thai slogans inside vibrant rounded gradient banner pills, 3D sticker badges, or drop-shadow text containers.'
   },
   {
     id: 'human-product-male',
     label: '👨 แบรนด์แอมบาสเดอร์ ผู้ชาย + สินค้าเด่น',
-    description: 'พรีเซนเตอร์ชายไทย/เอเชีย ถือ/แสดงสินค้าลอยเด่นใน foreground ใหญ่ 75–85%',
-    direction: 'CRITICAL CAMERA FRAMING & SUBJECT POSING: Shot type MUST be a high-impact Medium Close-Up portrait (chest-up or waist-up). The presenter is a handsome, smiling adult Thai or Asian male brand ambassador with confident direct eye contact looking straight into the camera lens. The male presenter holds or displays the exact product FORWARD TOWARDS THE CAMERA LENS IN THE FOREGROUND, occupying 75-85% of the center/lower canvas. The product is crystal clear, large, front-and-center, with vibrant commercial studio lighting, soft rim light, and warm background bokeh.'
+    description: 'พรีเซนเตอร์ชายไทย/เอเชีย หล่อ ดูดี สดใส (อายุ 25–30 ปี) ถือ/แสดงสินค้าลอยเด่นใหญ่ 75–85%',
+    direction: 'CRITICAL CAMERA FRAMING & SUBJECT POSING: Shot type MUST be a high-impact Medium Close-Up portrait (chest-up or waist-up). The presenter is a handsome, attractive, young Thai male brand ambassador (age 25–30 years old) with a confident bright smile, modern stylish hair, glowing clear healthy skin, and direct eye contact. The male presenter holds or displays the exact product FORWARD TOWARDS THE CAMERA LENS IN THE FOREGROUND, occupying 75-85% of the center/lower canvas. HIGH-IMPACT INFOGRAPHIC BADGE TYPOGRAPHY: Render Thai slogans inside vibrant rounded gradient banner pills, 3D sticker badges, or drop-shadow text containers.'
   },
   {
     id: 'human-product-couple',
     label: '👩‍❤️‍👨 แบรนด์แอมบาสเดอร์ คู่ชาย-หญิง + สินค้าเด่น',
-    description: 'พรีเซนเตอร์คู่ชายหญิง ถือ/แสดงสินค้าลอยเด่นร่วมกัน',
-    direction: 'CRITICAL CAMERA FRAMING & SUBJECT POSING: Medium Close-Up portrait showing a friendly adult Thai/Asian male and female couple together, smiling warm into the camera. They present the exact product forward towards the camera lens in foreground occupying 75-85% of the canvas.'
+    description: 'พรีเซนเตอร์คู่ชายหญิง วัยรุ่นดูดี ถือ/แสดงสินค้าลอยเด่นร่วมกัน',
+    direction: 'CRITICAL CAMERA FRAMING & SUBJECT POSING: Medium Close-Up portrait showing a friendly, attractive young Thai male and female couple (age 24–30), smiling warmly into the camera lens with bright cheerful energy. They present the exact product forward towards the camera lens in foreground occupying 75-85% of the canvas. INFOGRAPHIC BADGE TYPOGRAPHY: Styled Thai banner badges with contrast drop shadow.'
   },
   {
     id: 'product-dominant',

@@ -448,20 +448,20 @@ function buildCategoryPrompt(
     case ImageCategory.COVER: {
       if (['brand-ambassador', 'brand-ambassador-female', 'brand-ambassador-male'].includes(style)) {
         const presenter = style === 'brand-ambassador-male'
-          ? 'one friendly, credible adult Thai or Asian man'
+          ? 'one handsome, attractive, young Thai male brand ambassador (age 25–30 years old) with a confident bright smile, modern stylish hair, and glowing clear healthy skin'
           : style === 'brand-ambassador-female'
-            ? 'one friendly, credible adult Thai or Asian woman'
-            : 'one friendly, credible Thai or Asian adult presenter';
+            ? 'one beautiful, attractive, young Thai female brand ambassador (age 23–28 years old) with a cheerful bright smile, modern stylish hair, and glowing clear healthy skin'
+            : 'one beautiful, attractive, young Thai brand ambassador (age 23–30 years old) with a cheerful bright smile, modern stylish hair, and glowing clear healthy skin';
         const variations = [
-          'Presenter on the right, product large in the lower-left foreground, headline in the upper-left.',
-          'Presenter on the left gesturing naturally toward the product on the right, headline in the upper-right.',
-          'Three-quarter product close-up in the foreground with the presenter softly behind it, headline in the top safe area.',
-          'Presenter actively demonstrating the product in a relevant Thai lifestyle setting, product still larger than the presenter, headline in a clean upper zone.',
+          'Presenter on the right, product large in the lower-left foreground, graphic slogan badge container and feature pills in the upper-left.',
+          'Presenter on the left gesturing naturally toward the product on the right, graphic headline banner tag and trust chips in the upper-right.',
+          'Three-quarter product close-up in the foreground with the young presenter softly behind it, stylized graphic slogan banner in the top safe area.',
+          'Presenter actively demonstrating the product in a relevant Thai lifestyle setting, product still larger than the presenter, infographic headline badge tag in a clean upper zone.',
         ];
         const variation = variations[((styleIndex || 1) - 1) % variations.length];
-        return `Thai Marketplace Brand Ambassador product cover for "${productData.name}". Use exactly ${presenter} who naturally holds, uses, or introduces the exact reference product. The product must be the main purchase object: large, sharp, unobstructed, and faithful to the reference in shape, logo, colour, materials, proportions, labels, and included pieces. Render exactly one bold Thai selling hook of 2–6 words plus one smaller Thai supporting line using only confirmed product information. No paragraph, bullet list, fake price, fake discount, badge wall, border, rounded frame, side panel, or platform UI. ${variation} On every regeneration change the pose, camera angle, composition, hook placement, and relevant props, while preserving the same product identity, credible brand-ambassador character, and campaign mood.`;
+        return `Thai Marketplace Brand Ambassador product cover for "${productData.name}". Use exactly ${presenter} who naturally holds, uses, or introduces the exact reference product. The product must be the main purchase object: large, sharp, unobstructed, and faithful to the reference in shape, logo, colour, materials, proportions, labels, and included pieces. HIGH-IMPACT E-COMMERCE INFOGRAPHIC BADGE & GRAPHIC TEXT DESIGN: Render the main Thai slogan inside a vibrant rounded contrast badge pill, gradient banner tag, 3D sticker overlay, or stylized text container with subtle drop shadow and bold typography. Next to or below the main slogan, include 1-2 stylized graphic feature chips, star rating badges, or trust stickers (e.g. '🔥 ขายดีอันดับ 1', '✓ เกรดพรีเมียม', '⭐ 5 ดาว'). The typography and graphic elements must look like a professionally designed top-selling Shopee/Lazada product cover banner, NOT plain unstyled text on a wall. ${variation} On every regeneration change the pose, camera angle, composition, hook placement, and relevant props, while preserving the same product identity, young attractive brand-ambassador character, and campaign mood.`;
       }
-      return `High-impact commercial E-Commerce COVER image (ภาพปกสินค้า) for "${productData.name}". Product Description: ${productData.description}. Visual Style: ${style}. Product is large and unmistakable in the foreground. All headlines, price tags, and promotional badges MUST be in THAI LANGUAGE ONLY (ภาษาไทยเท่านั้น). Professional studio lighting, sharp product details.`;
+      return `High-impact commercial E-Commerce COVER image (ภาพปกสินค้า) for "${productData.name}". Product Description: ${productData.description}. Visual Style: ${style}. Product is large and unmistakable in the foreground. INFOGRAPHIC GRAPHIC BADGE DESIGN: Main Thai headline styled inside a vibrant rounded gradient banner tag, contrast badge container, or 3D sticker overlay with drop-shadow typography, accompanied by 1-2 stylized feature pills (e.g. '🔥 ขายดีอันดับ 1', '✓ รับประกันคุณภาพ'). All text MUST be in THAI LANGUAGE ONLY (ภาษาไทยเท่านั้น). Professional studio lighting, sharp product details.`;
     }
     case ImageCategory.INFOGRAPHIC:
       return `Product infographic for "${productData.name}". ${productData.features?.join(' | ') || ''}. ALL TEXT CALLOUTS AND HEADLINES MUST BE IN THAI LANGUAGE ONLY (ภาษาไทยเท่านั้น). Clean flat design.`;

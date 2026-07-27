@@ -182,24 +182,24 @@ const STYLES = [
     name: 'Brand Ambassador (สุ่ม)',
     emoji: '✨',
     color: 'text-rose-500',
-    desc: 'พรีเซนเตอร์ไทย + สินค้าเด่น + Hook ใหญ่',
-    promptTemplate: 'Thai marketplace brand ambassador cover: a warm credible Thai or Asian presenter naturally holding, using, or introducing the exact product. Product is large, sharp, and unobstructed in the foreground; one bold short Thai headline plus one smaller verified supporting line only. No long text, fake discounts, badges, frames, or side panels. Regenerate with a new pose, camera angle, composition, headline placement, and relevant props while preserving the same product identity and presenter-led campaign character.'
+    desc: 'พรีเซนเตอร์ไทยวัยรุ่น + สินค้าเด่น + แบนเนอร์โฆษณา',
+    promptTemplate: 'Thai marketplace brand ambassador cover: a beautiful, attractive, young Thai brand ambassador (age 23–30) with a bright cheerful smile and glowing clear skin, naturally holding, using, or introducing the exact product. Product is large, sharp, and unobstructed in the foreground. INFOGRAPHIC GRAPHIC BADGE DESIGN: Render the main Thai slogan inside a vibrant rounded gradient banner tag, 3D sticker badge, or contrast drop-shadow text pill container, accompanied by 1-2 stylized feature chips (e.g. 🔥 ขายดีอันดับ 1).'
   },
   {
     id: 'brand-ambassador-female',
     name: 'Brand Ambassador ผู้หญิง',
     emoji: '✨',
     color: 'text-rose-500',
-    desc: 'พรีเซนเตอร์ผู้หญิง + สินค้าเด่น + Hook ใหญ่',
-    promptTemplate: 'Thai marketplace brand ambassador cover: exactly one warm credible adult Thai or Asian woman naturally holding, using, or introducing the exact product. Product is large, sharp, and unobstructed in the foreground; one bold short Thai headline plus one smaller verified supporting line only. No long text, fake discounts, badges, frames, or side panels. Regenerate with a new pose, camera angle, composition, headline placement, and relevant props while preserving the same product identity and female presenter-led campaign character.'
+    desc: 'พรีเซนเตอร์ผู้หญิงวัยรุ่น + สินค้าเด่น + แบนเนอร์โฆษณา',
+    promptTemplate: 'Thai marketplace brand ambassador cover: exactly one beautiful, attractive, young Thai female brand ambassador (age 23–28) with a cheerful bright smile, modern stylish hair, and glowing clear skin, naturally holding, using, or introducing the exact product. Product is large, sharp, and unobstructed in the foreground. INFOGRAPHIC GRAPHIC BADGE DESIGN: Render the main Thai slogan inside a vibrant rounded gradient banner tag, 3D sticker badge, or contrast drop-shadow text pill container, accompanied by 1-2 stylized feature chips (e.g. 🔥 ขายดีอันดับ 1).'
   },
   {
     id: 'brand-ambassador-male',
     name: 'Brand Ambassador ผู้ชาย',
     emoji: '✨',
     color: 'text-sky-500',
-    desc: 'พรีเซนเตอร์ผู้ชาย + สินค้าเด่น + Hook ใหญ่',
-    promptTemplate: 'Thai marketplace brand ambassador cover: exactly one warm credible adult Thai or Asian man naturally holding, using, or introducing the exact product. Product is large, sharp, and unobstructed in the foreground; one bold short Thai headline plus one smaller verified supporting line only. No long text, fake discounts, badges, frames, or side panels. Regenerate with a new pose, camera angle, composition, headline placement, and relevant props while preserving the same product identity and male presenter-led campaign character.'
+    desc: 'พรีเซนเตอร์ผู้ชายวัยรุ่น + สินค้าเด่น + แบนเนอร์โฆษณา',
+    promptTemplate: 'Thai marketplace brand ambassador cover: exactly one handsome, attractive, young Thai male brand ambassador (age 25–30) with a confident bright smile, modern stylish hair, and glowing clear skin, naturally holding, using, or introducing the exact product. Product is large, sharp, and unobstructed in the foreground. INFOGRAPHIC GRAPHIC BADGE DESIGN: Render the main Thai slogan inside a vibrant rounded gradient banner tag, 3D sticker badge, or contrast drop-shadow text pill container, accompanied by 1-2 stylized feature chips (e.g. 🔥 ขายดีอันดับ 1).'
   },
   {
     id: 'lazada',
