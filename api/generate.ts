@@ -361,8 +361,8 @@ async function generateEnterpriseGeminiImage(args: {
   const { projectId, location: envLocation } = getVertexEnvironment();
   const modelName = getEnterpriseGeminiImageModel(args.modelName);
 
-  // Try locations in order: envLocation (default us-central1), 'us-central1', 'global'
-  const locationsToTry = Array.from(new Set([envLocation, 'us-central1', 'global']));
+  // Try locations in order: envLocation, 'asia-southeast1' (Singapore), 'us-central1', 'global'
+  const locationsToTry = Array.from(new Set([envLocation, 'asia-southeast1', 'us-central1', 'global']));
   let lastError: any;
 
   for (const loc of locationsToTry) {
