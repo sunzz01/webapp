@@ -1354,17 +1354,15 @@ const App: React.FC = () => {
 
   const stopResultsGeneration = () => {
     const controller = activeGenerationRef.current;
-    if (!controller || !isGenerating) return;
-    const confirmed = window.confirm('หยุดการสร้างภาพตอนนี้หรือไม่?\n\nคำขอถูกส่งให้ AI แล้ว เครดิตอาจถูกใช้ไปแล้วและไม่สามารถคืนอัตโนมัติได้ คุณยืนยันที่จะหยุดใช่หรือไม่?');
-    if (!confirmed) return;
-
-    controller.abort();
-    activeGenerationRef.current = null;
+    if (controller) {
+      controller.abort();
+      activeGenerationRef.current = null;
+    }
     setIsGenerating(false);
     setGeneratedImages(previous => previous.map(image => image.status === 'generating'
       ? { ...image, status: 'idle', url: '', error: undefined }
       : image));
-    addNotification('warning', 'หยุดการสร้างแล้ว', 'เครดิตของคำขอที่ส่งถึง AI ไปแล้วอาจถูกใช้ไปแล้ว คุณสามารถกดสร้างใหม่ได้ทันที');
+    addNotification('warning', 'หยุดการสร้างแล้ว', 'คุณสามารถกดสร้างใหม่ได้ทันที');
   };
 
   const startGeneration = async () => {
@@ -1450,7 +1448,7 @@ const App: React.FC = () => {
           styleIdx = parseInt(val) || undefined;
         }
         const styleForCard = cardVisualStyles[cat] || (cat === ImageCategory.COVER ? selectedCoverStyle || selectedStyle : selectedStyle);
-        const result = await generateProductImage(cat, productData, styleForCard, customPromptForTutorial, selectedImageModel, imageAspectRatios[cat] || selectedAspectRatio, styleIdx, generationController.signal);
+        const result = await generateProductImage(cat, productData, styleForCard, customPromptForTutorial, selectedImageModel, imageAspectRatios[cat] || selectedAspectRatio, styleIdx, undefined, generationController.signal);
         setGeneratedImages(prev => prev.map(p => p.category === cat && !p.variantLabel ? { ...p, url: result.imageUrl, status: 'completed', thaiTexts: result.thaiTexts, promptUsed: result.promptUsed, modelUsed: result.modelUsed, visualStyle: styleForCard } : p));
         successCount++;
       } catch (err) {
@@ -1530,7 +1528,7 @@ const App: React.FC = () => {
       const coverVariationIndex = category === ImageCategory.COVER && styleToUse.startsWith('brand-ambassador')
         ? attemptCount
         : styleIndex;
-      const result = await generateProductImage(category, productData, styleToUse, customPrompt, selectedImageModel, ratio, coverVariationIndex, generationController.signal);
+      const result = await generateProductImage(category, productData, styleToUse, customPrompt, selectedImageModel, ratio, coverVariationIndex, undefined, generationController.signal);
 
       // อัปเดตเฉพาะภาพที่เลือก
       setGeneratedImages(prev => prev.map(img =>
@@ -1594,6 +1592,7 @@ const App: React.FC = () => {
           `Create a dedicated, exact-variant product cover for "${target.label}". Clearly distinguish only this confirmed purchasable option from other variants. Leave a clean editable Thai overlay zone for the exact variant name${usePriceInGeneration ? ' and confirmed price' : ''}.`,
           selectedImageModel,
           selectedAspectRatio,
+          undefined,
           undefined,
           generationController.signal,
         );
