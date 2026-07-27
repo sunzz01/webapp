@@ -32,7 +32,7 @@ type OrchestratedPrompt = {
   thaiTextPlan?: string[];
 };
 
-function buildProductContext(productData: any) {
+function buildProductContext(productData: any, category?: string) {
   if (!productData || typeof productData !== 'object') return '';
 
   const name = String(productData.name || '').trim();
@@ -48,13 +48,15 @@ function buildProductContext(productData: any) {
     }).filter(Boolean)
     : [];
 
+  const isCover = category === 'COVER' || category === 'cover';
+
   return [
     'PRODUCT CONTEXT:',
-    name ? `- Product name: ${name}` : '',
-    description ? `- Description: ${description}` : '',
-    features.length ? `- Key features: ${features.join(' | ')}` : '',
-    price ? `- Confirmed selling price: ${price}` : '',
-    variants.length ? `- Confirmed variants: ${variants.join(' | ')}` : '',
+    name ? `- Product: ${name}` : '',
+    description ? `- Summary: ${description}` : '',
+    (!isCover && features.length) ? `- Highlights: ${features.join(' | ')}` : '',
+    (!isCover && price) ? `- Price: ${price}` : '',
+    (!isCover && variants.length) ? `- Options: ${variants.join(' | ')}` : '',
   ].filter(Boolean).join('\n');
 }
 
@@ -180,8 +182,9 @@ Goal:
 - Produce a concise Imagen Product Recontext prompt that keeps the exact same product but changes the scene/background.
 - Preserve product identity: shape, color, material, logo/label placement, visible accessories, and proportions.
 - CRITICAL LANGUAGE RULE: All text, banners, headlines, badges, callouts, size labels, and promotional text rendered inside the generated image MUST BE IN THAI LANGUAGE ONLY (ภาษาไทยเท่านั้น). Do NOT generate English text, pseudo-Latin, or gibberish text unless the confirmed product brand name itself is explicitly in English.
+- STRICT NO-METADATA RULE: NEVER render system metadata headings or category headers such as "จุดเด่นสินค้า:", "ราคาที่ผู้ขายยืนยัน:", "Key features:", "Confirmed selling price:", "Description:", "Product:", "Specs:", or "Features:". If rendering text, render ONLY clean natural marketing headlines (e.g. "เผาแล้ว พร้อมใช้!"), never system category headers or label prefixes.
+- COVER IMAGE RULE: For COVER images (ภาพปกสินค้า / ImageCategory.COVER), render a clean, high-impact hero product shot (or presenter holding product). Do NOT render feature bullet points, feature lists, or metadata labels on Cover images.
 - Avoid overloading the image with many badges, review cards, tiny captions, or dense text.
-- Prices, variants, dimensions, and product claims are permitted only when present in PRODUCT CONTEXT. If supplied Thai copy includes a confirmed price or variant, reserve a clean editable overlay zone; do not fabricate alternative values.
 - Aspect ratio target: ${args.aspectRatio} (${args.ratioDesc}).
 
 ${args.productContext}
@@ -214,9 +217,12 @@ Return valid JSON only:
     throw new Error('Prompt orchestrator did not return a valid prompt.');
   }
 
+  const systemNegative = 'จุดเด่นสินค้า, ราคาที่ผู้ขายยืนยัน, Key features, Confirmed selling price, metadata labels, category headers, specs list on cover image';
+  const finalNegativePrompt = parsed.negativePrompt ? `${parsed.negativePrompt}, ${systemNegative}` : systemNegative;
+
   return {
     prompt: parsed.prompt,
-    negativePrompt: parsed.negativePrompt,
+    negativePrompt: finalNegativePrompt,
     productSummary: parsed.productSummary,
     thaiTextPlan: Array.isArray(parsed.thaiTextPlan) ? parsed.thaiTextPlan.map(String) : [],
   };
@@ -437,7 +443,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const ratioDesc = RATIO_DESCRIPTIONS[aspectRatio] || RATIO_DESCRIPTIONS['1:1'];
-    const productContext = buildProductContext(productData);
+    const productContext = buildProductContext(productData, category);
     const legacyPrompt = [productContext, prompt || customPrompt].filter(Boolean).join('\n\n');
 
     const orchestrated = await orchestratePrompt({

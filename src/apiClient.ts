@@ -22,6 +22,11 @@ import { auth } from './firebase';
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 const MAX_API_IMAGE_BYTES = 360_000;
 const MAX_API_PAYLOAD_BYTES = 1_850_000;
+const MAX_IMAGES_BY_ENDPOINT: Record<string, number> = {
+  '/api/analyze': 4,
+  '/api/generate': 3,
+  '/api/summarize': 3,
+};
 
 // ═══════════════════════════════════════════════════════════════
 //  Types (mirror server-side interfaces)
@@ -45,6 +50,11 @@ export interface ShopeeAdBrief {
 }
 
 const estimateBase64Bytes = (value: string): number => Math.ceil((value.length * 3) / 4);
+
+function getImageLimitMessage(path: string): string {
+  const maxImages = MAX_IMAGES_BY_ENDPOINT[path] ?? 3;
+  return `รูปภาพที่ส่งไปยัง AI มีขนาดใหญ่เกินไป กรุณาส่งไม่เกิน ${maxImages} รูป และแต่ละรูปไม่เกิน 0.36 MB (ระบบจะย่อรูปให้อัตโนมัติ)`;
+}
 
 async function shrinkImageForApi(
   dataUrl: string,
@@ -181,7 +191,7 @@ async function apiPost<T>(path: string, body: any): Promise<T> {
       errorMsg = rawBody.slice(0, 300);
     }
     if (response.status === 413) {
-      errorMsg = 'รูปภาพที่ส่งไปยัง AI มีขนาดใหญ่เกินไป กรุณาลองใช้รูปน้อยลงหรือรูปที่เล็กลง';
+      errorMsg = getImageLimitMessage(path);
     }
     throw new Error(errorMsg);
   }
@@ -257,7 +267,7 @@ export async function generateProductImage(
     category,
     style,
     customPrompt,
-    productData,
+    productData: { ...productData, images: apiImages || [] },
   });
 
   // Build thaiTexts for reference
@@ -304,7 +314,7 @@ export async function generateShopeeAdImage(
     model: imageModel,
     aspectRatio: '1:1',
     category: 'SHOPEE_THAI_AD',
-    productData,
+    productData: { ...productData, images: apiImages || [] },
     adBrief: brief,
   });
 
@@ -359,20 +369,22 @@ function buildGroundedProductPrompt(
   productData: ProductData,
   visualStyle?: string,
 ): string {
-  const features = productData.features?.filter(Boolean).slice(0, 8) || [];
-  const price = productData.price?.display || (productData.price?.current ? `฿${productData.price.current.toLocaleString('th-TH')}` : '');
-  const variants = (productData.variantGroups || [])
+  const isCover = category === ImageCategory.COVER;
+  const features = (!isCover && productData.features?.filter(Boolean).slice(0, 8)) || [];
+  const price = !isCover && (productData.price?.display || (productData.price?.current ? `฿${productData.price.current.toLocaleString('th-TH')}` : ''));
+  const variants = !isCover && (productData.variantGroups || [])
     .map(group => `${group.name}: ${group.options.map(option => `${option.label}${option.price?.display ? ` (${option.price.display})` : ''}`).join(', ')}`)
     .join(' | ');
   return [
     `Create a ${category} ecommerce image for this exact product.`,
     `Product name: ${productData.name || 'Unknown product'}`,
     productData.description ? `Product description: ${productData.description}` : '',
-    features.length ? `Key product features: ${features.join(' | ')}` : '',
-    price ? `Confirmed selling price: ${price}. Use this only for a clear, editable client-side overlay plan; never invent or alter a price.` : '',
-    variants ? `Confirmed variants/options: ${variants}. If the task names one option, show that exact option only; for a comparison task, show only these confirmed options.` : '',
+    features.length ? `Product highlights: ${features.join(' | ')}` : '',
+    price ? `Product price: ${price}` : '',
+    variants ? `Product options: ${variants}` : '',
     visualStyle ? `Visual direction preset: ${visualStyle}. Keep its colour palette, lighting, composition language, and typography zone consistent for this image.` : '',
     'LANGUAGE MANDATE (CRITICAL): All text, headlines, badges, callouts, promotional tags, and dimension labels rendered inside the generated image MUST BE IN THAI LANGUAGE ONLY (ภาษาไทยเท่านั้น). Do not render any English words, pseudo-Latin, or gibberish text unless the brand name itself is explicitly in English.',
+    'STRICT GRAPHIC RULE: NEVER render system metadata headings or label prefixes like "จุดเด่นสินค้า:", "ราคาที่ผู้ขายยืนยัน:", "Key features:", or "Confirmed price:". On COVER images, do NOT draw feature lists or specification callouts; draw ONLY high-impact hero product photography and optional clean Thai marketing slogan.',
     'Use the attached product reference images as the source of truth. Preserve the same product identity, shape, color, materials, logos/labels, and visible details. Improve only the scene, lighting, background, composition, and sales presentation. Do not invent a different product.',
     `Image task: ${taskPrompt}`,
   ].filter(Boolean).join('\n\n');
