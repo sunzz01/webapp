@@ -5,6 +5,8 @@ import {
   Download,
   Sparkles,
   Image as ImageIcon,
+  ImagePlus,
+  Key,
   Layers,
   Globe,
   ChevronRight,
@@ -381,6 +383,7 @@ const App: React.FC = () => {
   const { user, login, register, loginWithSocial, logout, deductCredit, addCredits, refreshBilling, isLoading: authLoading } = useAuth();
 
   const [showSettings, setShowSettings] = useState<boolean>(false);
+  const [showProfileModal, setShowProfileModal] = useState<boolean>(false);
   const [apiKeys, setApiKeys] = useState<string[]>(() => {
     const keys = getApiKeys();
     return keys.length > 0 ? keys : [''];
@@ -2228,7 +2231,7 @@ const App: React.FC = () => {
                   {/* Menu Items */}
                   <div className="py-2">
                     <button
-                      onClick={() => { setShowProfileDropdown(false); }}
+                      onClick={() => { setShowProfileDropdown(false); setShowProfileModal(true); }}
                       className={`w-full flex items-center gap-3 px-5 py-3 text-sm font-bold transition-colors ${theme === 'dark' ? 'text-gray-300 hover:bg-gray-700 hover:text-white' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
                     >
                       <User className="w-4 h-4" />
@@ -3745,6 +3748,157 @@ const App: React.FC = () => {
         removeBgApiHandler={callRemoveBgApi}
       />
       {pricingCheckoutModal}
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowSettings(false)}>
+          <div className={`relative w-full max-w-2xl overflow-hidden rounded-3xl p-8 shadow-2xl border ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-slate-100 text-slate-900'}`} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b pb-4 dark:border-gray-700 border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-orange-500/10 text-orange-500">
+                  <Settings className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black">ตั้งค่าระบบ (Settings)</h3>
+                  <p className="text-xs text-slate-500 dark:text-gray-400">จัดการ API Keys สำหรับสร้างภาพและไดคัทลบพื้นหลัง</p>
+                </div>
+              </div>
+              <button onClick={() => setShowSettings(false)} className={`rounded-xl p-2 transition ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-slate-100 text-slate-500'}`}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="mt-6 space-y-6 max-h-[65vh] overflow-y-auto pr-1">
+              {/* Gemini API Keys Section */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-black flex items-center gap-2">
+                    <Key className="w-4 h-4 text-orange-500" />
+                    Gemini API Keys
+                  </label>
+                  <button onClick={handleAddApiKey} className="text-xs font-bold text-orange-500 hover:text-orange-600 flex items-center gap-1">
+                    + เพิ่ม Key
+                  </button>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-gray-400">
+                  ใส่ API Key จาก <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="text-orange-500 underline font-bold">Google AI Studio</a> เพื่อใช้ประมวลผลสร้างภาพ
+                </p>
+                {apiKeys.map((key, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <input
+                        type={keyVisibility[idx] ? 'text' : 'password'}
+                        value={key}
+                        onChange={e => handleApiKeyChange(idx, e.target.value)}
+                        placeholder={`Gemini API Key #${idx + 1}`}
+                        className={`w-full rounded-xl border px-3.5 py-2.5 text-xs font-bold outline-none transition focus:border-orange-500 ${theme === 'dark' ? 'bg-gray-900 border-gray-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'}`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setKeyVisibility(prev => prev.map((v, i) => i === idx ? !v : v))}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-gray-200"
+                      >
+                        {keyVisibility[idx] ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                    {apiKeys.length > 1 && (
+                      <button onClick={() => handleRemoveApiKey(idx)} className="p-2.5 rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30">
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Remove.bg API Key Section */}
+              <div className="space-y-3 pt-4 border-t dark:border-gray-700 border-slate-100">
+                <label className="text-sm font-black flex items-center gap-2">
+                  <ImagePlus className="w-4 h-4 text-purple-500" />
+                  Remove.bg API Key (ไดคัทลบพื้นหลัง)
+                </label>
+                <p className="text-xs text-slate-500 dark:text-gray-400">
+                  ใส่ API Key จาก <a href="https://www.remove.bg/api" target="_blank" rel="noreferrer" className="text-purple-500 underline font-bold">Remove.bg</a> สำหรับปุ่มกดลบพื้นหลังรูปสินค้า
+                </p>
+                <div className="relative">
+                  <input
+                    type={showRemoveBgKey ? 'text' : 'password'}
+                    value={removeBgKey}
+                    onChange={e => setRemoveBgKey(e.target.value)}
+                    placeholder="VITE_REMOVE_BG_API_KEY หรือใส่ Key ของคุณ"
+                    className={`w-full rounded-xl border px-3.5 py-2.5 text-xs font-bold outline-none transition focus:border-purple-500 ${theme === 'dark' ? 'bg-gray-900 border-gray-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'}`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowRemoveBgKey(!showRemoveBgKey)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-gray-200"
+                  >
+                    {showRemoveBgKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-8 flex items-center justify-end gap-3 border-t pt-4 dark:border-gray-700 border-slate-100">
+              <button onClick={() => setShowSettings(false)} className={`px-5 py-2.5 rounded-xl text-xs font-bold transition ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-gray-200' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'}`}>
+                ยกเลิก
+              </button>
+              <button onClick={handleSaveSettings} className="px-6 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-black shadow-lg shadow-orange-500/25 transition">
+                บันทึกการตั้งค่า
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Profile Modal */}
+      {showProfileModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowProfileModal(false)}>
+          <div className={`relative w-full max-w-md overflow-hidden rounded-3xl p-8 shadow-2xl border ${theme === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-slate-100 text-slate-900'}`} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b pb-4 dark:border-gray-700 border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-orange-500/10 text-orange-500">
+                  <User className="w-6 h-6" />
+                </div>
+                <h3 className="text-xl font-black">โปรไฟล์ของฉัน</h3>
+              </div>
+              <button onClick={() => setShowProfileModal(false)} className={`rounded-xl p-2 transition ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-slate-100 text-slate-500'}`}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {user && (
+              <div className="mt-6 flex flex-col items-center text-center">
+                <div className="w-20 h-20 rounded-2xl overflow-hidden bg-orange-500 flex items-center justify-center text-white font-black text-3xl shadow-xl shadow-orange-500/20 mb-4">
+                  {user.avatar ? (
+                    <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                  ) : (
+                    user.name.charAt(0).toUpperCase()
+                  )}
+                </div>
+                <h4 className="text-lg font-black">{user.name}</h4>
+                <p className="text-xs text-slate-500 dark:text-gray-400 mt-1">{user.email}</p>
+
+                <div className={`w-full mt-6 p-4 rounded-2xl border ${theme === 'dark' ? 'bg-gray-900/50 border-gray-700' : 'bg-slate-50 border-slate-200'}`}>
+                  <div className="flex items-center justify-between text-xs font-bold">
+                    <span className="text-slate-500 dark:text-gray-400">สถานะบัญชี</span>
+                    <span className="text-orange-500 font-black">{user.unlimitedCredits ? 'Trial Unlimited' : user.tier.toUpperCase()}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs font-bold mt-3">
+                    <span className="text-slate-500 dark:text-gray-400">เครดิตสร้างภาพคงเหลือ</span>
+                    <span className="text-emerald-500 font-black">{user.unlimitedCredits ? 'ไม่จำกัด (Unlimited)' : `${user.credits} เครดิต`}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-8 flex justify-end">
+              <button onClick={() => setShowProfileModal(false)} className="w-full py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-black shadow-lg shadow-orange-500/25 transition">
+                ปิดหน้าต่าง
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
