@@ -341,7 +341,7 @@ const buildThaiAdsPrompt = (card: ThaiAdsCard, campaignDirection: string) => {
 
   let textDirective = '';
   if (mode === 'ai-native') {
-    textDirective = `TYPOGRAPHY & VISUAL ART: Feel free to design and render high-impact, bold, stylized Thai headlines, 3D text graphics, creative fonts, and promotional badges naturally within the image composition for maximum commercial visual appeal. Thai copy to render: "${card.thaiCopy.join(' | ')}". STRICT NO-PRICE RULE: Do NOT render price numbers, price ranges, currency symbols (฿, $), or "ราคาที่ผู้ขายยืนยัน" inside the image unless explicitly included in the Thai copy above.`;
+    textDirective = `TYPOGRAPHY & VISUAL ART: Design creative, high-impact Thai text graphics tailored specifically to this product. Feel free to use diverse font styles (e.g., bold 3D extruded text, modern dynamic headlines, glowing stroke outlines, brush calligraphy, ribbon banners, or sleek geometric badges). Match colors organically to the product palette and campaign visual style. Avoid repeating the same simple rounded capsule pill shape on every image. Thai copy to render: "${card.thaiCopy.join(' | ')}". STRICT NO-PRICE RULE: Do NOT render price numbers, price ranges, currency symbols (฿, $), or "ราคาที่ผู้ขายยืนยัน" inside the image unless explicitly included in the Thai copy above.`;
   } else if (mode === 'clean') {
     textDirective = 'Do not render any text, prices, or words inside the image. Pure product studio photography only.';
   } else {
