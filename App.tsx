@@ -390,7 +390,7 @@ const App: React.FC = () => {
     return keys.length > 0 ? new Array(keys.length).fill(false) : [false];
   });
   const [removeBgKey, setRemoveBgKey] = useState<string>(() => {
-    return localStorage.getItem('remove_bg_api_key') || '';
+    return localStorage.getItem('remove_bg_api_key') || (import.meta as any).env?.VITE_REMOVE_BG_API_KEY || '';
   });
   const [showRemoveBgKey, setShowRemoveBgKey] = useState<boolean>(false);
 
@@ -1898,7 +1898,7 @@ const App: React.FC = () => {
   // ฟังก์ชัน Remove Background โดยใช้ remove.bg API
   const removeBackground = async (imageSrc: string, index: number, isScraped: boolean) => {
     try {
-      const apiKey = removeBgKey.trim();
+      const apiKey = removeBgKey.trim() || (import.meta as any).env?.VITE_REMOVE_BG_API_KEY || '';
       if (!apiKey) {
         throw new Error("กรุณาใส่ Remove.bg API Key ในหน้าตั้งค่าก่อนใช้งาน");
       }
@@ -1956,7 +1956,7 @@ const App: React.FC = () => {
   // Extract inner removeBg logic into a pure function for Modal to use without state bindings
   const callRemoveBgApi = async (dataUrl: string): Promise<string | null> => {
     try {
-      const apiKey = removeBgKey.trim();
+      const apiKey = removeBgKey.trim() || (import.meta as any).env?.VITE_REMOVE_BG_API_KEY || '';
       if (!apiKey) {
         throw new Error("กรุณาใส่ Remove.bg API Key ในหน้าตั้งค่าก่อนใช้งาน");
       }
