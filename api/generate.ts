@@ -521,11 +521,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       status: 200,
       uid: firebaseUser.uid,
       email: firebaseUser.email,
-      pipeline: ENTERPRISE_GEMINI_IMAGE_MODELS.has(selectedModel)
-        ? 'gemini-2.5-flash->gemini-image-or-imagen-fallback'
-        : isImagenTextModel(selectedModel)
-          ? 'gemini-2.5-flash->imagen'
-          : 'gemini-2.5-flash->imagen-product-recontext-or-fallback',
+      pipeline: 'gemini-2.5-flash->gemini-image',
       orchestratorModel: 'gemini-2.5-flash',
       imageModel: generated.modelName,
       category,
