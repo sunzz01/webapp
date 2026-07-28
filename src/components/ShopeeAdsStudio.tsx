@@ -358,6 +358,7 @@ const buildThaiAdsPrompt = (card: ThaiAdsCard, campaignDirection: string) => {
     `Campaign art direction shared by the entire image set: ${campaignDirection}`,
     `This card's visual treatment: ${styleMeta(card.visualStyle).label}. Keep palette, lighting, camera language, background materials compatible with the campaign direction.`,
     'Use a clean Thai high-information ecommerce layout, with the exact reference product large and unmistakable. Preserve identity, colour, materials, labels, shape, proportions, and included pieces.',
+    '3D PERSPECTIVE FREEDOM: Reconstruct the exact product geometry 3-dimensionally. Do NOT freeze the exact camera angle of the uploaded reference photo. Feel free to render the product from dynamic commercial angles (e.g. 3/4 isometric angle, side profile, top-down flatlay, macro detail, or low hero angle) appropriate for this card role, while keeping the product 100% identical.',
     card.facts.length ? `Confirmed facts only: ${card.facts.filter(f => !/ราคาที่ผู้ขายยืนยัน|฿|\$/i.test(f)).join(' | ')}.` : 'Use only visible product details; do not invent specifications.',
     presenterDirective,
     isHeroCard(card.id) ? `Cover generation mode — ${heroCreativeMeta(card.heroCreativeMode).label}: ${heroCreativeMeta(card.heroCreativeMode).direction}` : '',
