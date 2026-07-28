@@ -431,6 +431,9 @@ const App: React.FC = () => {
   const [originalScrapedImages, setOriginalScrapedImages] = useState<string[]>([]); // Backup for undo
   const [localImages, setLocalImages] = useState<string[]>([]);
   const [originalLocalImages, setOriginalLocalImages] = useState<string[]>([]); // Backup for undo
+  // Index within the combined local + scraped image gallery. This image is
+  // always submitted first and acts as the product identity source of truth.
+  const [mainImageIndex, setMainImageIndex] = useState<number | null>(null);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [regenerationAttempts, setRegenerationAttempts] = useState<{ [key: string]: number }>({});
   const [step, setStep] = useState<number>(1);
@@ -591,6 +594,7 @@ const App: React.FC = () => {
       setOriginalLocalImages([]);
       setScrapedImages([]);
       setOriginalScrapedImages([]);
+      setMainImageIndex(null);
       setGeneratedImages([]);
        setProductUrl('');
        setProductName('');
@@ -663,6 +667,7 @@ const App: React.FC = () => {
            if (savedState.cardVisualStyles) setCardVisualStyles(savedState.cardVisualStyles);
            if (savedState.resultsDensity === 'overview' || savedState.resultsDensity === 'standard' || savedState.resultsDensity === 'focus') setResultsDensity(savedState.resultsDensity);
            if (savedState.manualScaleDraft && typeof savedState.manualScaleDraft === 'object') setManualScaleDraft(previous => ({ ...previous, ...savedState.manualScaleDraft }));
+           if (typeof savedState.mainImageIndex === 'number') setMainImageIndex(savedState.mainImageIndex);
           if (savedState.scrapedImages) {
             setScrapedImages(savedState.scrapedImages);
             setOriginalScrapedImages(savedState.scrapedImages);
@@ -713,6 +718,7 @@ const App: React.FC = () => {
        cardVisualStyles,
        resultsDensity,
        manualScaleDraft,
+       mainImageIndex,
       scrapedImages,
       localImages,
       generatedImages,
@@ -737,6 +743,7 @@ const App: React.FC = () => {
     cardVisualStyles,
     resultsDensity,
     manualScaleDraft,
+    mainImageIndex,
     scrapedImages,
     localImages,
     generatedImages,
@@ -904,7 +911,22 @@ const App: React.FC = () => {
     });
   };
 
+  const orderProductReferenceImages = (images: string[]) => {
+    const validImages = images.filter(Boolean);
+    if (!validImages.length) return [];
+    const anchorIndex = mainImageIndex !== null && mainImageIndex >= 0 && mainImageIndex < validImages.length
+      ? mainImageIndex
+      : 0;
+    const anchor = validImages[anchorIndex];
+    // Gemini 3.1 supports many references, but three focused product views
+    // preserve identity more reliably than a mixed gallery of listings.
+    return [anchor, ...validImages.filter((_, index) => index !== anchorIndex)].slice(0, 3);
+  };
+
   const buildCurrentProductData = (images: string[], variantLabel?: string): ProductData => {
+    // Callers order the selected identity anchor first before conversion. Keep
+    // that order intact here instead of applying the gallery index a second time.
+    const referenceImages = images.filter(Boolean).slice(0, 3);
     const optionFacts = useVariantsInGeneration
       ? variantGroups.flatMap(group => group.options.slice(0, 12).map(option => `${group.name}: ${option.label}${usePriceInGeneration && option.price?.display ? ` (${option.price.display})` : ''}`))
       : [];
@@ -917,7 +939,8 @@ const App: React.FC = () => {
     return {
       name: variantLabel ? `${productName || 'สินค้าใหม่'} — ${variantLabel}` : productName || 'สินค้าใหม่',
       description,
-      images,
+      images: referenceImages,
+      referenceImages,
       features: [...productDesc.split('\n').map(line => line.replace(/^[-*•\s]+/, '').trim()).filter(line => line.length > 2).slice(0, 8), ...optionFacts].slice(0, 12),
       price: usePriceInGeneration ? productPrice : undefined,
       variantGroups: useVariantsInGeneration ? variantGroups : [],
@@ -1408,7 +1431,7 @@ const App: React.FC = () => {
 
     console.log("Processing images for AI...");
     const processedImages = await Promise.all(
-      allImages.map(url => imageUrlToBase64(url))
+      orderProductReferenceImages(allImages).map(url => imageUrlToBase64(url))
     );
     const validImages = processedImages.filter(img => img && img !== "");
 
@@ -1513,7 +1536,7 @@ const App: React.FC = () => {
 
     try {
       // แปลงรูปภาพที่เกี่ยวข้องให้เป็น Base64 เพื่อใช้กับ Gemini
-      const imagesToProcess = [...localImages, ...scrapedImages];
+      const imagesToProcess = orderProductReferenceImages([...localImages, ...scrapedImages]);
       const processedImages = await Promise.all(
         imagesToProcess.map(url => imageUrlToBase64(url))
       );
@@ -1568,8 +1591,8 @@ const App: React.FC = () => {
       addNotification('warning', 'ยังไม่ได้เลือกตัวเลือกสินค้า', 'เลือกสี ขนาด หรือรุ่นอย่างน้อย 1 รายการก่อนสร้างภาพแยกตัวเลือก');
       return;
     }
-    const sourceImages = [...localImages, ...scrapedImages];
-    const converted = await Promise.all(sourceImages.slice(0, 3).map(imageUrlToBase64));
+    const sourceImages = orderProductReferenceImages([...localImages, ...scrapedImages]);
+    const converted = await Promise.all(sourceImages.map(imageUrlToBase64));
     const images = converted.filter(Boolean);
     if (!images.length) {
       addNotification('error', 'อ่านรูปสินค้าไม่ได้', 'ต้องมีรูปสินค้าอ้างอิงก่อนสร้างภาพแยกตัวเลือก');
@@ -1871,9 +1894,6 @@ const App: React.FC = () => {
 
   // เพิ่ม state สำหรับแสดงรายละเอียดสไตล์
   const [showStyleDetails, setShowStyleDetails] = useState<string | null>(null);
-
-  // เพิ่ม state สำหรับภาพหลัก
-  const [mainImageIndex, setMainImageIndex] = useState<number | null>(null);
 
   // ฟังก์ชัน Remove Background โดยใช้ remove.bg API
   const removeBackground = async (imageSrc: string, index: number, isScraped: boolean) => {
@@ -2591,18 +2611,34 @@ const App: React.FC = () => {
                     คลังภาพต้นฉบับ ({totalImages})
                   </h3>
                 </div>
+                {totalImages > 0 && (
+                  <div className={`mb-6 flex items-start gap-3 rounded-2xl border px-4 py-3 text-xs leading-5 ${theme === 'dark' ? 'border-orange-500/30 bg-orange-500/10 text-orange-100' : 'border-orange-200 bg-orange-50 text-orange-900'}`}>
+                    <Target className="mt-0.5 h-4 w-4 shrink-0 text-orange-500" />
+                    <span><b>Product Identity Anchor:</b> คลิกเลือกภาพสินค้าหลัก 1 ภาพ ระบบจะส่งภาพนี้ก่อน พร้อมภาพเสริมได้อีกไม่เกิน 2 ภาพ เพื่อยึดทรง สี วัสดุ และโลโก้ของสินค้าจริง</span>
+                  </div>
+                )}
                 {totalImages > 0 ? (
                   <div className="grid grid-cols-3 md:grid-cols-5 gap-5">
-                    {[...localImages, ...scrapedImages].map((src, i) => (
+                    {[...localImages, ...scrapedImages].map((src, i) => {
+                      const isIdentityAnchor = (mainImageIndex ?? 0) === i;
+                      return (
                       <div key={i} className={`relative group aspect-square rounded-[2rem] overflow-hidden ${theme === 'dark' ? 'border-gray-700' : 'border-slate-50'} border-2 shadow-sm hover:shadow-xl transition-all`}>
                         <img src={src} className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setMainImageIndex(i)}
+                          title="ตั้งเป็นภาพสินค้าหลัก"
+                          className={`absolute left-2 top-2 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black shadow-lg transition ${isIdentityAnchor ? 'bg-orange-500 text-white' : 'bg-slate-950/75 text-white opacity-0 group-hover:opacity-100 hover:bg-orange-500'}`}
+                        >
+                          <Target className="h-3 w-3" /> {isIdentityAnchor ? 'ภาพหลัก' : 'ตั้งเป็นหลัก'}
+                        </button>
                         <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                           <div className="bg-white text-orange-500 rounded-full p-2 shadow-2xl">
                             <CheckCircle2 className="w-6 h-6" />
                           </div>
                         </div>
                       </div>
-                    ))}
+                    )})}
                   </div>
                 ) : (
                   <div className={`${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-slate-50 border-slate-100'} py-24 text-center rounded-[2.5rem] border-4 border-dashed`}>
