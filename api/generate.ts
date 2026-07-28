@@ -495,38 +495,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           orchestrated.prompt ? `RECONTEXT SCENE DIRECTION: ${orchestrated.prompt}` : '',
         ].filter(Boolean).join('\n\n');
 
-    const selectedModel = typeof model === 'string' && model ? model : 'gemini-3.1-flash-image';
+    const rawModel = typeof model === 'string' && model ? model : 'gemini-3.1-flash-image';
+    const targetModel = ENTERPRISE_GEMINI_IMAGE_MODELS.has(rawModel) ? rawModel : 'gemini-3.1-flash-image';
     let generated;
 
-    if (ENTERPRISE_GEMINI_IMAGE_MODELS.has(selectedModel)) {
-      try {
-        generated = await generateEnterpriseGeminiImage({
-          modelName: selectedModel,
-          prompt: fullGenerationPrompt,
-          imageParts,
-          aspectRatio,
-        });
-      } catch (error) {
-        // Keep the quality choice intact. Gemini 3.1 can occasionally return
-        // no image for a complex request, so wait briefly and retry the SAME
-        // selected model once. Never silently downgrade to another model or
-        // fall back to the retired Product Recontext preview model.
-        console.warn(`[api/generate] Enterprise model ${selectedModel} failed; waiting before one retry with the same model...`, error);
-        await new Promise(resolve => setTimeout(resolve, 1_500));
-        generated = await generateEnterpriseGeminiImage({
-          modelName: selectedModel,
-          prompt: fullGenerationPrompt,
-          imageParts,
-          aspectRatio,
-        });
-      }
-    } else {
-      // Product Recontext with source product image preservation
-      generated = await generateProductRecontextImage({
-        prompt: orchestrated.prompt || fullGenerationPrompt,
+    try {
+      generated = await generateEnterpriseGeminiImage({
+        modelName: targetModel,
+        prompt: fullGenerationPrompt,
         imageParts,
         aspectRatio,
-        negativePrompt: orchestrated.negativePrompt,
+      });
+    } catch (error) {
+      console.warn(`[api/generate] Enterprise model ${targetModel} failed; waiting before one retry with the same model...`, error);
+      await new Promise(resolve => setTimeout(resolve, 1_500));
+      generated = await generateEnterpriseGeminiImage({
+        modelName: targetModel,
+        prompt: fullGenerationPrompt,
+        imageParts,
+        aspectRatio,
       });
     }
 

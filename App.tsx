@@ -317,14 +317,14 @@ const STYLES = [
   },
 ];
 
-// โมเดล Gemini ที่ใช้สำหรับสร้างภาพ
+// โมเดล Gemini ที่ใช้สำหรับสร้างภาพ (Multimodal Image-to-Image 100% ไร้ลายน้ำ)
 const GEMINI_IMAGE_MODELS = [
   {
     id: 'gemini-3.1-flash-image',
     name: 'Gemini 3.1 Flash Image',
     badge: 'แนะนำหลัก ✨ ไร้ลายน้ำ',
     badgeColor: 'bg-gradient-to-r from-emerald-600 to-teal-500',
-    desc: 'โมเดลหลักล่าสุด (Multimodal Image-to-Image) สร้างภาพสวยตรงอ้างอิง ไร้ลายน้ำมุมขวาล่าง 100%',
+    desc: 'โมเดลหลักล่าสุด (Multimodal Image-to-Image) คุมรูปทรงและรายละเอียดสินค้าเป๊ะ 100% ไร้ลายน้ำ',
     borderColor: 'border-emerald-500',
     glowColor: 'shadow-emerald-500/40',
     textColor: 'text-emerald-400',
@@ -335,7 +335,7 @@ const GEMINI_IMAGE_MODELS = [
     name: 'Gemini 3 Pro Image',
     badge: 'Studio Realistic 🌟 ไร้ลายน้ำ',
     badgeColor: 'bg-gradient-to-r from-purple-600 to-violet-500',
-    desc: 'โมเดลระดับพรีเมียม คุณภาพสูงสุด คมกริบ สมจริงระดับสตูดิโอ ไร้ลายน้ำมุมขวาล่าง 100%',
+    desc: 'โมเดลเกรดสูงสุด Studio Realistic รายละเอียดสินค้า คมชัด สมจริง 100% ไร้ลายน้ำ',
     borderColor: 'border-purple-500',
     glowColor: 'shadow-purple-500/40',
     textColor: 'text-purple-400',
@@ -352,22 +352,15 @@ const GEMINI_IMAGE_MODELS = [
     textColor: 'text-blue-400',
     iconBg: 'from-blue-500 to-cyan-400',
   },
-  {
-    id: 'product-recontext-v1',
-    name: 'Product Recontext (Imagen)',
-    badge: 'Imagen 🏷️ มีลายน้ำ',
-    badgeColor: 'bg-gradient-to-r from-orange-500 to-rose-500',
-    desc: 'โมเดล Imagen 3.0 บน Vertex AI ดั้งเดิม (มีลายน้ำสัญลักษณ์ Gemini ที่มุมขวาล่างจาก Google)',
-    borderColor: 'border-orange-500',
-    glowColor: 'shadow-orange-500/40',
-    textColor: 'text-orange-400',
-    iconBg: 'from-orange-500 to-rose-400',
-  },
 ];
 
-// Migrates sessions saved before the Gemini 3.1 Flash Image preview retirement.
-const normalizeImageModelSelection = (model?: string) =>
-  model === 'gemini-3.1-flash-image-preview' ? 'gemini-3.1-flash-image' : model;
+// Migrates legacy/retired models to Gemini 3.1 Flash Image
+const normalizeImageModelSelection = (model?: string) => {
+  if (!model || model === 'product-recontext-v1' || model === 'gemini-3.1-flash-image-preview' || model.includes('imagen')) {
+    return 'gemini-3.1-flash-image';
+  }
+  return model;
+};
 
 // Aspect Ratio options
 const ASPECT_RATIOS = [
