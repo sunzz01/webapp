@@ -266,66 +266,69 @@ const buildSegmentTailoredCopy = (
   const f0 = cleanFacts[0] || compactCoverCopy(cleanNameText, 34) || 'สินค้าคุณภาพพรีเมียม';
   const f1 = cleanFacts[1] || cleanFacts[0] || 'คุ้มค่าใช้งานยาวนาน';
   const f2 = cleanFacts[2] || cleanFacts[1] || f0;
+  const f3 = cleanFacts[3] || cleanFacts[2] || f1;
+  const f4 = cleanFacts[4] || cleanFacts[3] || f2;
+  const f5 = cleanFacts[5] || cleanFacts[4] || f3;
 
   switch (cardId) {
     case 'hero':
       return [
         compactCoverCopy(f0, 34),
-        compactCoverCopy(f1 !== f0 ? f1 : (cleanNameText || 'รุ่นยอดฮิต ขายดี'), 48),
+        compactCoverCopy(f1 !== f0 ? f1 : (cleanNameText || 'รุ่นยอดฮิต ขายดี ⭐'), 48),
       ].filter(Boolean);
 
     case 'hero-lifestyle':
       return [
-        compactCoverCopy(f0, 34),
-        compactCoverCopy(f2 !== f0 ? f2 : 'ตอบโจทย์ทุกการใช้งาน', 48),
+        compactCoverCopy(f1, 34),
+        compactCoverCopy(f2 !== f1 ? f2 : 'ตอบโจทย์ทุกการใช้งาน', 48),
       ].filter(Boolean);
 
     case 'anatomy':
       return [
-        compactCoverCopy(f0, 36),
-        compactCoverCopy(f1 !== f0 ? f1 : f2, 48),
+        compactCoverCopy(f2, 36),
+        compactCoverCopy(f3 !== f2 ? f3 : 'ฟังก์ชันใช้งานครบครัน', 48),
       ].filter(Boolean);
 
     case 'spec': {
       const specFacts = cleanFacts.filter(f => /เบอร์|นิ้ว|ซม|มม|ขนาด|น้ำหนัก|หนา|กว้าง|ยาว|สูง|เกรด|รุ่น/i.test(f));
-      const chosenSpecs = (specFacts.length ? specFacts : cleanFacts).slice(0, 2);
+      const chosenSpecs = (specFacts.length ? specFacts : cleanFacts.slice(1)).slice(0, 2);
       return chosenSpecs.map(f => compactCoverCopy(f, 44)).filter(Boolean);
     }
 
     case 'macro':
       return [
-        compactCoverCopy(f0, 36),
-        compactCoverCopy(f1 !== f0 ? f1 : 'งานประกอบประณีต ทนทาน', 48),
+        compactCoverCopy(f3, 36),
+        compactCoverCopy(f4 !== f3 ? f4 : 'งานประกอบประณีต ทนทาน', 48),
       ].filter(Boolean);
 
     case 'action':
       return [
-        compactCoverCopy(f0, 36),
-        compactCoverCopy(f1 !== f0 ? f1 : 'สะดวก รวดเร็ว พร้อมใช้', 48),
+        compactCoverCopy(f4, 36),
+        compactCoverCopy(f5 !== f4 ? f5 : 'สะดวก รวดเร็ว พร้อมใช้', 48),
       ].filter(Boolean);
 
     case 'solution':
       return [
-        compactCoverCopy(f0, 36),
-        compactCoverCopy(f1 !== f0 ? f1 : 'ตอบโจทย์ปัญหาตรงจุด', 48),
+        compactCoverCopy(f5, 36),
+        compactCoverCopy(f0 !== f5 ? f0 : 'ตอบโจทย์ปัญหาตรงจุด', 48),
       ].filter(Boolean);
 
     case 'lifestyle':
       return [
-        compactCoverCopy(f0, 36),
-        compactCoverCopy(f1 !== f0 ? f1 : 'เข้ากับทุกไลฟ์สไตล์การใช้งาน', 48),
+        compactCoverCopy(f1, 36),
+        compactCoverCopy(f4 !== f1 ? f4 : 'เข้ากับทุกไลฟ์สไตล์การใช้งาน', 48),
       ].filter(Boolean);
 
     case 'package':
       return [
-        'แพ็กเกจสินค้าพร้อมใช้งาน',
+        'แพ็กเกจสินค้าครบชุด',
         compactCoverCopy(cleanNameText || f0, 44),
       ].filter(Boolean);
 
     case 'feature':
       return [
-        compactCoverCopy(f0, 36),
-        compactCoverCopy(f1 !== f0 ? f1 : f2, 48),
+        compactCoverCopy(f2, 36),
+        compactCoverCopy(f4 !== f2 ? f4 : f5, 48),
       ].filter(Boolean);
 
     default:

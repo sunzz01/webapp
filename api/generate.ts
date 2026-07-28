@@ -487,10 +487,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       imageParts,
     });
 
-    const fullGenerationPrompt = [
-      legacyPrompt,
-      orchestrated.prompt ? `RECONTEXT SCENE DIRECTION: ${orchestrated.prompt}` : '',
-    ].filter(Boolean).join('\n\n');
+    const isThaiAds = Boolean(safeAdBrief || category === 'SHOPEE_THAI_AD');
+    const fullGenerationPrompt = isThaiAds
+      ? legacyPrompt
+      : [
+          legacyPrompt,
+          orchestrated.prompt ? `RECONTEXT SCENE DIRECTION: ${orchestrated.prompt}` : '',
+        ].filter(Boolean).join('\n\n');
 
     const selectedModel = typeof model === 'string' && model ? model : 'gemini-3.1-flash-image';
     let generated;
