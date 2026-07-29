@@ -373,6 +373,14 @@ const buildThaiAdsPrompt = (card: ThaiAdsCard, campaignDirection: string) => {
     card.facts.length ? `Confirmed facts only: ${card.facts.filter(f => !/ราคาที่ผู้ขายยืนยัน|฿|\$/i.test(f)).join(' | ')}.` : 'Use only visible product details; do not invent specifications.',
     presenterDirective,
     isHeroCard(card.id) && card.heroCreativeMode ? `Cover creative direction — ${heroCreativeMeta(card.heroCreativeMode).label}: ${heroCreativeMeta(card.heroCreativeMode).direction}` : '',
+    isHeroCard(card.id) ? `COVER TYPOGRAPHY & VISUAL HIERARCHY RULES (MANDATORY):
+1. NO DUPLICATE HOOKS (Hook ห้ามซ้ำทั้งภาพ): Never repeat the same slogan, phrase, or text across lines anywhere on the image canvas.
+2. DOMINANT MAIN HOOK (Main Hook ใหญ่ที่สุดเพียง 1 ชุด): The main Thai headline hook MUST be the single largest text element on the entire image.
+3. MAX 1 SUPPORTING LINE (มีข้อความรองได้สูงสุด 1 บรรทัด): At most ONE supporting subtitle line below or next to the main headline. This line MUST be significantly simpler, lighter, and smaller than the main hook.
+4. SINGLE FOCAL ACCENT (เน้นคำหรือเลขสำคัญได้เพียงจุดเดียว): Emphasize or highlight at most ONE single key word, number, or feature claim on the entire image canvas.
+5. DISTINCT 3-LEVEL TYPOGRAPHY HIERARCHY (ทั้ง 3 ระดับต้องต่างกันจริง): The Main Hook, Supporting Line, and Accent Highlight MUST differ visibly in font size, font weight, and visual treatment.
+6. 3-LAYER COLOR SYSTEM (บังคับใช้ระบบสี 3 ชั้น): Apply a refined 3-layer color system (Primary text color, Deep outline/drop shadow, and ONE dynamic accent color). NEVER use the identical yellow-red-black text effect across all lines, and NEVER use identical font styles or weights for every line.
+7. THUMBNAIL READABILITY (เน้นการอ่านได้ชัดแม้อย่อเป็น thumbnail บนมือถือ): All rendered Thai headlines must be ultra-legible with high contrast, perfectly readable even when scaled down to a small mobile e-commerce thumbnail.` : '',
     textDirective,
     'STRICT NO-WATERMARK RULE: Do NOT render any digital watermarks, logo stamps, brand icons, Gemini logos, camera watermarks, or corner badges at the bottom-left, bottom-right, or anywhere on the image.',
     'SOURCE IMAGE WATERMARK REMOVAL RULE: If the input reference photo contains any existing watermarks, logos, text overlays, timestamps, or corner badges, do NOT reproduce or copy those watermarks into the new generated image. Remove all source watermarks completely.',

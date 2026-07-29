@@ -448,7 +448,14 @@ function buildCategoryPrompt(
   style: string,
   styleIndex?: number,
 ): string {
-  const coverTypographyRule = 'TYPOGRAPHY HIERARCHY (NON-NEGOTIABLE): Render text only once each—never repeat the hook, product name, or selling line anywhere else in the image. Use a three-level commercial system: (1) one dominant Thai main hook, 3–7 words, the largest display type; (2) at most one quieter short proof/support line using a simpler Thai sans-serif treatment; (3) emphasize at most one verified key phrase or number as a small accent, never the whole line. The hook, support line, and accent must differ clearly in size, weight, and treatment. Build a purposeful 3-colour palette: light/cream or bright hero fill, deep dark outline/shadow, and one selective accent colour from the product/campaign. Never apply the same yellow/red/black effect to every text line, never use identical font styling for all text, and preserve strong readability at mobile thumbnail size.';
+  const coverTypographyRule = `COVER TYPOGRAPHY & VISUAL HIERARCHY RULES (MANDATORY):
+1. NO DUPLICATE HOOKS (Hook ห้ามซ้ำทั้งภาพ): Never repeat the same slogan, phrase, or text across lines anywhere on the image canvas.
+2. DOMINANT MAIN HOOK (Main Hook ใหญ่ที่สุดเพียง 1 ชุด): The main Thai headline hook MUST be the single largest text element on the entire image.
+3. MAX 1 SUPPORTING LINE (มีข้อความรองได้สูงสุด 1 บรรทัด): At most ONE supporting subtitle line below or next to the main headline. This line MUST be significantly simpler, lighter, and smaller than the main hook.
+4. SINGLE FOCAL ACCENT (เน้นคำหรือเลขสำคัญได้เพียงจุดเดียว): Emphasize or highlight at most ONE single key word, number, or feature claim on the entire image canvas.
+5. DISTINCT 3-LEVEL TYPOGRAPHY HIERARCHY (ทั้ง 3 ระดับต้องต่างกันจริง): The Main Hook, Supporting Line, and Accent Highlight MUST differ visibly in font size, font weight, and visual treatment.
+6. 3-LAYER COLOR SYSTEM (บังคับใช้ระบบสี 3 ชั้น): Apply a refined 3-layer color system (Primary text color, Deep outline/drop shadow, and ONE dynamic accent color). NEVER use the identical yellow-red-black text effect across all lines, and NEVER use identical font styles or weights for every line.
+7. THUMBNAIL READABILITY (เน้นการอ่านได้ชัดแม้อย่อเป็น thumbnail บนมือถือ): All rendered Thai headlines must be ultra-legible with high contrast, perfectly readable even when scaled down to a small mobile e-commerce thumbnail.`;
   switch (category) {
     case ImageCategory.COVER: {
       if (['brand-ambassador', 'brand-ambassador-female', 'brand-ambassador-male'].includes(style)) {
