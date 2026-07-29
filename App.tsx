@@ -443,6 +443,9 @@ const App: React.FC = () => {
 
   // State สำหรับเปิดปิด Modal Canva-like
   const [editingImageParams, setEditingImageParams] = useState<{ isScraped: boolean; index: number; url: string } | null>(null);
+  // Results has its own editor target. It deliberately never touches Thai Ads
+  // cards or the original product-reference images.
+  const [editingResultImage, setEditingResultImage] = useState<{ id: string; url: string; title: string } | null>(null);
 
   // เพิ่ม state สำหรับจัดการการแก้ไข prompt
   const [editingPrompt, setEditingPrompt] = useState<{ [key: string]: boolean }>({});
@@ -2004,6 +2007,38 @@ const App: React.FC = () => {
     }
   };
 
+  const handleSaveEditedResultImage = (editedBase64: string) => {
+    if (!editingResultImage) return;
+    const { id, title } = editingResultImage;
+    setGeneratedImages(previous => previous.map(image => image.id === id
+      ? { ...image, url: editedBase64, status: 'completed', error: undefined, modelUsed: `${image.modelUsed || 'AI image'} · edited in Results` }
+      : image
+    ));
+    addNotification('success', 'บันทึกภาพที่แก้ไขแล้ว', `${title} ถูกแก้ไขเฉพาะใน Results — Thai Ads และรูปต้นฉบับไม่เปลี่ยน`);
+  };
+
+  const deleteResultImage = (id: string, title: string) => {
+    const confirmed = window.confirm(`ลบภาพ “${title}” ออกจาก Results หรือไม่?\n\nการลบนี้ไม่กระทบ Thai Ads หรือรูปสินค้าอ้างอิง และคุณสามารถกดสร้างภาพใหม่ในช่องเดิมได้ทันที`);
+    if (!confirmed) return;
+
+    setGeneratedImages(previous => previous.map(image => image.id === id
+      ? {
+          ...image,
+          url: '',
+          status: 'idle',
+          error: undefined,
+          thaiTexts: undefined,
+          promptUsed: undefined,
+          modelUsed: undefined,
+          originalUrl: undefined,
+          isManualScale: false,
+        }
+      : image
+    ));
+    if (editingResultImage?.id === id) setEditingResultImage(null);
+    addNotification('success', 'ลบภาพออกจาก Results แล้ว', `ช่อง ${title} ว่างแล้ว และพร้อมสร้างภาพใหม่`);
+  };
+
   // ฟังก์ชันกู้คืนภาพต้นฉบับ
   const restoreBackground = (index: number, isScraped: boolean) => {
     if (isScraped) {
@@ -3130,17 +3165,39 @@ const App: React.FC = () => {
                               </div>
                             )}
 
-                            {/* Preview Button */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openPreview(img.url);
-                              }}
-                              className="absolute top-4 right-4 p-2.5 bg-black/30 hover:bg-black/50 text-white rounded-full backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all z-20 hover:scale-110 active:scale-95"
-                              title="ดูภาพขนาดใหญ่"
-                            >
-                              <Eye className="w-5 h-5" />
-                            </button>
+                            {/* Results-only image controls. These change only generatedImages. */}
+                            <div className="absolute right-4 top-4 z-20 flex gap-2 opacity-0 transition-all group-hover:opacity-100">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openPreview(img.url);
+                                }}
+                                className="rounded-full bg-black/35 p-2.5 text-white backdrop-blur-md transition-all hover:scale-110 hover:bg-black/55 active:scale-95"
+                                title="ดูภาพขนาดใหญ่"
+                              >
+                                <Eye className="h-5 w-5" />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingResultImage({ id: img.id, url: img.url, title: meta.title });
+                                }}
+                                className="rounded-full bg-orange-500/90 p-2.5 text-white shadow-lg shadow-orange-950/30 backdrop-blur-md transition-all hover:scale-110 hover:bg-orange-600 active:scale-95"
+                                title="แก้ไขภาพนี้ใน Results"
+                              >
+                                <Edit2 className="h-5 w-5" />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteResultImage(img.id, meta.title);
+                                }}
+                                className="rounded-full bg-rose-600/90 p-2.5 text-white shadow-lg shadow-rose-950/30 backdrop-blur-md transition-all hover:scale-110 hover:bg-rose-700 active:scale-95"
+                                title="ลบภาพนี้จาก Results"
+                              >
+                                <Trash2 className="h-5 w-5" />
+                              </button>
+                            </div>
                             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end p-10">
                               <div className="flex flex-col gap-4 w-full">
                                 <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/20">
@@ -3727,10 +3784,16 @@ const App: React.FC = () => {
         </div>
       )}
       <ImageEditorModal
-        isOpen={editingImageParams !== null}
-        imageUrl={editingImageParams?.url || ''}
-        onClose={() => setEditingImageParams(null)}
-        onSave={handleSaveEditedImage}
+        isOpen={editingImageParams !== null || editingResultImage !== null}
+        imageUrl={editingResultImage?.url || editingImageParams?.url || ''}
+        onClose={() => {
+          setEditingImageParams(null);
+          setEditingResultImage(null);
+        }}
+        onSave={(editedBase64) => {
+          if (editingResultImage) handleSaveEditedResultImage(editedBase64);
+          else handleSaveEditedImage(editedBase64);
+        }}
         removeBgApiHandler={callRemoveBgApi}
       />
       {pricingCheckoutModal}
