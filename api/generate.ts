@@ -264,7 +264,7 @@ async function generateProductRecontextImage(args: {
         },
       ],
       parameters: {
-        addWatermark: true,
+        addWatermark: false,
         enhancePrompt: true,
         personGeneration: 'allow_adult',
         safetySetting: 'block_few',
@@ -319,7 +319,7 @@ async function generateImagen4TextImage(args: {
       parameters: {
         sampleCount: 1,
         aspectRatio: args.aspectRatio,
-        addWatermark: true,
+        addWatermark: false,
         enhancePrompt: true,
         personGeneration: 'allow_adult',
         safetySetting: 'block_few',

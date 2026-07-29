@@ -348,9 +348,20 @@ const buildThaiAdsPrompt = (card: ThaiAdsCard, campaignDirection: string) => {
     textDirective = 'Leave a clean editable overlay zone at top or corner for client-side Thai text overlay. Do not render text inside the image.';
   }
 
-  const presenterDirective = card.includePerson
-    ? `CAMERA & POSING INSTRUCTIONS: Medium close-up chest-up shot. Include a beautiful, attractive, young Thai female/male brand ambassador (age 23–30) with a cheerful bright smile, modern hair, and glowing clear skin, posing with the product. Presenter holds/presents the exact product PROMINENTLY FORWARD TOWARDS THE CAMERA IN FOREGROUND occupying 75-80% of center canvas. ${card.personBrief || ''}`
-    : 'Do not include people unless the role requires them.';
+  let presenterDirective = '';
+  if (card.heroCreativeMode === 'human-product-female') {
+    presenterDirective = `CAMERA & POSING INSTRUCTIONS: Medium close-up chest-up shot. Include ONE beautiful, attractive, young Thai female brand ambassador (age 23–28 years old) with a cheerful bright smile, modern hair, and glowing clear healthy skin, holding/presenting the exact product PROMINENTLY FORWARD TOWARDS THE CAMERA IN FOREGROUND occupying 75-80% of canvas. ${card.personBrief || ''}`;
+  } else if (card.heroCreativeMode === 'human-product-male') {
+    presenterDirective = `CAMERA & POSING INSTRUCTIONS: Medium close-up chest-up shot. Include ONE handsome, attractive, young Thai male brand ambassador (age 25–30 years old) with a confident bright smile, modern hair, and glowing clear healthy skin, holding/presenting the exact product PROMINENTLY FORWARD TOWARDS THE CAMERA IN FOREGROUND occupying 75-80% of canvas. ${card.personBrief || ''}`;
+  } else if (card.heroCreativeMode === 'human-product-couple') {
+    presenterDirective = `CAMERA & POSING INSTRUCTIONS: Medium close-up shot. Include TWO young Thai brand ambassadors (ONE attractive male & ONE beautiful female couple, age 24–30) smiling warmly together, holding/presenting the exact product PROMINENTLY FORWARD TOWARDS THE CAMERA IN FOREGROUND. ${card.personBrief || ''}`;
+  } else if (card.heroCreativeMode === 'product-dominant' || card.heroCreativeMode === 'short-hook' || card.heroCreativeMode === 'price-ready') {
+    presenterDirective = 'STRICT NO-PERSON RULE: Pure product hero photography ONLY. Do NOT render any human, presenter, model, face, hands, or body parts in the image. The product is the 100% sole focal point occupying 75-80% of center canvas.';
+  } else if (card.includePerson) {
+    presenterDirective = `CAMERA & POSING INSTRUCTIONS: Medium close-up chest-up shot. Include a beautiful, attractive, young Thai brand ambassador (age 23–30) with a cheerful bright smile, posing with the product forward towards the camera. ${card.personBrief || ''}`;
+  } else {
+    presenterDirective = 'Do not include people in this product shot.';
+  }
 
   return [
     `Thai Shopee High-Impact Ads role: ${card.role}.`,
@@ -361,8 +372,9 @@ const buildThaiAdsPrompt = (card: ThaiAdsCard, campaignDirection: string) => {
     '3D PERSPECTIVE FREEDOM: Reconstruct the exact product geometry 3-dimensionally. Do NOT freeze the exact camera angle of the uploaded reference photo. Feel free to render the product from dynamic commercial angles (e.g. 3/4 isometric angle, side profile, top-down flatlay, macro detail, or low hero angle) appropriate for this card role, while keeping the product 100% identical.',
     card.facts.length ? `Confirmed facts only: ${card.facts.filter(f => !/ราคาที่ผู้ขายยืนยัน|฿|\$/i.test(f)).join(' | ')}.` : 'Use only visible product details; do not invent specifications.',
     presenterDirective,
-    isHeroCard(card.id) ? `Cover generation mode — ${heroCreativeMeta(card.heroCreativeMode).label}: ${heroCreativeMeta(card.heroCreativeMode).direction}` : '',
+    isHeroCard(card.id) && card.heroCreativeMode ? `Cover creative direction — ${heroCreativeMeta(card.heroCreativeMode).label}: ${heroCreativeMeta(card.heroCreativeMode).direction}` : '',
     textDirective,
+    'STRICT NO-WATERMARK RULE: Do NOT render any digital watermarks, logo stamps, brand icons, Gemini logos, camera watermarks, or corner badges at the bottom-left, bottom-right, or anywhere on the image.',
   ].filter(Boolean).join('\n\n');
 };
 
