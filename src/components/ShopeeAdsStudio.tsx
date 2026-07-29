@@ -99,37 +99,37 @@ const HERO_CREATIVE_MODES: { id: HeroCreativeMode; label: string; description: s
     id: 'human-product-female',
     label: '👩 แบรนด์แอมบาสเดอร์ ผู้หญิง + สินค้าเด่น (ขายดี ⭐)',
     description: 'พรีเซนเตอร์หญิงไทย/เอเชีย สวย น่ารัก สดใส (อายุ 23–28 ปี) ถือ/แสดงสินค้าลอยเด่นใหญ่ 75–85%',
-    direction: 'CRITICAL CAMERA FRAMING & SUBJECT POSING: Shot type MUST be a high-impact Medium Close-Up portrait (chest-up or waist-up). The presenter is a beautiful, attractive, young Thai female brand ambassador (age 23–28 years old) with a cheerful bright smile, modern stylish hair, glowing clear healthy skin, and friendly direct eye contact. The female presenter holds or displays the exact product FORWARD TOWARDS THE CAMERA LENS IN THE FOREGROUND, occupying 75-85% of the center/lower canvas. HIGH-IMPACT INFOGRAPHIC BADGE TYPOGRAPHY: Render Thai slogans inside vibrant rounded gradient banner pills, 3D sticker badges, or drop-shadow text containers.'
+    direction: 'CRITICAL CAMERA FRAMING & SUBJECT POSING: Shot type MUST be a high-impact Medium Close-Up portrait (chest-up or waist-up). The presenter is a beautiful, attractive, young Thai female brand ambassador (age 23–28 years old) with a cheerful bright smile, modern stylish hair, glowing clear healthy skin, and friendly direct eye contact. The female presenter holds or displays the exact product FORWARD TOWARDS THE CAMERA LENS IN THE FOREGROUND, occupying 75-85% of the center/lower canvas. Apply the 7-point Cover Typography & Visual Hierarchy rules (1 dominant main hook, max 1 simpler subtitle line, single focal accent, distinct 3-level hierarchy, 3-layer color system, no duplicate hooks, mobile thumbnail readability).'
   },
   {
     id: 'human-product-male',
     label: '👨 แบรนด์แอมบาสเดอร์ ผู้ชาย + สินค้าเด่น',
     description: 'พรีเซนเตอร์ชายไทย/เอเชีย หล่อ ดูดี สดใส (อายุ 25–30 ปี) ถือ/แสดงสินค้าลอยเด่นใหญ่ 75–85%',
-    direction: 'CRITICAL CAMERA FRAMING & SUBJECT POSING: Shot type MUST be a high-impact Medium Close-Up portrait (chest-up or waist-up). The presenter is a handsome, attractive, young Thai male brand ambassador (age 25–30 years old) with a confident bright smile, modern stylish hair, glowing clear healthy skin, and direct eye contact. The male presenter holds or displays the exact product FORWARD TOWARDS THE CAMERA LENS IN THE FOREGROUND, occupying 75-85% of the center/lower canvas. HIGH-IMPACT INFOGRAPHIC BADGE TYPOGRAPHY: Render Thai slogans inside vibrant rounded gradient banner pills, 3D sticker badges, or drop-shadow text containers.'
+    direction: 'CRITICAL CAMERA FRAMING & SUBJECT POSING: Shot type MUST be a high-impact Medium Close-Up portrait (chest-up or waist-up). The presenter is a handsome, attractive, young Thai male brand ambassador (age 25–30 years old) with a confident bright smile, modern stylish hair, glowing clear healthy skin, and direct eye contact. The male presenter holds or displays the exact product FORWARD TOWARDS THE CAMERA LENS IN THE FOREGROUND, occupying 75-85% of the center/lower canvas. Apply the 7-point Cover Typography & Visual Hierarchy rules (1 dominant main hook, max 1 simpler subtitle line, single focal accent, distinct 3-level hierarchy, 3-layer color system, no duplicate hooks, mobile thumbnail readability).'
   },
   {
     id: 'human-product-couple',
     label: '👩‍❤️‍👨 แบรนด์แอมบาสเดอร์ คู่ชาย-หญิง + สินค้าเด่น',
     description: 'พรีเซนเตอร์คู่ชายหญิง วัยรุ่นดูดี ถือ/แสดงสินค้าลอยเด่นร่วมกัน',
-    direction: 'CRITICAL CAMERA FRAMING & SUBJECT POSING: Medium Close-Up portrait showing a friendly, attractive young Thai male and female couple (age 24–30), smiling warmly into the camera lens with bright cheerful energy. They present the exact product forward towards the camera lens in foreground occupying 75-85% of the canvas. INFOGRAPHIC BADGE TYPOGRAPHY: Styled Thai banner badges with contrast drop shadow.'
+    direction: 'CRITICAL CAMERA FRAMING & SUBJECT POSING: Medium Close-Up portrait showing a friendly, attractive young Thai male and female couple (age 24–30), smiling warmly into the camera lens with bright cheerful energy. They present the exact product forward towards the camera lens in foreground occupying 75-85% of the canvas. Apply the 7-point Cover Typography & Visual Hierarchy rules (1 dominant main hook, max 1 simpler subtitle line, single focal accent, distinct 3-level hierarchy, 3-layer color system, no duplicate hooks, mobile thumbnail readability).'
   },
   {
     id: 'product-dominant',
     label: '📦 สินค้าเด่นที่สุด (ไร้พรีเซนเตอร์)',
     description: 'สินค้าใหญ่ 65–75% · Hook เดียวสั้น ๆ',
-    direction: 'Make the exact product the unmistakable hero, occupying approximately 65–75% of the canvas in the foreground. Use a simple premium scene and one clean title zone only.'
+    direction: 'Make the exact product the unmistakable hero, occupying approximately 65–75% of the canvas in the foreground. Apply the 7-point Cover Typography & Visual Hierarchy rules.'
   },
   {
     id: 'short-hook',
     label: '🎯 Hook สั้น หยุดสายตา',
     description: 'สินค้าชัด · พื้นที่ Hook 2–5 คำ',
-    direction: 'Keep the product large and crisp at approximately 60–70% of the canvas. Design for one compelling Thai hook of only 2–5 words.'
+    direction: 'Keep the product large and crisp at approximately 60–70% of the canvas. Apply the 7-point Cover Typography & Visual Hierarchy rules for one compelling Thai hook of 2–5 words.'
   },
   {
     id: 'price-ready',
     label: '🏷️ พร้อมราคา / โปรโมชัน',
     description: 'สินค้าเด่น · เว้นพื้นที่ราคาเล็ก กระชับ',
-    direction: 'Make the exact product occupy approximately 60–70% of the canvas. Reserve one compact clean area for a confirmed price or offer and one very short hook.'
+    direction: 'Make the exact product occupy approximately 60–70% of the canvas. Apply the 7-point Cover Typography & Visual Hierarchy rules.'
   },
 ];
 
