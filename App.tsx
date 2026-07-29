@@ -1404,8 +1404,9 @@ const App: React.FC = () => {
     const categoriesToGenerate = sortedCategories.filter(cat => selectedCategories.has(cat));
     const requiredCredits = categoriesToGenerate.length;
     const allImages = [...localImages, ...scrapedImages];
+    const orderedReferenceImages = orderProductReferenceImages(allImages);
 
-    if (allImages.length === 0) {
+    if (orderedReferenceImages.length === 0) {
       addNotification('warning', 'ต้องมีรูปสินค้าก่อน', 'Pipeline Product Recontext ต้องใช้รูปสินค้าต้นฉบับอย่างน้อย 1 รูป กรุณาอัปโหลดรูปหรือดึงข้อมูลสินค้าก่อนสร้างภาพ');
       return;
     }
@@ -1430,11 +1431,11 @@ const App: React.FC = () => {
 
     setGeneratedImages(initialGenerated);
     setStep(3);
-    addNotification('info', 'กำลังประมวลผลรูปภาพ', `เตรียมความพร้อมและปรับภาพเป็น Base64 สำหรับส่งให้ AI Gemini...`);
+    addNotification('info', 'กำลังประมวลผลรูปภาพ', `ใช้รูปอ้างอิงลำดับ 1 เป็น Product Identity Anchor และส่งตามลำดับล่าสุดให้ AI Gemini...`);
 
     console.log("Processing images for AI...");
     const processedImages = await Promise.all(
-      orderProductReferenceImages(allImages).map(url => imageUrlToBase64(url))
+      orderedReferenceImages.map(url => imageUrlToBase64(url))
     );
     const validImages = processedImages.filter(img => img && img !== "");
 
@@ -1541,6 +1542,7 @@ const App: React.FC = () => {
     try {
       // แปลงรูปภาพที่เกี่ยวข้องให้เป็น Base64 เพื่อใช้กับ Gemini
       const imagesToProcess = orderProductReferenceImages([...localImages, ...scrapedImages]);
+      addNotification('info', 'กำลังสร้างใหม่จากภาพหลักล่าสุด', 'ใช้รูปในตำแหน่งที่ 1 ของคลังภาพต้นฉบับเป็น Product Identity Anchor');
       const processedImages = await Promise.all(
         imagesToProcess.map(url => imageUrlToBase64(url))
       );

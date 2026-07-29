@@ -109,14 +109,14 @@ function compactProductData(productData: ProductData): Omit<ProductData, 'images
   return textData;
 }
 
-const imageJobIds = new Map<string, string>();
-
 async function prepareImagesForApi(images?: string[], maxImages: number = 4): Promise<PreparedImages> {
   if (!images?.length) return {};
   const sourceImages = images.filter(Boolean).slice(0, maxImages);
-  const fingerprint = sourceImages.map((source) => `${source.length}:${source.slice(0, 64)}`).join('|');
-  const jobId = imageJobIds.get(fingerprint) || crypto.randomUUID();
-  imageJobIds.set(fingerprint, jobId);
+  // Each generate request receives a fresh Storage namespace. Reusing a job
+  // based on a short image fingerprint can accidentally reuse an older source
+  // order, which breaks the Product Identity Anchor when users drag a new
+  // image into position 1 in Results.
+  const jobId = crypto.randomUUID();
   const stored = await Promise.allSettled(sourceImages.map((source, index) => uploadImageToStorage(source, jobId, index)));
   const storagePaths = stored
     .filter((result): result is PromiseFulfilledResult<Awaited<ReturnType<typeof uploadImageToStorage>>> => result.status === 'fulfilled')
