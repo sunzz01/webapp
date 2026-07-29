@@ -1502,9 +1502,10 @@ const App: React.FC = () => {
     activeGenerationRef.current = generationController;
     setIsGenerating(true);
     // อัปเดตจำนวนครั้งที่พยายามสร้างใหม่
+    const nextRegenerationAttempt = (regenerationAttempts[category] || 0) + 1;
     setRegenerationAttempts(prev => ({
       ...prev,
-      [category]: (prev[category] || 0) + 1
+      [category]: nextRegenerationAttempt
     }));
 
     // อัปเดตสถานะเป็นกำลังสร้างใหม่ (หรือสร้างภาพครั้งแรกสำหรับ Slot ว่าง)
@@ -1541,7 +1542,9 @@ const App: React.FC = () => {
       const productData = buildCurrentProductData(validImages);
 
       // สร้างภาพใหม่เฉพาะหมวดที่เลือก โดยใช้จำนวนครั้งที่พยายามสร้างใหม่เพื่อปรับ prompt
-      const attemptCount = regenerationAttempts[category] || 1;
+      // Initial cover uses creative direction #1. Each manual regeneration
+      // advances immediately to a different direction instead of repeating it.
+      const attemptCount = nextRegenerationAttempt + 1;
       const styleToUse = styleOverride || cardVisualStyles[category] || (category === ImageCategory.COVER ? selectedCoverStyle || selectedStyle : selectedStyle);
       const ratio = imageAspectRatios[category] || selectedAspectRatio;
       const coverVariationIndex = category === ImageCategory.COVER && styleToUse.startsWith('brand-ambassador')
@@ -3187,32 +3190,19 @@ const App: React.FC = () => {
                                 </div>
                                 {/* Visual direction is available on every result card. */}
                                 <div className="mb-2">
-                                  <label className="mb-1 block text-[9px] font-black uppercase tracking-wider text-white/80">รูปแบบภาพการ์ดนี้</label>
+                                  <label className="mb-1 block text-[9px] font-black uppercase tracking-wider text-white/80">{catKey === 'COVER' ? 'แนวคิดภาพปก' : 'รูปแบบภาพการ์ดนี้'}</label>
                                   <select
                                     value={cardVisualStyles[catKey] || (catKey === 'COVER' ? selectedCoverStyle || selectedStyle : selectedStyle)}
-                                    onChange={(e) => setCardVisualStyles(prev => ({ ...prev, [catKey]: e.target.value }))}
+                                    onChange={(e) => {
+                                      const value = e.target.value;
+                                      setCardVisualStyles(prev => ({ ...prev, [catKey]: value }));
+                                      if (catKey === 'COVER') setSelectedCoverStyle(value);
+                                    }}
                                     className="w-full text-[10px] p-2 rounded-xl bg-white/20 text-white border border-white/30 backdrop-blur-md font-bold"
                                   >
                                     {STYLES.map(style => <option key={style.id} value={style.id} className="bg-slate-800 text-white">{style.name} — {style.desc}</option>)}
                                   </select>
                                 </div>
-
-                                {/* Cover Style Dropdown - แสดงเฉพาะ COVER */}
-                                {catKey === 'COVER' && (
-                                  <div className="mb-2">
-                                    <select
-                                      value={selectedCoverStyle || selectedStyle}
-                                      onChange={(e) => setSelectedCoverStyle(e.target.value)}
-                                      className="w-full text-[10px] p-2 rounded-xl bg-white/20 text-white border border-white/30 backdrop-blur-md font-bold"
-                                    >
-                                      {STYLES.map(style => (
-                                        <option key={style.id} value={style.id} className="bg-slate-800 text-white">
-                                          {style.name}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </div>
-                                )}
 
                                 {/* Social Proof Dropdown - แสดงเฉพาะ Social Proof category */}
                                 {catKey === 'SOCIAL_PROOF' && (
@@ -3471,10 +3461,14 @@ const App: React.FC = () => {
                             </div>
 
                             <div onClick={(e) => e.stopPropagation()} className="w-full max-w-xs opacity-0 group-hover:opacity-100 transition-opacity">
-                              <label className={`mb-1 block text-[9px] font-black uppercase tracking-wider ${theme === 'dark' ? 'text-white/80' : 'text-slate-600'}`}>เลือกรูปแบบภาพการ์ดนี้</label>
+                              <label className={`mb-1 block text-[9px] font-black uppercase tracking-wider ${theme === 'dark' ? 'text-white/80' : 'text-slate-600'}`}>{catKey === 'COVER' ? 'แนวคิดภาพปก' : 'เลือกรูปแบบภาพการ์ดนี้'}</label>
                               <select
                                 value={cardVisualStyles[catKey] || (catKey === 'COVER' ? selectedCoverStyle || selectedStyle : selectedStyle)}
-                                onChange={(e) => setCardVisualStyles(prev => ({ ...prev, [catKey]: e.target.value }))}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  setCardVisualStyles(prev => ({ ...prev, [catKey]: value }));
+                                  if (catKey === 'COVER') setSelectedCoverStyle(value);
+                                }}
                                 className={`w-full rounded-xl border px-3 py-2 text-[10px] font-bold outline-none ${theme === 'dark' ? 'border-gray-600 bg-gray-800 text-white' : 'border-slate-200 bg-white text-slate-700'}`}
                               >
                                 {STYLES.map(style => <option key={style.id} value={style.id}>{style.name} — {style.desc}</option>)}
