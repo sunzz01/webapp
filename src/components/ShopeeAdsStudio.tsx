@@ -375,6 +375,7 @@ const buildThaiAdsPrompt = (card: ThaiAdsCard, campaignDirection: string) => {
     isHeroCard(card.id) && card.heroCreativeMode ? `Cover creative direction — ${heroCreativeMeta(card.heroCreativeMode).label}: ${heroCreativeMeta(card.heroCreativeMode).direction}` : '',
     textDirective,
     'STRICT NO-WATERMARK RULE: Do NOT render any digital watermarks, logo stamps, brand icons, Gemini logos, camera watermarks, or corner badges at the bottom-left, bottom-right, or anywhere on the image.',
+    'SOURCE IMAGE WATERMARK REMOVAL RULE: If the input reference photo contains any existing watermarks, logos, text overlays, timestamps, or corner badges, do NOT reproduce or copy those watermarks into the new generated image. Remove all source watermarks completely.',
   ].filter(Boolean).join('\n\n');
 };
 

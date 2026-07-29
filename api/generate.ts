@@ -397,7 +397,8 @@ async function generateEnterpriseGeminiImage(args: {
             aspectRatio: getGeminiAspectRatio(args.aspectRatio),
             personGeneration: 'ALLOW_ADULT',
             outputMimeType: 'image/png',
-          },
+            addWatermark: false,
+          } as any,
         },
       });
 
