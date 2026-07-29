@@ -446,6 +446,9 @@ const App: React.FC = () => {
   // Results has its own editor target. It deliberately never touches Thai Ads
   // cards or the original product-reference images.
   const [editingResultImage, setEditingResultImage] = useState<{ id: string; url: string; title: string } | null>(null);
+  // Position inside the Results source gallery while the user is reordering
+  // reference images. The first position is the Product Identity Anchor.
+  const [draggedSourceImageIndex, setDraggedSourceImageIndex] = useState<number | null>(null);
 
   // เพิ่ม state สำหรับจัดการการแก้ไข prompt
   const [editingPrompt, setEditingPrompt] = useState<{ [key: string]: boolean }>({});
@@ -574,6 +577,7 @@ const App: React.FC = () => {
   const { theme, toggleTheme } = useTheme(); // ใช้ hook สำหรับจัดการธีม
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const resultsSourceFileInputRef = useRef<HTMLInputElement>(null);
 
   // สื่อสารกับ Extension
   useEffect(() => {
@@ -1844,6 +1848,7 @@ const App: React.FC = () => {
   const completedCount = generatedImages.filter(i => i.status === 'completed').length;
   const progressPercent = (completedCount / 9) * 100;
   const totalImages = localImages.length + scrapedImages.length;
+  const orderedSourceImages = getOrderedSourceImageEntries();
 
   const getStrategyLabel = (order: number) => {
     if (order === 1) return { text: 'Hook', color: 'bg-red-500', icon: <Target className="w-3 h-3" /> };
@@ -2015,6 +2020,52 @@ const App: React.FC = () => {
       : image
     ));
     addNotification('success', 'บันทึกภาพที่แก้ไขแล้ว', `${title} ถูกแก้ไขเฉพาะใน Results — Thai Ads และรูปต้นฉบับไม่เปลี่ยน`);
+  };
+
+  function getOrderedSourceImageEntries() {
+    const entries = [
+      ...localImages.map((url, index) => ({ url, originalUrl: originalLocalImages[index] || url, isScraped: false, index })),
+      ...scrapedImages.map((url, index) => ({ url, originalUrl: originalScrapedImages[index] || url, isScraped: true, index })),
+    ];
+    if (!entries.length) return entries;
+
+    const anchorIndex = mainImageIndex !== null && mainImageIndex >= 0 && mainImageIndex < entries.length
+      ? mainImageIndex
+      : 0;
+    return [entries[anchorIndex], ...entries.filter((_, index) => index !== anchorIndex)];
+  }
+
+  // Once a user intentionally reorders an image, keep one canonical order in
+  // the source gallery. This updates Analyze and Results together, while Thai
+  // Ads keeps its own session/reference state entirely separate.
+  const saveOrderedSourceImages = (entries: ReturnType<typeof getOrderedSourceImageEntries>) => {
+    setLocalImages(entries.map(entry => entry.url));
+    setOriginalLocalImages(entries.map(entry => entry.originalUrl));
+    setScrapedImages([]);
+    setOriginalScrapedImages([]);
+    setMainImageIndex(entries.length ? 0 : null);
+  };
+
+  const reorderSourceImages = (fromIndex: number, toIndex: number) => {
+    const entries = getOrderedSourceImageEntries();
+    if (fromIndex === toIndex || !entries[fromIndex] || !entries[toIndex]) return;
+
+    const [moved] = entries.splice(fromIndex, 1);
+    entries.splice(toIndex, 0, moved);
+    saveOrderedSourceImages(entries);
+    addNotification('success', 'จัดลำดับรูปอ้างอิงแล้ว', 'รูปแรกถูกตั้งเป็นภาพสินค้าหลักสำหรับการสร้างภาพครั้งถัดไป');
+  };
+
+  const deleteSourceImageFromResults = (galleryIndex: number) => {
+    const entries = getOrderedSourceImageEntries();
+    const image = entries[galleryIndex];
+    if (!image) return;
+    const confirmed = window.confirm('ลบรูปอ้างอิงนี้จาก Analyze และ Results หรือไม่?\n\nจะไม่กระทบภาพที่สร้างแล้วหรือ Thai Ads');
+    if (!confirmed) return;
+
+    entries.splice(galleryIndex, 1);
+    saveOrderedSourceImages(entries);
+    addNotification('success', 'ลบรูปอ้างอิงแล้ว', 'คลังภาพ Analyze และ Results อัปเดตตรงกันแล้ว');
   };
 
   const deleteResultImage = (id: string, title: string) => {
@@ -3071,6 +3122,114 @@ const App: React.FC = () => {
                     สร้างสำเร็จสำหรับ <span className={`font-black ${theme === 'dark' ? 'text-orange-400' : 'text-orange-500'}`}>"{productName || 'Unnamed Product'}"</span> <br />
                     เน้นสไตล์ <span className={theme === 'dark' ? 'text-white' : 'text-slate-900'}>{selectedStyleName}</span> เพื่อเพิ่มยอดขาย
                   </p>
+                </div>
+
+                {/* Results Source Gallery: shared with Analyze, isolated from Thai Ads. */}
+                <div className={`min-w-0 xl:flex-[1.7] rounded-[2rem] border p-4 ${theme === 'dark' ? 'border-slate-700/80 bg-slate-950/25' : 'border-slate-200 bg-slate-50/70'}`}>
+                  <div className="mb-3 flex items-center justify-between gap-3 px-1">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <ImageIcon className="h-4 w-4 shrink-0 text-orange-500" />
+                      <div className="min-w-0">
+                        <p className={`truncate text-xs font-black ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>คลังภาพต้นฉบับ</p>
+                        <p className={`text-[10px] font-bold ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>ลากเพื่อเรียงลำดับ · ภาพแรกคือภาพหลัก</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => resultsSourceFileInputRef.current?.click()}
+                      className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-orange-500 px-2.5 py-2 text-[10px] font-black text-white shadow-md shadow-orange-500/20 transition hover:bg-orange-600 active:scale-95"
+                      title="เพิ่มรูปภาพสินค้า"
+                    >
+                      <Plus className="h-3.5 w-3.5" /> เพิ่มรูป
+                    </button>
+                  </div>
+
+                  {orderedSourceImages.length ? (
+                    <div className="flex gap-3 overflow-x-auto pb-1 pr-1 [scrollbar-width:thin]">
+                      {orderedSourceImages.map((image, galleryIndex) => (
+                        <div
+                          key={`${image.isScraped ? 'scraped' : 'local'}-${image.index}-${image.url.slice(0, 24)}`}
+                          draggable
+                          onDragStart={(event) => {
+                            setDraggedSourceImageIndex(galleryIndex);
+                            event.dataTransfer.effectAllowed = 'move';
+                          }}
+                          onDragOver={(event) => {
+                            event.preventDefault();
+                            event.dataTransfer.dropEffect = 'move';
+                          }}
+                          onDrop={(event) => {
+                            event.preventDefault();
+                            if (draggedSourceImageIndex !== null) reorderSourceImages(draggedSourceImageIndex, galleryIndex);
+                            setDraggedSourceImageIndex(null);
+                          }}
+                          onDragEnd={() => setDraggedSourceImageIndex(null)}
+                          className={`group relative h-28 w-28 shrink-0 cursor-grab overflow-hidden rounded-2xl border-2 transition-all active:cursor-grabbing ${galleryIndex === 0 ? 'border-orange-500 shadow-lg shadow-orange-500/25' : theme === 'dark' ? 'border-slate-700 hover:border-slate-500' : 'border-white shadow-sm hover:border-orange-200'} ${draggedSourceImageIndex === galleryIndex ? 'scale-95 opacity-45' : 'hover:-translate-y-1'}`}
+                          title="ลากเพื่อเปลี่ยนลำดับรูปภาพ"
+                        >
+                          <img src={image.url} alt={`รูปอ้างอิงสินค้า ${galleryIndex + 1}`} className="h-full w-full object-cover" draggable={false} />
+                          <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/90 via-slate-950/35 to-transparent px-2 pb-2 pt-7">
+                            {galleryIndex === 0 ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-orange-500 px-2 py-1 text-[9px] font-black text-white"><Target className="h-3 w-3" /> ภาพหลัก</span>
+                            ) : (
+                              <span className="text-[10px] font-black text-white/85">ลำดับ {galleryIndex + 1}</span>
+                            )}
+                          </div>
+                          <div className="absolute right-1.5 top-1.5 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setEditingImageParams({ isScraped: image.isScraped, index: image.index, url: image.url });
+                              }}
+                              className="rounded-lg bg-slate-950/80 p-1.5 text-white backdrop-blur-sm transition hover:bg-orange-500"
+                              title="แก้ไขภาพ"
+                            >
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                removeBackground(image.url, image.index, image.isScraped);
+                              }}
+                              className="rounded-lg bg-slate-950/80 p-1.5 text-white backdrop-blur-sm transition hover:bg-sky-500"
+                              title="ลบพื้นหลัง"
+                            >
+                              <Scissors className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                deleteSourceImageFromResults(galleryIndex);
+                              }}
+                              className="rounded-lg bg-slate-950/80 p-1.5 text-white backdrop-blur-sm transition hover:bg-rose-600"
+                              title="ลบรูปอ้างอิง"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => resultsSourceFileInputRef.current?.click()}
+                      className={`flex h-28 w-full items-center justify-center gap-2 rounded-2xl border border-dashed text-xs font-black transition ${theme === 'dark' ? 'border-slate-700 text-slate-400 hover:border-orange-500 hover:text-orange-300' : 'border-slate-300 text-slate-500 hover:border-orange-400 hover:text-orange-600'}`}
+                    >
+                      <ImagePlus className="h-5 w-5" /> เพิ่มรูปสินค้าเพื่อเริ่มต้น
+                    </button>
+                  )}
+                  <input
+                    ref={resultsSourceFileInputRef}
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
                 </div>
 
                 <div className={`${theme === 'dark' ? 'bg-gray-800/90 border-gray-700' : 'bg-slate-50 border-slate-100'} p-6 sm:p-7 rounded-[2rem] flex flex-col gap-4 min-w-[320px] shadow-inner border`}>
