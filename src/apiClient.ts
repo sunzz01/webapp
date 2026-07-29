@@ -482,11 +482,11 @@ function buildCategoryPrompt(
     case ImageCategory.CLOSE_UP:
       return `Macro extreme close-up shot of "${productData.name}". Focus on material texture and high-quality details. Soft bokeh background.`;
     case ImageCategory.LIFESTYLE_A:
-      return `Lifestyle photography of "${productData.name}" being used by a Thai/Asian person inside a cozy home environment. Warm natural light.`;
+      return `Authentic home lifestyle photography of "${productData.name}" being used naturally in a cozy domestic setting. REALISTIC LIFESTYLE & KITCHEN PHYSICS (CRITICAL): If the product is cookware, a wok, pan, or appliance used for cooking, it MUST be placed directly ON A STOVE, GAS HOB, or INDUCTION BURNER when cooking food with steam. NEVER render a hot pan stir-frying food directly on a bare wooden dining table or countertop without a stove. Ensure natural hand ergonomics and believable posture—one hand holding utensil or handle with a natural grip. Warm natural daylight, high commercial realism.`;
     case ImageCategory.LIFESTYLE_B:
-      return `Lifestyle photography of "${productData.name}" in an outdoor nature setting. Bright sunny day, fresh feel.`;
+      return `Authentic outdoor lifestyle photography of "${productData.name}" in a natural outdoor/patio setting. Ensure realistic product usage and natural hand posture. Bright sunny day, fresh feel.`;
     case ImageCategory.LIFESTYLE_C:
-      return `Lifestyle photography of "${productData.name}" in a modern urban setting.`;
+      return `Authentic modern urban lifestyle photography of "${productData.name}". Ensure realistic placement and natural human interaction. Clean modern aesthetic.`;
     case ImageCategory.SIZE_CHART:
       return `Clean product size comparison chart for "${productData.name}". Dimension annotations and specifications MUST BE IN THAI LANGUAGE ONLY (ภาษาไทยเท่านั้น, เช่น ขนาดสินค้า, ซม., มม.).`;
     default:
