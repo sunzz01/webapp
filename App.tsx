@@ -3131,7 +3131,7 @@ const App: React.FC = () => {
                       <ImageIcon className="h-4 w-4 shrink-0 text-orange-500" />
                       <div className="min-w-0">
                         <p className={`truncate text-xs font-black ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>คลังภาพต้นฉบับ</p>
-                        <p className={`text-[10px] font-bold ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>ลากเพื่อเรียงลำดับ · ภาพแรกคือภาพหลัก</p>
+                        <p className={`text-[10px] font-bold ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>เรียงลำดับรูปก่อนสร้างภาพ</p>
                       </div>
                     </div>
                     <button
@@ -3142,6 +3142,11 @@ const App: React.FC = () => {
                     >
                       <Plus className="h-3.5 w-3.5" /> เพิ่มรูป
                     </button>
+                  </div>
+
+                  <div className={`mb-3 flex items-center gap-2 rounded-xl border px-3 py-2 text-[10px] font-bold leading-4 ${theme === 'dark' ? 'border-orange-500/25 bg-orange-500/10 text-orange-100' : 'border-orange-200 bg-orange-50 text-orange-800'}`}>
+                    <Move className="h-4 w-4 shrink-0 text-orange-500" />
+                    <span><b>วิธีใช้:</b> กดค้างแล้วลากรูปเพื่อสลับตำแหน่ง — <b>รูปตำแหน่งที่ 1</b> จะเป็นภาพหลักที่ AI ใช้ยึดทรง สี และโลโก้สินค้า</span>
                   </div>
 
                   {orderedSourceImages.length ? (
@@ -3168,9 +3173,12 @@ const App: React.FC = () => {
                           title="ลากเพื่อเปลี่ยนลำดับรูปภาพ"
                         >
                           <img src={image.url} alt={`รูปอ้างอิงสินค้า ${galleryIndex + 1}`} className="h-full w-full object-cover" draggable={false} />
+                          <span className="pointer-events-none absolute left-1.5 top-1.5 inline-flex items-center gap-1 rounded-lg bg-slate-950/75 px-1.5 py-1 text-[9px] font-black text-white backdrop-blur-sm">
+                            <Move className="h-3 w-3" /> ลาก
+                          </span>
                           <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/90 via-slate-950/35 to-transparent px-2 pb-2 pt-7">
                             {galleryIndex === 0 ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-orange-500 px-2 py-1 text-[9px] font-black text-white"><Target className="h-3 w-3" /> ภาพหลัก</span>
+                              <span className="inline-flex items-center gap-1 rounded-full bg-orange-500 px-2 py-1 text-[9px] font-black text-white"><Target className="h-3 w-3" /> AI ใช้เป็นภาพหลัก</span>
                             ) : (
                               <span className="text-[10px] font-black text-white/85">ลำดับ {galleryIndex + 1}</span>
                             )}
