@@ -186,6 +186,8 @@ Goal:
 - DYNAMIC THAI SLOGAN GENERATION: Read the product description and selling points carefully. Synthesize 1 unique, highly relevant, punchy Thai marketing slogan (3-6 words) specifically created for this product. NEVER use hardcoded static template phrases like "เผาแล้ว พร้อมใช้" unless the product is specifically a pre-seasoned cast iron pan.
 - CRITICAL LANGUAGE RULE: All text, banners, headlines, badges, callouts, size labels, and promotional text rendered inside the generated image MUST BE IN THAI LANGUAGE ONLY (ภาษาไทยเท่านั้น). Do NOT generate English text, pseudo-Latin, or gibberish text unless the confirmed product brand name itself is explicitly in English.
 - STRICT NO-METADATA RULE: NEVER render system metadata headings or category headers such as "จุดเด่นสินค้า:", "ราคาที่ผู้ขายยืนยัน:", "Key features:", "Confirmed selling price:", "Description:", "Product:", "Specs:", or "Features:". If rendering text, render ONLY clean natural marketing slogans tailored to this specific product, never system category headers or label prefixes.
+- HUMAN ANATOMY & HAND QUALITY (CRITICAL): When generating images that include people, you MUST ensure anatomically correct human features. Hands must have exactly 5 fingers each with natural proportions, natural grip posture, and correct joint articulation. Arms must connect naturally to shoulders. Faces must have symmetrical features, natural skin texture, and realistic proportions. If a person is holding or using the product, ensure the grip is physically plausible — fingers wrap around the handle/body naturally, thumbs oppose correctly, and the wrist angle is anatomically possible. NEVER generate: extra fingers, fused fingers, missing fingers, distorted knuckles, backwards thumbs, floating hands, hands clipping through objects, unnatural wrist bends exceeding 90 degrees, or arms that appear disconnected. If realistic human anatomy cannot be rendered with high confidence, prefer a product-only composition instead.
+- STRICT NO-WATERMARK MANDATE: Do NOT add any watermark, logo overlay, brand emblem, AI attribution mark, Google/Gemini logo, spark icon, camera watermark, corner stamp, semi-transparent badge, or any kind of attribution mark anywhere on the image. The output must be 100% clean commercial photography with zero watermarks. Also ensure the negativePrompt includes: watermark, logo overlay, corner stamp, attribution mark, semi-transparent text.
 - COVER IMAGE RULE: For COVER images (ภาพปกสินค้า / ImageCategory.COVER), render a clean, high-impact hero product shot (or presenter holding product) with 1 dynamic Thai marketing headline tailored to this product and optionally one short supporting line. Unless the first reference visibly shows a multi-piece set, depict the purchasable product exactly once: the presenter may interact with that same hero item, but never create a duplicate item elsewhere in the scene. Require a physically plausible pose; no floating product, no clipping into the body, and no product resting on the chest. For reflective materials, reflections must match the same indoor scene, people, and light direction. Never repeat any hook, product name, or selling line. Establish three typography levels: one large main hook; at most one smaller, calmer proof line; and at most one small accent on a verified phrase or number. Each level must use visibly different scale, weight, and treatment. Use a purposeful three-colour high-contrast palette—bright/cream or vivid main fill, deep outline/shadow, and one selective accent—so the copy is readable at mobile thumbnail size. Never apply the same yellow/red/black effect, font style, or visual weight to every text line. Treat every regeneration as a fresh art direction: vary the scene, camera, composition, and headline placement while preserving the exact product and presenter brief. Do NOT default to rounded banners, sticker frames, feature pills, ratings, seals, price tags, feature lists, or metadata labels unless explicitly confirmed by the supplied product facts.
 - Avoid overloading the image with many badges, review cards, tiny captions, or dense text.
 - Aspect ratio target: ${args.aspectRatio} (${args.ratioDesc}).
@@ -220,7 +222,7 @@ Return valid JSON only:
     throw new Error('Prompt orchestrator did not return a valid prompt.');
   }
 
-  const systemNegative = 'เผาแล้ว พร้อมใช้, static repeated phrases, จุดเด่นสินค้า, ราคาที่ผู้ขายยืนยัน, Key features, Confirmed selling price, metadata labels, category headers, specs list on cover image';
+  const systemNegative = 'เผาแล้ว พร้อมใช้, static repeated phrases, จุดเด่นสินค้า, ราคาที่ผู้ขายยืนยัน, Key features, Confirmed selling price, metadata labels, category headers, specs list on cover image, watermark, logo overlay, corner stamp, attribution mark, semi-transparent text, Google logo, Gemini logo, spark icon, extra fingers, six fingers, deformed hands, fused fingers, missing fingers, distorted anatomy, backwards thumbs, unnatural hand pose, mutated hands, bad anatomy, disconnected limbs';
   const finalNegativePrompt = parsed.negativePrompt ? `${parsed.negativePrompt}, ${systemNegative}` : systemNegative;
 
   return {
@@ -489,12 +491,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     const isThaiAds = Boolean(safeAdBrief || category === 'SHOPEE_THAI_AD');
+
+    // Build negative instruction block from orchestrated negativePrompt.
+    // Gemini Image API has no separate negativePrompt param, so we inject it
+    // as explicit "DO NOT" instructions appended to the generation prompt.
+    const negativeBlock = orchestrated.negativePrompt
+      ? `\n\nCRITICAL NEGATIVE CONSTRAINTS (DO NOT generate any of the following): ${orchestrated.negativePrompt}`
+      : '';
+
+    const anatomyGuard = `\n\nHUMAN ANATOMY QUALITY GUARD: All people in this image must have anatomically correct features. Hands: exactly 5 fingers per hand, natural joint articulation, correct thumb opposition, physically plausible grip. No extra, fused, or missing digits. No floating or disconnected limbs. No distorted facial features. If holding the product, fingers must wrap naturally around it with a realistic wrist angle. Prefer clean product-only composition over poorly rendered human anatomy.`;
+
+    const watermarkGuard = `\n\nABSOLUTE NO-WATERMARK RULE: The final image must contain ZERO watermarks, logo overlays, corner stamps, attribution marks, semi-transparent badges, or any AI-generated branding. This is a hard requirement — any watermark means the image is rejected.`;
+
     const fullGenerationPrompt = isThaiAds
-      ? legacyPrompt
+      ? `${legacyPrompt}${anatomyGuard}${watermarkGuard}${negativeBlock}`
       : [
           legacyPrompt,
           orchestrated.prompt ? `RECONTEXT SCENE DIRECTION: ${orchestrated.prompt}` : '',
-        ].filter(Boolean).join('\n\n');
+        ].filter(Boolean).join('\n\n') + anatomyGuard + watermarkGuard + negativeBlock;
 
     const rawModel = typeof model === 'string' && model ? model : 'gemini-3.1-flash-image';
     const targetModel = ENTERPRISE_GEMINI_IMAGE_MODELS.has(rawModel) ? rawModel : 'gemini-3.1-flash-image';

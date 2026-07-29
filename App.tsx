@@ -2908,9 +2908,6 @@ const App: React.FC = () => {
                           osc.stop(audioCtx.currentTime + 0.08);
                         } catch { /* ignore audio errors */ }
                         // Auto-select the style in the center
-                        if (STYLES[currentIdx]) {
-                          setSelectedStyle(STYLES[currentIdx].id);
-                        }
                       }
                     }}
                     ref={(el) => {
@@ -3188,21 +3185,23 @@ const App: React.FC = () => {
                                     </div>
                                   )}
                                 </div>
-                                {/* Visual direction is available on every result card. */}
-                                <div className="mb-2">
-                                  <label className="mb-1 block text-[9px] font-black uppercase tracking-wider text-white/80">{catKey === 'COVER' ? 'แนวคิดภาพปก' : 'รูปแบบภาพการ์ดนี้'}</label>
-                                  <select
-                                    value={cardVisualStyles[catKey] || (catKey === 'COVER' ? selectedCoverStyle || selectedStyle : selectedStyle)}
-                                    onChange={(e) => {
-                                      const value = e.target.value;
-                                      setCardVisualStyles(prev => ({ ...prev, [catKey]: value }));
-                                      if (catKey === 'COVER') setSelectedCoverStyle(value);
-                                    }}
-                                    className="w-full text-[10px] p-2 rounded-xl bg-white/20 text-white border border-white/30 backdrop-blur-md font-bold"
-                                  >
-                                    {STYLES.map(style => <option key={style.id} value={style.id} className="bg-slate-800 text-white">{style.name} — {style.desc}</option>)}
-                                  </select>
-                                </div>
+                                 {/* Visual direction / Cover mode dropdown is displayed ONLY on COVER card */}
+                                 {catKey === 'COVER' && (
+                                   <div className="mb-2">
+                                     <label className="mb-1 block text-[9px] font-black uppercase tracking-wider text-white/80">🖼️ แนวคิดภาพปก & แบรนด์แอมบาสเดอร์</label>
+                                     <select
+                                       value={cardVisualStyles[catKey] || selectedCoverStyle || selectedStyle}
+                                       onChange={(e) => {
+                                         const value = e.target.value;
+                                         setCardVisualStyles(prev => ({ ...prev, [catKey]: value }));
+                                         setSelectedCoverStyle(value);
+                                       }}
+                                       className="w-full text-[10px] p-2 rounded-xl bg-white/20 text-white border border-white/30 backdrop-blur-md font-bold"
+                                     >
+                                       {STYLES.map(style => <option key={style.id} value={style.id} className="bg-slate-800 text-white">{style.name} — {style.desc}</option>)}
+                                     </select>
+                                   </div>
+                                  )}
 
                                 {/* Social Proof Dropdown - แสดงเฉพาะ Social Proof category */}
                                 {catKey === 'SOCIAL_PROOF' && (
