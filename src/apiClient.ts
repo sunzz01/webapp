@@ -173,7 +173,7 @@ async function apiPost<T>(path: string, body: any, signal?: AbortSignal): Promis
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 60000);
+  const timeoutId = setTimeout(() => controller.abort(), 120000);
   const abortFromCaller = () => controller.abort();
   signal?.addEventListener('abort', abortFromCaller, { once: true });
 
@@ -195,7 +195,7 @@ async function apiPost<T>(path: string, body: any, signal?: AbortSignal): Promis
       throw new Error('ผู้ใช้หยุดการสร้างภาพแล้ว');
     }
     if (err.name === 'AbortError') {
-      throw new Error('คำขอสร้างภาพใช้เวลานานเกินไป (Timeout 60 วินาที) กรุณากดสร้างใหม่อีกครั้ง');
+      throw new Error('คำขอสร้างภาพใช้เวลานานเกินไป (Timeout 2 นาที) กรุณากดสร้างใหม่อีกครั้ง');
     }
     throw err;
   } finally {

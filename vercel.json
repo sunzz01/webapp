@@ -9,6 +9,12 @@
 
   "framework": "vite",
 
+  "functions": {
+    "api/*.ts": {
+      "maxDuration": 120
+    }
+  },
+
   "rewrites": [
     {
       "source": "/api/(.*)",
