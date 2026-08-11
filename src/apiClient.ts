@@ -22,7 +22,8 @@ import { uploadImageToStorage } from './imageStorage';
  */
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 const MAX_API_IMAGE_BYTES = 360_000;
-const MAX_API_PAYLOAD_BYTES = 1_850_000;
+const MAX_API_PAYLOAD_BYTES = 1_200_000;
+const STORAGE_RETRY_BACKOFF_MS = 5 * 60 * 1000;
 const MAX_IMAGES_BY_ENDPOINT: Record<string, number> = {
   '/api/analyze': 4,
   '/api/generate': 3,
@@ -104,6 +105,13 @@ interface PreparedImages {
   storagePaths?: string[];
 }
 
+// If Firebase Storage is unavailable (for example it responds with 402 while
+// billing is disabled), avoid repeatedly attempting an upload for every card.
+// The current request and short-lived subsequent requests use the safe inline
+// fallback instead. This is browser-session state only; once Storage is fixed
+// a fresh page session will immediately use it again.
+let storageUnavailableUntil = 0;
+
 function compactProductData(productData: ProductData): Omit<ProductData, 'images' | 'referenceImages'> {
   const { images: _images, referenceImages: _referenceImages, ...textData } = productData;
   return textData;
@@ -116,16 +124,26 @@ async function prepareImagesForApi(images?: string[], maxImages: number = 4): Pr
   // based on a short image fingerprint can accidentally reuse an older source
   // order, which breaks the Product Identity Anchor when users drag a new
   // image into position 1 in Results.
-  const jobId = crypto.randomUUID();
-  const stored = await Promise.allSettled(sourceImages.map((source, index) => uploadImageToStorage(source, jobId, index)));
-  const storagePaths = stored
-    .filter((result): result is PromiseFulfilledResult<Awaited<ReturnType<typeof uploadImageToStorage>>> => result.status === 'fulfilled')
-    .map(result => result.value.path);
-  const uploadFailed = sourceImages.filter((_, index) => stored[index]?.status !== 'fulfilled');
+  const canTryStorage = Date.now() >= storageUnavailableUntil;
+  if (canTryStorage) {
+    const jobId = crypto.randomUUID();
+    const stored = await Promise.allSettled(sourceImages.map((source, index) => uploadImageToStorage(source, jobId, index)));
+    const allStored = stored.every((result) => result.status === 'fulfilled');
 
-  // A failed Storage upload should not block the existing workflow. Compress only
-  // those images and send them inline as the temporary fallback.
-  if (!uploadFailed.length) return { storagePaths };
+    if (allStored) {
+      return {
+        storagePaths: stored.map((result) => (result as PromiseFulfilledResult<Awaited<ReturnType<typeof uploadImageToStorage>>>).value.path),
+      };
+    }
+
+    storageUnavailableUntil = Date.now() + STORAGE_RETRY_BACKOFF_MS;
+    console.warn('[ApiClient] Firebase Storage unavailable; using compressed inline reference images for this session.', stored);
+  }
+
+  // Never mix successful Storage paths with inline fallbacks: that would let
+  // the server change their sequence and could make a later image become the
+  // Product Identity Anchor. Compress the full ordered source set instead.
+  const inlineSources = sourceImages;
 
   const compressionProfiles = [
     { maxEdge: 900, qualitySteps: [0.72, 0.62, 0.52, 0.44] },
@@ -137,13 +155,13 @@ async function prepareImagesForApi(images?: string[], maxImages: number = 4): Pr
   let bestEffort: string[] = [];
   for (const profile of compressionProfiles) {
     const prepared = await Promise.all(
-      uploadFailed.map((image) => shrinkImageForApi(image, profile.maxEdge, profile.qualitySteps)),
+      inlineSources.map((image) => shrinkImageForApi(image, profile.maxEdge, profile.qualitySteps)),
     );
     const totalBytes = prepared.reduce((sum, image) => sum + estimateBase64Bytes(image), 0);
     bestEffort = prepared;
 
     if (totalBytes <= MAX_API_PAYLOAD_BYTES) {
-      return { storagePaths: storagePaths.length ? storagePaths : undefined, images: prepared };
+      return { images: prepared };
     }
   }
 
@@ -156,7 +174,7 @@ async function prepareImagesForApi(images?: string[], maxImages: number = 4): Pr
     totalBytes += imageBytes;
   }
 
-  return { storagePaths: storagePaths.length ? storagePaths : undefined, images: packed.length ? packed : undefined };
+  return { images: packed.length ? packed : undefined };
 }
 
 // ═══════════════════════════════════════════════════════════════
