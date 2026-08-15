@@ -449,6 +449,13 @@ const App: React.FC = () => {
   // Position inside the Results source gallery while the user is reordering
   // reference images. The first position is the Product Identity Anchor.
   const [draggedSourceImageIndex, setDraggedSourceImageIndex] = useState<number | null>(null);
+  const [variantGenerationProgress, setVariantGenerationProgress] = useState<{
+    current: number;
+    total: number;
+    label: string;
+    status: 'generating' | 'completed' | 'stopped';
+  } | null>(null);
+  const [shouldScrollToVariantStudio, setShouldScrollToVariantStudio] = useState(false);
 
   // เพิ่ม state สำหรับจัดการการแก้ไข prompt
   const [editingPrompt, setEditingPrompt] = useState<{ [key: string]: boolean }>({});
@@ -578,6 +585,16 @@ const App: React.FC = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const resultsSourceFileInputRef = useRef<HTMLInputElement>(null);
+  const variantStudioRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!shouldScrollToVariantStudio || step !== 3 || !generatedImages.some(image => image.variantLabel)) return;
+    const timer = window.setTimeout(() => {
+      variantStudioRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setShouldScrollToVariantStudio(false);
+    }, 180);
+    return () => window.clearTimeout(timer);
+  }, [generatedImages, shouldScrollToVariantStudio, step]);
 
   // สื่อสารกับ Extension
   useEffect(() => {
@@ -1594,7 +1611,7 @@ const App: React.FC = () => {
   const generateSelectedVariantImages = async () => {
     const targets = variantGroups.flatMap(group => group.options
       .filter(option => selectedVariantOptionIds.includes(option.id))
-      .map(option => ({ group, option, label: `${group.name}: ${option.label}${option.price?.display ? ` · ${option.price.display}` : ''}` })));
+      .map(option => ({ group, option, label: `${group.name}: ${option.label}${usePriceInGeneration && option.price?.display ? ` · ${option.price.display}` : ''}` })));
     if (!targets.length) {
       addNotification('warning', 'ยังไม่ได้เลือกตัวเลือกสินค้า', 'เลือกสี ขนาด หรือรุ่นอย่างน้อย 1 รายการก่อนสร้างภาพแยกตัวเลือก');
       return;
@@ -1610,9 +1627,13 @@ const App: React.FC = () => {
     const generationController = new AbortController();
     activeGenerationRef.current = generationController;
     setIsGenerating(true);
+    setVariantGenerationProgress({ current: 0, total: targets.length, label: 'กำลังเตรียมรูปอ้างอิง', status: 'generating' });
+    setShouldScrollToVariantStudio(true);
     setStep(3);
-    for (const target of targets) {
+    let completedTargets = 0;
+    for (const [targetIndex, target] of targets.entries()) {
       if (generationController.signal.aborted) break;
+      setVariantGenerationProgress({ current: targetIndex + 1, total: targets.length, label: target.label, status: 'generating' });
       const id = `variant-${target.option.id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
       setGeneratedImages(previous => [...previous, { id, category: ImageCategory.COVER, url: '', prompt: '', status: 'generating', variantLabel: target.label, visualStyle: cardVisualStyles.COVER || selectedStyle }]);
       try {
@@ -1628,6 +1649,7 @@ const App: React.FC = () => {
           generationController.signal,
         );
         setGeneratedImages(previous => previous.map(image => image.id === id ? { ...image, url: result.imageUrl, status: 'completed', thaiTexts: [`${target.label}`, ...result.thaiTexts], promptUsed: result.promptUsed, modelUsed: result.modelUsed } : image));
+        completedTargets += 1;
       } catch (error) {
         if (generationController.signal.aborted) break;
         setGeneratedImages(previous => previous.map(image => image.id === id ? { ...image, status: 'error', error: error instanceof Error ? error.message : 'สร้างภาพตัวเลือกไม่สำเร็จ' } : image));
@@ -1635,6 +1657,12 @@ const App: React.FC = () => {
     }
     if (activeGenerationRef.current === generationController) activeGenerationRef.current = null;
     setIsGenerating(false);
+    setVariantGenerationProgress({
+      current: generationController.signal.aborted ? completedTargets : targets.length,
+      total: targets.length,
+      label: generationController.signal.aborted ? 'หยุดการสร้างตามคำสั่งแล้ว' : `ประมวลผลครบแล้ว · สำเร็จ ${completedTargets}/${targets.length} ภาพ`,
+      status: generationController.signal.aborted ? 'stopped' : 'completed',
+    });
   };
 
   // ลบอักขระที่ทำให้เกิด subfolder ใน ZIP หรือ OS
@@ -2486,7 +2514,7 @@ const App: React.FC = () => {
                 </div>
                 {variantGroups.length > 0 && (
                   <button onClick={generateSelectedVariantImages} disabled={isGenerating || selectedVariantOptionIds.length === 0} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 shadow-md shadow-emerald-600/20 disabled:opacity-40 transition-all">
-                    <Layers className="h-4 w-4" /> สร้างภาพแยก {selectedVariantOptionIds.length || ''} ตัวเลือกที่เลือก
+                    <Layers className="h-4 w-4" /> {selectedVariantOptionIds.length ? `สร้าง ${selectedVariantOptionIds.length} ภาพตามตัวเลือก → ดูใน Results` : 'เลือกตัวเลือกเพื่อสร้างภาพ'}
                   </button>
                 )}
               </div>
@@ -3272,6 +3300,48 @@ const App: React.FC = () => {
               </div>
             </div>
 
+            {generatedImages.some(image => image.variantLabel) && (
+              <section ref={variantStudioRef} className={`scroll-mt-24 mb-12 rounded-[2.5rem] border p-6 shadow-xl md:p-8 ${theme === 'dark' ? 'border-emerald-900/70 bg-emerald-950/15' : 'border-emerald-100 bg-emerald-50/60'}`}>
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-600">Variant Studio</p>
+                    <h3 className={`mt-1 text-2xl font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>ภาพแยกตามตัวเลือกสินค้า</h3>
+                    <p className={`mt-1 text-xs ${theme === 'dark' ? 'text-emerald-200/70' : 'text-emerald-800/70'}`}>ผลลัพธ์จากตัวเลือกที่เลือกใน Analyze · ราคาจะถูกใช้เฉพาะเมื่อเปิด Toggle ราคา</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button onClick={() => setStep(1)} className={`rounded-xl border px-3 py-2 text-xs font-black transition ${theme === 'dark' ? 'border-slate-700 text-slate-200 hover:bg-slate-800' : 'border-emerald-200 bg-white text-emerald-800 hover:bg-emerald-50'}`}>กลับไปแก้ตัวเลือก</button>
+                    <span className="rounded-full bg-emerald-500 px-3 py-1.5 text-xs font-black text-white">{generatedImages.filter(image => image.variantLabel).length} ภาพ</span>
+                  </div>
+                </div>
+
+                {variantGenerationProgress && (
+                  <div className={`mt-5 rounded-2xl border p-4 ${variantGenerationProgress.status === 'completed' ? 'border-emerald-300 bg-emerald-100/70 dark:border-emerald-800 dark:bg-emerald-950/40' : variantGenerationProgress.status === 'stopped' ? 'border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30' : 'border-sky-200 bg-sky-50 dark:border-sky-900 dark:bg-sky-950/30'}`}>
+                    <div className="flex items-center justify-between gap-3 text-xs font-black">
+                      <span className="flex min-w-0 items-center gap-2">
+                        {variantGenerationProgress.status === 'generating' ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-sky-500" /> : <CheckCircle2 className={`h-4 w-4 shrink-0 ${variantGenerationProgress.status === 'completed' ? 'text-emerald-500' : 'text-amber-500'}`} />}
+                        <span className="truncate">{variantGenerationProgress.label}</span>
+                      </span>
+                      <span>{variantGenerationProgress.current}/{variantGenerationProgress.total}</span>
+                    </div>
+                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/70 dark:bg-slate-900/70">
+                      <div className={`h-full rounded-full transition-all duration-500 ${variantGenerationProgress.status === 'stopped' ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${variantGenerationProgress.total ? Math.round((variantGenerationProgress.current / variantGenerationProgress.total) * 100) : 0}%` }} />
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {generatedImages.filter(image => image.variantLabel).map(image => (
+                    <article key={image.id} className={`overflow-hidden rounded-3xl border ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-white bg-white shadow-sm'}`}>
+                      <div className={`aspect-square ${theme === 'dark' ? 'bg-gray-800' : 'bg-slate-100'}`}>
+                        {image.status === 'completed' && image.url ? <img src={image.url} alt={image.variantLabel} className="h-full w-full object-cover"/> : <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center text-xs text-slate-500">{image.status === 'generating' ? <Loader2 className="animate-spin text-emerald-500"/> : <ImageIcon className="text-emerald-500"/>}<span>{image.status === 'generating' ? `กำลังสร้าง ${image.variantLabel}…` : image.error || 'รอสร้างภาพ'}</span></div>}
+                      </div>
+                      <div className="p-4"><p className={`text-sm font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{image.variantLabel}</p><p className="mt-1 truncate text-[10px] font-bold text-emerald-600">{image.modelUsed ? `ใช้จริง: ${image.modelUsed}` : image.status === 'generating' ? 'กำลังส่งข้อมูลตัวเลือกให้ AI' : 'รอผลลัพธ์'}</p><p className={`mt-2 text-[10px] ${theme === 'dark' ? 'text-gray-400' : 'text-slate-500'}`}>สไตล์: {STYLES.find(style => style.id === image.visualStyle)?.name || image.visualStyle || selectedStyleName}</p>{image.url && <button onClick={() => downloadSingleImage(image.url, image.variantLabel || 'variant')} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2 text-xs font-black text-white hover:bg-emerald-700"><Download className="h-4 w-4"/>บันทึกภาพ</button>}</div>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            )}
+
             {/* Strategic Grid Section Header */}
             <div className="mb-10 flex flex-col gap-5 px-4 xl:flex-row xl:items-center">
               <div className="flex min-w-0 items-center gap-4">
@@ -3784,29 +3854,6 @@ const App: React.FC = () => {
                   );
                 })}
             </div>
-
-            {generatedImages.some(image => image.variantLabel) && (
-              <section className={`mt-12 rounded-[2.5rem] border p-6 md:p-8 ${theme === 'dark' ? 'border-emerald-900/70 bg-emerald-950/15' : 'border-emerald-100 bg-emerald-50/50'}`}>
-                <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-600">Variant Studio</p>
-                    <h3 className={`mt-1 text-xl font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>ภาพแยกตามตัวเลือกสินค้า</h3>
-                    <p className={`mt-1 text-xs ${theme === 'dark' ? 'text-emerald-200/70' : 'text-emerald-800/70'}`}>แต่ละภาพยึดชื่อตัวเลือกและราคาที่ยืนยันไว้จากหน้า Analyze</p>
-                  </div>
-                  <span className="rounded-full bg-emerald-500 px-3 py-1.5 text-xs font-black text-white">{generatedImages.filter(image => image.variantLabel).length} ตัวเลือก</span>
-                </div>
-                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {generatedImages.filter(image => image.variantLabel).map(image => (
-                    <article key={image.id} className={`overflow-hidden rounded-3xl border ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-white bg-white shadow-sm'}`}>
-                      <div className={`aspect-square ${theme === 'dark' ? 'bg-gray-800' : 'bg-slate-100'}`}>
-                        {image.status === 'completed' && image.url ? <img src={image.url} alt={image.variantLabel} className="h-full w-full object-cover"/> : <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-xs text-slate-500">{image.status === 'generating' ? <Loader2 className="animate-spin text-emerald-500"/> : <ImageIcon className="text-emerald-500"/>}<span>{image.status === 'generating' ? 'กำลังสร้างภาพตัวเลือก…' : image.error || 'รอสร้างภาพ'}</span></div>}
-                      </div>
-                      <div className="p-4"><p className={`text-sm font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{image.variantLabel}</p><p className="mt-1 truncate text-[10px] font-bold text-emerald-600">{image.modelUsed ? `ใช้จริง: ${image.modelUsed}` : image.status === 'generating' ? 'กำลังส่งข้อมูลรุ่น/ตัวเลือกให้ AI' : 'รอผลลัพธ์'}</p><p className={`mt-2 text-[10px] ${theme === 'dark' ? 'text-gray-400' : 'text-slate-500'}`}>สไตล์: {STYLES.find(style => style.id === image.visualStyle)?.name || image.visualStyle || selectedStyleName}</p>{image.url && <button onClick={() => downloadSingleImage(image.url, image.variantLabel || 'variant')} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2 text-xs font-black text-white hover:bg-emerald-700"><Download className="h-4 w-4"/>บันทึกภาพ</button>}</div>
-                    </article>
-                  ))}
-                </div>
-              </section>
-            )}
 
             {/* Empty State Guard */}
             {generatedImages.length === 0 && !isGenerating && (
