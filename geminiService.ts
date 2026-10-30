@@ -1320,6 +1320,9 @@ Use the provided source images to ensure the product looks accurate and consiste
           },
           config: {
             responseModalities: ['Text', 'Image'],
+            imageConfig: {
+              aspectRatio: (aspectRatio || '1:1') as any,
+            },
             generationConfig: {
               responseModalities: ['Text', 'Image'],
             } as any,

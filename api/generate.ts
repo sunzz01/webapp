@@ -226,7 +226,7 @@ ${isVariantMode
     ? `- SHOPEE TOP-SELLER INFO-COVER RULE (CRITICAL — ACTIVE ONLY FOR "shopee-top-seller" STYLE): For this cover style, design an authentic high-CTR Shopee/Taobao-TH Best-Seller Info-Cover with 4 mandatory elements: (1) Bright, high-clarity real-usage or tabletop staging of the exact reference product showing its true material texture and utility; (2) A BOLD OUTLINED THAI HOOK at the top (concise 2–4 word main headline + short sub-hook with thick contrasting white/dark stroke outline and vivid red/yellow/orange/green accent); (3) A VISUAL SIZE / CAPACITY / QUANTITY CALLOUT STACK on the side or corner displaying confirmed sizes, capacities, dimensions, or piece counts from the product context/reference image (or 2–3 short 2-word Thai benefit tags if no numeric sizes exist); and (4) 1 to 2 CIRCULAR ZOOM INSET BADGES (Picture-in-Picture detail circles with a clean border) in the corner zooming in on a key functional proof (e.g. water resistance, thickness, scale markings, or active usage) with a short 2–3 word Thai caption.`
     : '- COVER IMAGE RULE: For COVER images (ภาพปกสินค้า / ImageCategory.COVER), render a clean, high-impact hero product shot (or presenter holding product) with 1 dynamic Thai marketing headline tailored to this product and optionally one short supporting line. Unless the first reference visibly shows a multi-piece set, depict the purchasable product exactly once: the presenter may interact with that same hero item, but never create a duplicate item elsewhere in the scene. Require a physically plausible pose; no floating product, no clipping into the body, and no product resting on the chest. For reflective materials, reflections must match the same indoor scene, people, and light direction. Never repeat any hook, product name, or selling line. Establish three typography levels: one large main hook; at most one smaller, calmer proof line; and at most one small accent on a verified phrase or number. Each level must use visibly different scale, weight, and treatment. Use a purposeful three-colour high-contrast palette—bright/cream or vivid main fill, deep outline/shadow, and one selective accent—so the copy is readable at mobile thumbnail size. Never apply the same yellow/red/black effect, font style, or visual weight to every text line. Treat every regeneration as a fresh art direction: vary the scene, camera, composition, and headline placement while preserving the exact product and presenter brief. Do NOT default to rounded banners, sticker frames, feature pills, ratings, seals, price tags, feature lists, or metadata labels unless explicitly confirmed by the supplied product facts.'}
 - Avoid overloading the image with many badges, review cards, tiny captions, or dense text.
-- Aspect ratio target: ${args.aspectRatio} (${args.ratioDesc}).
+- Aspect ratio target (MANDATORY): ${args.aspectRatio} (${args.ratioDesc}). Explicitly state in your output "prompt" that the image canvas MUST be composed in ${args.aspectRatio} (${args.ratioDesc}) format and must NEVER inherit a horizontal 4:3 or rectangular aspect ratio from the reference image.
 
 ${args.productContext}
 
@@ -514,7 +514,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    const ratioDesc = RATIO_DESCRIPTIONS[aspectRatio] || RATIO_DESCRIPTIONS['1:1'];
+    const safeAspectRatio = (typeof aspectRatio === 'string' && RATIO_DESCRIPTIONS[aspectRatio.trim()]) ? aspectRatio.trim() : '1:1';
+    const ratioDesc = RATIO_DESCRIPTIONS[safeAspectRatio] || RATIO_DESCRIPTIONS['1:1'];
     const productContext = buildProductContext(productData, category, style);
     const legacyPrompt = [productContext, prompt || customPrompt].filter(Boolean).join('\n\n');
     // Defend the orchestrator against UI-only card state (especially data-URL
@@ -533,7 +534,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       productContext,
       legacyPrompt,
       ratioDesc,
-      aspectRatio,
+      aspectRatio: safeAspectRatio,
       category,
       style,
       adBrief: safeAdBrief,
@@ -553,17 +554,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const watermarkGuard = `\n\nABSOLUTE NO-WATERMARK RULE: The final image must contain ZERO watermarks, logo overlays, corner stamps, attribution marks, semi-transparent badges, or any AI-generated branding. This is a hard requirement — any watermark means the image is rejected.`;
 
+    const aspectMandate = `MANDATORY OUTPUT ASPECT RATIO: Generate this image strictly in ${safeAspectRatio} (${ratioDesc}). Even if the attached reference product photo is horizontal (4:3, 16:9) or rectangular, you MUST output a ${safeAspectRatio} (${ratioDesc}) canvas.`;
+
     const isVariantRequest =
       legacyPrompt.includes('[VARIANT_STUDIO_MODE]') ||
       productContext.includes('ตัวเลือกที่ต้องสร้างภาพนี้:');
     const fullGenerationPrompt = isThaiAds
-      ? `${legacyPrompt}${anatomyGuard}${watermarkGuard}${negativeBlock}`
+      ? `${aspectMandate}\n\n${legacyPrompt}${anatomyGuard}${watermarkGuard}${negativeBlock}`
       : isVariantRequest
         ? [
+            aspectMandate,
             orchestrated.prompt ? `MANDATORY ORCHESTRATED VARIANT & DIMENSION SPECIFICATION (FOLLOW STRICTLY): ${orchestrated.prompt}` : '',
             legacyPrompt,
           ].filter(Boolean).join('\n\n') + anatomyGuard + watermarkGuard + negativeBlock
         : [
+            aspectMandate,
             legacyPrompt,
             orchestrated.prompt ? `RECONTEXT SCENE DIRECTION: ${orchestrated.prompt}` : '',
           ].filter(Boolean).join('\n\n') + anatomyGuard + watermarkGuard + negativeBlock;
@@ -577,7 +582,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         modelName: targetModel,
         prompt: fullGenerationPrompt,
         imageParts,
-        aspectRatio,
+        aspectRatio: safeAspectRatio,
       });
     } catch (error) {
       console.warn(`[api/generate] Enterprise model ${targetModel} failed; waiting before one retry with the same model...`, error);
@@ -586,7 +591,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         modelName: targetModel,
         prompt: fullGenerationPrompt,
         imageParts,
-        aspectRatio,
+        aspectRatio: safeAspectRatio,
       });
     }
 

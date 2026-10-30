@@ -701,6 +701,7 @@ const App: React.FC = () => {
        setUseVariantsInGeneration(false);
        setCardVisualStyles({});
        setSelectedCoverStyle(null);
+       setImageAspectRatios({});
 
       // ตั้งค่าข้อมูลใหม่
       if (productUrl) {
@@ -3322,7 +3323,10 @@ const App: React.FC = () => {
                     return (
                       <button
                         key={r.id}
-                        onClick={() => setSelectedAspectRatio(r.id)}
+                        onClick={() => {
+                          setSelectedAspectRatio(r.id);
+                          setImageAspectRatios({});
+                        }}
                         title={`${r.name} — ${r.desc}`}
                         className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border-2 transition-all duration-200 ${isSelected
                           ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/30 shadow-md shadow-orange-200/50 scale-105'
@@ -3905,10 +3909,18 @@ const App: React.FC = () => {
                   const strategy = getStrategyLabel(meta.order);
                   const isHero = meta.order === 1;
                   const currentCardStyle = cardVisualStyles[catKey] || selectedStyle;
+                  const activeCardRatio = imageAspectRatios[catKey] || selectedAspectRatio || '1:1';
+                  const cssAspectRatio =
+                    activeCardRatio === '4:5' ? '4 / 5' :
+                    activeCardRatio === '9:16' ? '9 / 16' :
+                    activeCardRatio === '16:9' ? '16 / 9' :
+                    activeCardRatio === '3:4' ? '3 / 4' : '1 / 1';
 
                   return (
                     <div key={catKey} className={`group flex flex-col ${isHero && resultsDensity !== 'overview' ? 'lg:scale-[1.02] z-10' : ''}`}>
-                      <div className={`aspect-square relative rounded-[2.5rem] overflow-hidden border-2 transition-all duration-500 ${
+                      <div
+                        style={{ aspectRatio: cssAspectRatio }}
+                        className={`w-full aspect-square relative rounded-[2.5rem] overflow-hidden border-2 transition-all duration-500 ${
                         theme === 'dark' ? 'bg-gray-800' : 'bg-white'
                       } ${
                         img?.status === 'completed'
@@ -3974,11 +3986,11 @@ const App: React.FC = () => {
 
                         {/* Status: Completed */}
                         {img?.status === 'completed' && (
-                          <div className="w-full h-full relative">
+                          <div className="absolute inset-0 w-full h-full">
                             <img
                               src={img.url}
                               alt={meta.title}
-                              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                              className="block w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
                             />
 
                             {/* Hover Overlay with sleek, non-crowded controls */}

@@ -302,17 +302,19 @@ export async function generateProductImage(
   } : undefined;
   // Construct prompt based on category (simplified — full prompt construction
   // happens on client side using the same logic as before)
+  const safeAspectRatio = (aspectRatio && typeof aspectRatio === 'string' && aspectRatio.trim()) ? aspectRatio.trim() : '1:1';
   let prompt = '';
 
   if (customPrompt && category !== ImageCategory.TUTORIAL) {
-    prompt = buildGroundedProductPrompt(customPrompt, category, productData, style);
+    prompt = buildGroundedProductPrompt(customPrompt, category, productData, style, safeAspectRatio);
   } else {
     // Build category-specific prompt (for TUTORIAL, customPrompt may contain JSON step prompts)
     prompt = buildGroundedProductPrompt(
-      buildCategoryPrompt(category, productData, style, styleIndex, customPrompt),
+      buildCategoryPrompt(category, productData, style, styleIndex, customPrompt, safeAspectRatio),
       category,
       productData,
       style,
+      safeAspectRatio,
     );
   }
 
@@ -327,7 +329,7 @@ export async function generateProductImage(
     prompt,
     ...preparedImages,
     model: imageModel,
-    aspectRatio,
+    aspectRatio: safeAspectRatio,
     category,
     style,
     customPrompt,
@@ -434,6 +436,7 @@ function buildGroundedProductPrompt(
   category: ImageCategory,
   productData: ProductData,
   visualStyle?: string,
+  aspectRatio: string = '1:1',
 ): string {
   const isVariantMode =
     taskPrompt.includes('[VARIANT_STUDIO_MODE]') ||
@@ -449,8 +452,12 @@ function buildGroundedProductPrompt(
   const variants = !isCover && !isPurePhotoScene && (productData.variantGroups || [])
     .map(group => `${group.name}: ${group.options.map(option => `${option.label}${option.price?.display ? ` (${option.price.display})` : ''}`).join(', ')}`)
     .join(' | ');
+  const ratioExplanation = aspectRatio === '1:1'
+    ? '1:1 SQUARE format (equal width and height, 1:1 aspect ratio — NEVER horizontal 4:3 or 16:9)'
+    : `${aspectRatio} aspect ratio`;
   return [
-    `Create a ${isVariantMode ? 'VARIANT_SPEC_SHOWCASE' : category} ecommerce image for this exact product.`,
+    `Create a ${isVariantMode ? 'VARIANT_SPEC_SHOWCASE' : category} ecommerce image for this exact product in ${ratioExplanation}.`,
+    `CANVAS ASPECT RATIO MANDATE (CRITICAL): The generated image canvas MUST strictly be ${ratioExplanation}. Do NOT copy or inherit a horizontal (4:3 / 16:9) or rectangular frame from the uploaded reference image.`,
     `Product name: ${productData.name || 'Unknown product'}`,
     productData.description ? `Product description: ${productData.description}` : '',
     features.length ? `Product highlights: ${features.join(' | ')}` : '',
@@ -486,6 +493,7 @@ function buildCategoryPrompt(
   style: string,
   styleIndex?: number,
   customPrompt?: string,
+  aspectRatio: string = '1:1',
 ): string {
   const coverTypographyRule = `COVER TYPOGRAPHY & VISUAL HIERARCHY RULES (MANDATORY):
 1. NO DUPLICATE HOOKS (Hook ห้ามซ้ำทั้งภาพ): Never repeat the same slogan, phrase, or text across lines anywhere on the image canvas.
@@ -523,7 +531,7 @@ All text MUST be in THAI LANGUAGE ONLY (ภาษาไทยเท่านั�
         const variation = variations[((styleIndex || 1) - 1) % variations.length];
         return `Thai Marketplace Brand Ambassador product cover for "${productData.name}". Use exactly ${presenter} who naturally demonstrates or introduces the exact reference product. The product must be the main purchase object: large, sharp, unobstructed, and faithful to the reference in shape, logo, colour, materials, proportions, labels, and included pieces. PHYSICAL STAGING RULE: Unless the first reference visibly shows a multi-piece set, depict the purchasable product exactly ONCE in the whole image. The presenter may touch, hold, or use that same hero item only; never create a second duplicate product. Keep it in a physically plausible position with a natural grip and clear separation from the torso—never floating, clipped through the body, or resting against the chest. For cookware, choose one believable action only: either the single pan is being used on the stove OR the single pan is held/presented away from the body; never show one pan cooking and another pan being held. Reflections on glossy metal must show the same kitchen, light direction, and people present in the scene, never sky, outdoor scenery, or an unrelated subject. CREATIVE COVER RULE: Build a fresh art direction around the product rather than reusing a fixed infographic template. ${coverTypographyRule} Design original Thai visual headline graphics with an expressive font treatment (for example: bold 3D lettering, a brush-style mark, glowing outline, slanted dynamic type, or restrained colour blocking) that belongs to the scene. Do NOT add rating badges, trust seals, feature chips, price tags, rounded pills, sticker frames, or generic "best seller" claims unless they are confirmed product facts. ${variation} On every regeneration change the pose, camera angle, composition, hook placement, typography treatment, and relevant props, while preserving the same product identity, young attractive brand-ambassador character, and campaign mood.`;
       }
-      return `High-impact commercial E-Commerce COVER image (ภาพปกสินค้า) for "${productData.name}". Product Description: ${productData.description}. Visual Style: ${style}. Product is large and unmistakable in the foreground. Unless the first reference visibly shows a set, depict the purchasable product exactly once—never duplicate it in the presenter’s hands and again in the scene. Use a physically plausible pose; do not place the product on a person’s chest or let it float/clash with the body. Keep glossy reflections consistent with the same scene. Create a distinctive art-directed scene instead of a repeated infographic template. ${coverTypographyRule} Do NOT add generic feature pills, rating badges, prices, rounded banners, or stickers unless they are confirmed facts. All text MUST be in THAI LANGUAGE ONLY (ภาษาไทยเท่านั้น). Professional studio lighting, sharp product details.`;
+      return `High-impact commercial E-Commerce COVER image (ภาพปกสินค้า) in ${aspectRatio} (${aspectRatio === '1:1' ? '1:1 square' : aspectRatio}) format for "${productData.name}". Product Description: ${productData.description}. Visual Style: ${style}. Product is large and unmistakable in the foreground. Unless the first reference visibly shows a set, depict the purchasable product exactly once—never duplicate it in the presenter’s hands and again in the scene. Use a physically plausible pose; do not place the product on a person’s chest or let it float/clash with the body. Keep glossy reflections consistent with the same scene. Create a distinctive art-directed scene instead of a repeated infographic template. ${coverTypographyRule} Do NOT add generic feature pills, rating badges, prices, rounded banners, or stickers unless they are confirmed facts. All text MUST be in THAI LANGUAGE ONLY (ภาษาไทยเท่านั้น). Professional studio lighting, sharp product details.`;
     }
     case ImageCategory.INFOGRAPHIC:
       return `Product infographic for "${productData.name}". ${productData.features?.join(' | ') || ''}. ALL TEXT CALLOUTS AND HEADLINES MUST BE IN THAI LANGUAGE ONLY (ภาษาไทยเท่านั้น). Clean flat design.`;
