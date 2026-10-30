@@ -438,7 +438,8 @@ function buildGroundedProductPrompt(
   const isVariantMode =
     taskPrompt.includes('[VARIANT_STUDIO_MODE]') ||
     Boolean(productData.description?.includes('ตัวเลือกที่ต้องสร้างภาพนี้:'));
-  const isCover = category === ImageCategory.COVER && !isVariantMode;
+  const isTopSellerStyle = visualStyle === 'shopee-top-seller';
+  const isCover = category === ImageCategory.COVER && !isVariantMode && !isTopSellerStyle;
   const isPurePhotoScene =
     category === ImageCategory.CLOSE_UP ||
     category.startsWith('LIFESTYLE_') ||
@@ -466,7 +467,9 @@ function buildGroundedProductPrompt(
     'LANGUAGE MANDATE (CRITICAL): All text, headlines, badges, callouts, promotional tags, and dimension labels rendered inside the generated image MUST BE IN THAI LANGUAGE ONLY (ภาษาไทยเท่านั้น). Do not render any English words, pseudo-Latin, or gibberish text unless the brand name itself is explicitly in English.',
     isVariantMode
       ? 'STRICT GRAPHIC RULE FOR VARIANT STUDIO: NEVER render system metadata headings like "จุดเด่นสินค้า:" or "ราคาที่ผู้ขายยืนยัน:". Render a clean modern Thai header for the variant name/option badge, AND if the reference image contains dimension arrows/measurements, re-render those exact dimension arrows and Thai measurement numbers in a sleek, redesigned modern infographic style.'
-      : 'STRICT GRAPHIC RULE: NEVER render system metadata headings or label prefixes like "จุดเด่นสินค้า:", "ราคาที่ผู้ขายยืนยัน:", "Key features:", or "Confirmed price:". On COVER images, do NOT draw feature lists or specification callouts; draw ONLY high-impact hero product photography and optional clean Thai marketing slogan.',
+      : isTopSellerStyle
+        ? 'SHOPEE TOP-SELLER INFO-COVER GRAPHIC RULE: NEVER render system metadata headings like "จุดเด่นสินค้า:" or "ราคาที่ผู้ขายยืนยัน:". Compose a high-converting Shopee/Taobao-TH Best-Seller Info-Cover featuring: (1) Bold Outlined Thai Hook at top, (2) Confirmed Size/Capacity/Quantity Callout Stack on the side or corner (using only confirmed product sizes/specs), and (3) 1–2 Circular Zoom Inset Detail Badges (วงกลมซูมจุดขาย) showing material proof or real-usage action.'
+        : 'STRICT GRAPHIC RULE: NEVER render system metadata headings or label prefixes like "จุดเด่นสินค้า:", "ราคาที่ผู้ขายยืนยัน:", "Key features:", or "Confirmed price:". On COVER images, do NOT draw feature lists or specification callouts; draw ONLY high-impact hero product photography and optional clean Thai marketing slogan.',
     'STRICT NO-WATERMARK MANDATE: Do NOT add, draw, or render any digital watermark, logo overlay, brand emblem, Google/Gemini logo, spark icon, camera watermark, corner stamp, semi-transparent badge, AI attribution mark, or any kind of branding mark at the bottom-left, bottom-right, or anywhere on the image canvas. The output must be 100% clean commercial product photography with absolutely zero watermarks. Any watermark means the image is rejected.',
     (isVariantMode || category === ImageCategory.SIZE_CHART)
       ? 'SMART VARIANT DIMENSION LEARNING & ANTI-MULTI-SHOP REDESIGN RULE (CRITICAL): Inspect the primary reference image carefully. (1) IF the source image contains dimension lines, scale arrows, measurement numbers (e.g., 36 ซม., 11 ซม., 10.5 ซม., 14.3 ซม.), or capacity specs (e.g., บรรจุน้ำได้ 13 ลิตร), LEARN and EXTRACT 100% of those exact numeric measurements, units, and anatomical arrow anchor points on the product, and DRAW clean dimension arrows with those exact Thai measurement labels on the new image. (2) COMPLETELY REMOVE any third-party seller store logo/watermark (such as corner circle shop logos like "Allgoodz88") and any webpage screenshot UI elements (such as left/right "<" ">" carousel slider arrows), while keeping authentic manufacturer markings physically on the product body itself. (3) ANTI-FOOTPRINT RESTYLING: NEVER copy the source image old font family, old red/green text color combination, or flat cutout white background—redesign all typography, dimension arrows, and measurement pill badges in a fresh, modern, unified commercial studio style.'
@@ -494,6 +497,15 @@ function buildCategoryPrompt(
 7. THUMBNAIL READABILITY (เน้นการอ่านได้ชัดแม้อย่อเป็น thumbnail บนมือถือ): All rendered Thai headlines must be ultra-legible with high contrast, perfectly readable even when scaled down to a small mobile e-commerce thumbnail.`;
   switch (category) {
     case ImageCategory.COVER: {
+      if (style === 'shopee-top-seller') {
+        return `Shopee Thailand Top-Seller High-CTR Info-Cover (ภาพปกสไตล์ร้านขายดี Shopee / Taobao-TH) for "${productData.name}". Product Description: ${productData.description}.
+MANDATORY 4-POINT TOP-SELLER COVER FORMULA:
+1. BRIGHT REAL-USAGE & MATERIAL STAGING: Show the exact reference product large, bright, and crystal-clear in an authentic tabletop or real-usage context that highlights its material quality (e.g. glass clarity, stainless steel sheen, fabric texture, or active pouring/cleaning/holding action). Preserve 100% of the physical product identity.
+2. BOLD OUTLINED THAI HOOK (ฟอนต์ไทยตัวหนาตัดขอบ): At the top, render 1 punchy Thai main headline (2–4 words) + 1 concise benefit sub-line using extra-bold Thai typography with a thick, high-contrast stroke/outline (white outline around vibrant red/green/orange/dark text, or dark outline around bright yellow/white text) so it is instantly readable on a small mobile search grid.
+3. VISUAL SIZE / CAPACITY / QUANTITY CALLOUT STACK (ป้ายเรียงขนาด/ความจุ/จำนวนชิ้น): If the product description, options, or reference image includes confirmed sizes, dimensions, capacities, or piece counts (e.g. 300ml/500ml/1000ml, 24ซม./26ซม., 30×30CM, or piece count), display them prominently as a clean vertical or corner stack in bold outlined typography. Never invent unconfirmed numbers; if no numeric sizes exist, display 2–3 short 2-word Thai selling point badges instead.
+4. CIRCULAR ZOOM INSET DETAIL BADGE (วงกลมซูมจุดขายมุมภาพ): Include 1 or 2 crisp circular inset frames (with a clean white or accent border) at the side or corner zooming in on a key functional proof of the product (e.g. material thickness, water-repellent droplets, embossed scale markings, heat resistance, or close-up usage detail) paired with a short 2–3 word Thai label.
+All text MUST be in THAI LANGUAGE ONLY (ภาษาไทยเท่านั้น, except standard units like CM/ML/PCS).`;
+      }
       if (['brand-ambassador', 'brand-ambassador-female', 'brand-ambassador-male'].includes(style)) {
         const presenter = style === 'brand-ambassador-male'
           ? 'one handsome, attractive, young Thai male brand ambassador (age 25–30 years old) with a confident bright smile, modern stylish hair, and glowing clear healthy skin'

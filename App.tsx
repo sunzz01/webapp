@@ -115,6 +115,14 @@ const STYLES = [
     promptTemplate: 'Shopee style: vibrant orange gradient, flash sale badges, price drops, sold counts, energetic.'
   },
   {
+    id: 'shopee-top-seller',
+    name: 'ร้านขายดี Shopee (Top-Seller Info)',
+    emoji: '🏆',
+    color: 'text-amber-500',
+    desc: 'สไตล์ร้านยอดขายหมื่นชิ้น: ฟอนต์ไทยตัวหนาตัดขอบ + โชว์ขนาด/ความจุ + วงกลมซูมจุดขาย',
+    promptTemplate: 'Shopee Top-Seller High-CTR Info-Cover style (Taobao-TH best-seller aesthetic): Bright, crystal-clear real-usage product staging showing authentic material texture and utility. 1) BOLD OUTLINED THAI HEADLINE at the top (concise 2–4 word Thai hook with heavy high-contrast white/dark stroke outline and vibrant red/yellow/orange/green highlight). 2) CONFIRMED SIZE / CAPACITY / QUANTITY CALLOUT STACK on the side or corner clearly listing confirmed dimensions, capacities, or piece counts from product facts in bold outlined text. 3) 1–2 CIRCULAR ZOOM INSET BADGES (Picture-in-Picture detail circles with clean white/accent border) in the corner zooming in on key material proof or real-usage action with a short 2–3 word Thai caption.'
+  },
+  {
     id: 'alibaba',
     name: 'Alibaba Style',
     emoji: '🏭',
@@ -2849,7 +2857,7 @@ const App: React.FC = () => {
                         ))}
                       </select>
                       <div className="flex flex-wrap gap-1.5 pt-0.5">
-                        {['shopee', 'shopee-mall', 'minimalist', 'minimalist02', 'lazada-flagship', 'taobao02', 'etsy', 'brand-ambassador-female'].map(presetId => {
+                        {['shopee', 'shopee-top-seller', 'shopee-mall', 'minimalist', 'minimalist02', 'lazada-flagship', 'taobao02', 'etsy', 'brand-ambassador-female'].map(presetId => {
                           const preset = STYLES.find(s => s.id === presetId);
                           if (!preset) return null;
                           const isSelected = selectedVariantStyle === preset.id;

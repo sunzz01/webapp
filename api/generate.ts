@@ -33,7 +33,7 @@ type OrchestratedPrompt = {
   thaiTextPlan?: string[];
 };
 
-function buildProductContext(productData: any, category?: string) {
+function buildProductContext(productData: any, category?: string, style?: string) {
   if (!productData || typeof productData !== 'object') return '';
 
   const name = String(productData.name || '').trim();
@@ -51,7 +51,8 @@ function buildProductContext(productData: any, category?: string) {
 
   const catUpper = String(category || '').toUpperCase();
   const isVariantMode = description.includes('ตัวเลือกที่ต้องสร้างภาพนี้:');
-  const isCover = catUpper === 'COVER' && !isVariantMode;
+  const isTopSellerStyle = String(style || '').toLowerCase() === 'shopee-top-seller';
+  const isCover = catUpper === 'COVER' && !isVariantMode && !isTopSellerStyle;
   const isPurePhoto = catUpper === 'CLOSE_UP' || catUpper.startsWith('LIFESTYLE_') || catUpper === 'SOCIAL_PROOF';
   const isTutorial = catUpper === 'TUTORIAL';
 
@@ -192,6 +193,7 @@ async function orchestratePrompt(args: {
   const isVariantMode =
     args.legacyPrompt.includes('[VARIANT_STUDIO_MODE]') ||
     args.productContext.includes('ตัวเลือกที่ต้องสร้างภาพนี้:');
+  const isTopSellerStyle = String(args.style || '').toLowerCase() === 'shopee-top-seller';
 
   const instruction = `
 Goal:
@@ -219,8 +221,10 @@ ${isVariantMode || String(args.category || '').toUpperCase() === 'SIZE_CHART' ? 
 - HUMAN ANATOMY & HAND QUALITY (CRITICAL): When generating images that include people, you MUST ensure anatomically correct human features. Hands must have exactly 5 fingers each with natural proportions, natural grip posture, and correct joint articulation. Arms must connect naturally to shoulders. Faces must have symmetrical features, natural skin texture, and realistic proportions. If a person is holding or using the product, ensure the grip is physically plausible — fingers wrap around the handle/body naturally, thumbs oppose correctly, and the wrist angle is anatomically possible. NEVER generate: extra fingers, fused fingers, missing fingers, distorted knuckles, backwards thumbs, floating hands, hands clipping through objects, unnatural wrist bends exceeding 90 degrees, or arms that appear disconnected. If realistic human anatomy cannot be rendered with high confidence, prefer a product-only composition instead.
 - STRICT NO-WATERMARK MANDATE: Do NOT add any watermark, logo overlay, brand emblem, AI attribution mark, Google/Gemini logo, spark icon, camera watermark, corner stamp, semi-transparent badge, or any kind of attribution mark anywhere on the image. The output must be 100% clean commercial photography with zero watermarks. Also ensure the negativePrompt includes: watermark, logo overlay, corner stamp, attribution mark, semi-transparent text.
 ${isVariantMode
-  ? `- VARIANT STUDIO COHESION RULE (CRITICAL): Strictly apply the requested visual style ("${args.style || 'shopee'}") specified in LEGACY CREATIVE DIRECTION across all variant cards—matching its background palette, studio lighting, and badge aesthetic—while rendering strictly ONE single product unit and drawing all extracted dimension arrows and Thai measurement labels accurately on the product whenever the source image contains dimension arrows/numbers.`
-  : '- COVER IMAGE RULE: For COVER images (ภาพปกสินค้า / ImageCategory.COVER), render a clean, high-impact hero product shot (or presenter holding product) with 1 dynamic Thai marketing headline tailored to this product and optionally one short supporting line. Unless the first reference visibly shows a multi-piece set, depict the purchasable product exactly once: the presenter may interact with that same hero item, but never create a duplicate item elsewhere in the scene. Require a physically plausible pose; no floating product, no clipping into the body, and no product resting on the chest. For reflective materials, reflections must match the same indoor scene, people, and light direction. Never repeat any hook, product name, or selling line. Establish three typography levels: one large main hook; at most one smaller, calmer proof line; and at most one small accent on a verified phrase or number. Each level must use visibly different scale, weight, and treatment. Use a purposeful three-colour high-contrast palette—bright/cream or vivid main fill, deep outline/shadow, and one selective accent—so the copy is readable at mobile thumbnail size. Never apply the same yellow/red/black effect, font style, or visual weight to every text line. Treat every regeneration as a fresh art direction: vary the scene, camera, composition, and headline placement while preserving the exact product and presenter brief. Do NOT default to rounded banners, sticker frames, feature pills, ratings, seals, price tags, feature lists, or metadata labels unless explicitly confirmed by the supplied product facts.'}
+  ? `- VARIANT STUDIO COHESION RULE (CRITICAL): Strictly apply the requested visual style ("${args.style || 'shopee'}") specified in LEGACY CREATIVE DIRECTION across all variant cards—matching its background palette, studio lighting, and badge aesthetic—while rendering strictly ONE single product unit and drawing all extracted dimension arrows and Thai measurement labels accurately on the product whenever the source image contains dimension arrows/numbers.${isTopSellerStyle ? ' Since style is "shopee-top-seller", also use bold outlined Thai typography, a confirmed size/capacity callout badge, and 1 circular zoom inset detail badge showing material/functional proof.' : ''}`
+  : isTopSellerStyle
+    ? `- SHOPEE TOP-SELLER INFO-COVER RULE (CRITICAL — ACTIVE ONLY FOR "shopee-top-seller" STYLE): For this cover style, design an authentic high-CTR Shopee/Taobao-TH Best-Seller Info-Cover with 4 mandatory elements: (1) Bright, high-clarity real-usage or tabletop staging of the exact reference product showing its true material texture and utility; (2) A BOLD OUTLINED THAI HOOK at the top (concise 2–4 word main headline + short sub-hook with thick contrasting white/dark stroke outline and vivid red/yellow/orange/green accent); (3) A VISUAL SIZE / CAPACITY / QUANTITY CALLOUT STACK on the side or corner displaying confirmed sizes, capacities, dimensions, or piece counts from the product context/reference image (or 2–3 short 2-word Thai benefit tags if no numeric sizes exist); and (4) 1 to 2 CIRCULAR ZOOM INSET BADGES (Picture-in-Picture detail circles with a clean border) in the corner zooming in on a key functional proof (e.g. water resistance, thickness, scale markings, or active usage) with a short 2–3 word Thai caption.`
+    : '- COVER IMAGE RULE: For COVER images (ภาพปกสินค้า / ImageCategory.COVER), render a clean, high-impact hero product shot (or presenter holding product) with 1 dynamic Thai marketing headline tailored to this product and optionally one short supporting line. Unless the first reference visibly shows a multi-piece set, depict the purchasable product exactly once: the presenter may interact with that same hero item, but never create a duplicate item elsewhere in the scene. Require a physically plausible pose; no floating product, no clipping into the body, and no product resting on the chest. For reflective materials, reflections must match the same indoor scene, people, and light direction. Never repeat any hook, product name, or selling line. Establish three typography levels: one large main hook; at most one smaller, calmer proof line; and at most one small accent on a verified phrase or number. Each level must use visibly different scale, weight, and treatment. Use a purposeful three-colour high-contrast palette—bright/cream or vivid main fill, deep outline/shadow, and one selective accent—so the copy is readable at mobile thumbnail size. Never apply the same yellow/red/black effect, font style, or visual weight to every text line. Treat every regeneration as a fresh art direction: vary the scene, camera, composition, and headline placement while preserving the exact product and presenter brief. Do NOT default to rounded banners, sticker frames, feature pills, ratings, seals, price tags, feature lists, or metadata labels unless explicitly confirmed by the supplied product facts.'}
 - Avoid overloading the image with many badges, review cards, tiny captions, or dense text.
 - Aspect ratio target: ${args.aspectRatio} (${args.ratioDesc}).
 
@@ -266,7 +270,7 @@ Return valid JSON only:
           : '';
   const systemNegative = [
     categoryNegative,
-    isVariantMode ? '' : 'specs list on cover image',
+    (isVariantMode || isTopSellerStyle) ? '' : 'specs list on cover image',
     'เผาแล้ว พร้อมใช้, static repeated phrases, จุดเด่นสินค้า, ราคาที่ผู้ขายยืนยัน, Key features, Confirmed selling price, metadata labels, category headers, watermark, logo overlay, corner stamp, attribution mark, semi-transparent text, Google logo, Gemini logo, spark icon, extra fingers, six fingers, deformed hands, fused fingers, missing fingers, distorted anatomy, backwards thumbs, unnatural hand pose, mutated hands, bad anatomy, disconnected limbs',
   ].filter(Boolean).join(', ');
   const finalNegativePrompt = parsed.negativePrompt ? `${parsed.negativePrompt}, ${systemNegative}` : systemNegative;
@@ -511,7 +515,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const ratioDesc = RATIO_DESCRIPTIONS[aspectRatio] || RATIO_DESCRIPTIONS['1:1'];
-    const productContext = buildProductContext(productData, category);
+    const productContext = buildProductContext(productData, category, style);
     const legacyPrompt = [productContext, prompt || customPrompt].filter(Boolean).join('\n\n');
     // Defend the orchestrator against UI-only card state (especially data-URL
     // imageUrl values) being accidentally included in a ThaiAds brief.

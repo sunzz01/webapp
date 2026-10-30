@@ -631,6 +631,16 @@ const generateStructuredPrompt = (productName: string, style: string): string =>
       `,
       negative: 'cheap, cluttered, aggressive sales, flash sale aesthetic, busy backgrounds'
     },
+    'shopee-top-seller': {
+      composition: 'High-CTR Shopee/Taobao-TH Best-Seller Info-Cover: bright real-usage product 65% center, bold outlined Thai hook at top, confirmed size/capacity callout stack on side, and 1–2 circular zoom inset detail badges in corner',
+      styleElements: `
+        - Lighting & Staging: bright, high-clarity real-life tabletop or active usage scene highlighting authentic material quality (glass clarity, stainless steel sheen, fabric texture, water droplets)
+        - Top Headline: Bold Outlined Thai Hook (2–4 concise Thai words with thick white/dark contrasting stroke outline and vivid red/yellow/orange/green highlight)
+        - Spec/Size Stack: vertical or corner callout stack clearly showing confirmed sizes, capacities, dimensions, or piece counts in bold outlined text
+        - Zoom Inset Circle: 1–2 crisp circular Picture-in-Picture detail callout badges with white/accent border zooming in on key functional proof + short 2–3 word Thai label
+      `,
+      negative: 'dark moody lighting, empty plain background without context, tiny unreadable text, English-only text, watermark'
+    },
     'shopee-mall': {
       composition: 'premium brand-focused layout, trust-building hierarchy, 60-30-10 rule',
       styleElements: `
