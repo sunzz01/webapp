@@ -1575,12 +1575,15 @@ const App: React.FC = () => {
       // Initial cover uses creative direction #1. Each manual regeneration
       // advances immediately to a different direction instead of repeating it.
       const attemptCount = nextRegenerationAttempt + 1;
+      const effectiveCategory = (category.startsWith('LIFESTYLE_') && selectedLifestyle[category])
+        ? selectedLifestyle[category]
+        : category;
       const styleToUse = styleOverride || cardVisualStyles[category] || (category === ImageCategory.COVER ? selectedCoverStyle || selectedStyle : selectedStyle);
       const ratio = imageAspectRatios[category] || selectedAspectRatio;
       const coverVariationIndex = category === ImageCategory.COVER && styleToUse.startsWith('brand-ambassador')
         ? attemptCount
         : styleIndex;
-      const result = await generateProductImage(category, productData, styleToUse, customPrompt, selectedImageModel, ratio, coverVariationIndex, undefined, generationController.signal);
+      const result = await generateProductImage(effectiveCategory, productData, styleToUse, customPrompt, selectedImageModel, ratio, coverVariationIndex, undefined, generationController.signal);
 
       // อัปเดตเฉพาะภาพที่เลือก
       setGeneratedImages(prev => prev.map(img =>
@@ -3748,9 +3751,7 @@ const App: React.FC = () => {
                                       }
 
                                       regenerateImage(
-                                        catKey.startsWith('LIFESTYLE_')
-                                          ? (selectedLifestyle[catKey] || catKey) as ImageCategory
-                                          : catKey as ImageCategory,
+                                        catKey as ImageCategory,
                                         catKey === 'TUTORIAL' ? JSON.stringify(tutorialStepPrompts) : undefined,
                                         catKey === 'COVER' ? (cardVisualStyles[catKey] || selectedCoverStyle || selectedStyle) : (catKey === 'SOCIAL_PROOF' ? (selectedSocialProof[catKey] || 'unboxing-moment') : undefined),
                                         styleIdx
@@ -3863,9 +3864,8 @@ const App: React.FC = () => {
                             )}
                             <button
                               onClick={() => regenerateImage(
-                                catKey.startsWith('LIFESTYLE_')
-                                  ? (selectedLifestyle[catKey] || catKey) as ImageCategory
-                                  : catKey as ImageCategory
+                                catKey as ImageCategory,
+                                catKey === 'TUTORIAL' ? JSON.stringify(tutorialStepPrompts) : undefined
                               )}
                               className="px-6 py-2 bg-blue-500 text-white text-[10px] font-black rounded-xl hover:bg-blue-600 transition-all flex items-center gap-2"
                             >

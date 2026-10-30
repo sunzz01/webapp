@@ -49,15 +49,24 @@ function buildProductContext(productData: any, category?: string) {
     }).filter(Boolean)
     : [];
 
-  const isCover = category === 'COVER' || category === 'cover';
+  const catUpper = String(category || '').toUpperCase();
+  const isCover = catUpper === 'COVER';
+  const isPurePhoto = catUpper === 'CLOSE_UP' || catUpper.startsWith('LIFESTYLE_') || catUpper === 'SOCIAL_PROOF';
+  const isTutorial = catUpper === 'TUTORIAL';
+
+  const contextHeader = isPurePhoto
+    ? 'PRODUCT CONTEXT (Pure photographic scene — use strictly to understand the physical product and its real-world usage context; DO NOT render marketing slogans, banners, or feature text):'
+    : isTutorial
+      ? 'PRODUCT CONTEXT (Use this product data to synthesize 3 to 4 brand-new, concise Thai step-by-step usage captions; NEVER copy text from the uploaded source image):'
+      : 'PRODUCT CONTEXT (Use this real product data to synthesize original, highly relevant Thai marketing slogans/callouts):';
 
   return [
-    'PRODUCT CONTEXT (Use this real product data to synthesize original, highly relevant Thai marketing slogans):',
+    contextHeader,
     name ? `- Product Name: ${name}` : '',
     description ? `- Product Description: ${description}` : '',
-    features.length ? `- Product Selling Points: ${features.join(' | ')}` : '',
-    (!isCover && price) ? `- Price: ${price}` : '',
-    (!isCover && variants.length) ? `- Options: ${variants.join(' | ')}` : '',
+    (!isPurePhoto && features.length) ? `- Product Selling Points: ${features.join(' | ')}` : '',
+    (!isCover && !isPurePhoto && price) ? `- Price: ${price}` : '',
+    (!isCover && !isPurePhoto && variants.length) ? `- Options: ${variants.join(' | ')}` : '',
   ].filter(Boolean).join('\n');
 }
 
@@ -183,9 +192,14 @@ Goal:
 - Use the existing legacy prompt as creative direction, not as a final prompt.
 - Produce a concise Imagen Product Recontext prompt that keeps the exact same product but changes the scene/background.
 - PRODUCT IDENTITY ANCHOR: The FIRST attached image is the canonical physical product. Preserve it exactly: silhouette, dimensions/proportions, construction, handle/fasteners, colour, material finish, logo/label placement, and included pieces. Any later images only confirm alternate views. Never replace it with a generic product from the same category or redesign its physical form.
-- DYNAMIC THAI SLOGAN GENERATION: Read the product description and selling points carefully. Synthesize 1 unique, highly relevant, punchy Thai marketing slogan (3-6 words) specifically created for this product. NEVER use hardcoded static template phrases like "เผาแล้ว พร้อมใช้" unless the product is specifically a pre-seasoned cast iron pan.
-- CRITICAL LANGUAGE RULE: All text, banners, headlines, badges, callouts, size labels, and promotional text rendered inside the generated image MUST BE IN THAI LANGUAGE ONLY (ภาษาไทยเท่านั้น). Do NOT generate English text, pseudo-Latin, or gibberish text unless the confirmed product brand name itself is explicitly in English.
-- STRICT NO-METADATA RULE: NEVER render system metadata headings or category headers such as "จุดเด่นสินค้า:", "ราคาที่ผู้ขายยืนยัน:", "Key features:", "Confirmed selling price:", "Description:", "Product:", "Specs:", or "Features:". If rendering text, render ONLY clean natural marketing slogans tailored to this specific product, never system category headers or label prefixes.
+- SOURCE IMAGE TEXT & GRAPHIC SUPPRESSION (CRITICAL): If the attached source reference photo contains any existing promotional text, Chinese/Thai/English typography, callout lines, dimension numbers, step numbers, stickers, badges, or infographic overlays, DO NOT copy, OCR, or reproduce any of that source text or graphic layout into the generated image. Extract ONLY the 3D physical product itself.
+- CATEGORY-SPECIFIC SCENE & TEXT RULES (CRITICAL):
+  * For CLOSE_UP (รายละเอียด): Produce a single-frame commercial macro detail inspection shot focusing on the exact material texture, surface finish, joints, and build craftsmanship of ONE single physical product (filling 75–85% of the frame). STRICTLY FORBID double exposure, ghosted secondary products, split screens, collage panels, floating magnifying-glass circles, or any text/headlines/banners.
+  * For CONTEXTUAL LIFESTYLE SCENES (LIFESTYLE_THAI_STREET_FOOD, LIFESTYLE_THAI_MARKET, LIFESTYLE_THAI_KITCHEN, LIFESTYLE_ISAN_KITCHEN, LIFESTYLE_THAI_LOCAL_RESTAURANT, LIFESTYLE_A, LIFESTYLE_B, LIFESTYLE_C): Produce a 100% pure, candid, documentary-style real-usage photograph in the exact requested environment (e.g. LIFESTYLE_THAI_STREET_FOOD: bustling Thai street food stall / stainless steel roadside food cart, condiment trays, street ingredients, plastic stools, warm street lighting; LIFESTYLE_THAI_MARKET: vibrant traditional Thai fresh market or open-air flea market, colorful woven plastic baskets, wooden vendor tables, fresh local produce, market umbrellas; LIFESTYLE_THAI_KITCHEN: authentic Thai home/local kitchen with tiled/concrete counter, real Thai gas stove burner, stone/wooden mortar and pestle, fresh Thai herbs like holy basil/chili/lime/garlic, fish sauce bottles, and real cooking action). STRICTLY FORBID cover-style layouts, studio backdrops, podiums, marketing slogans, promotional banners, or text overlays on ANY lifestyle scene.
+  * For TUTORIAL (วิธีใช้งาน): Design a clean, structured step-by-step instructional infographic showing how to use the product. NEVER copy or repeat text from the uploaded source image. Synthesize 3 to 4 brand-new, concise, logical Thai step captions (3–5 words each, e.g. "1. เตรียมอุปกรณ์...", "2. ใช้งาน...", "3. ล้างเก็บง่าย") tailored to the product's actual function. Keep the physical product 100% undistorted and place all numbered step badges/captions in clean, separated margin or card zones so text NEVER overlaps or obscures the product.
+  * For COVER / INFOGRAPHIC / SIZE_CHART: Read the product description and selling points carefully and synthesize unique, highly relevant Thai marketing copy or callouts tailored specifically to this product (never use hardcoded static phrases like "เผาแล้ว พร้อมใช้" unless the product is specifically a pre-seasoned cast iron pan).
+- CRITICAL LANGUAGE RULE: Whenever text is permitted by the category rules above, all text, headlines, badges, callouts, step captions, and size labels rendered inside the generated image MUST BE IN THAI LANGUAGE ONLY (ภาษาไทยเท่านั้น). Do NOT generate English text, pseudo-Latin, or gibberish text unless the confirmed product brand name itself is explicitly in English.
+- STRICT NO-METADATA RULE: NEVER render system metadata headings or category headers such as "จุดเด่นสินค้า:", "ราคาที่ผู้ขายยืนยัน:", "Key features:", "Confirmed selling price:", "Description:", "Product:", "Specs:", or "Features:".
 - HUMAN ANATOMY & HAND QUALITY (CRITICAL): When generating images that include people, you MUST ensure anatomically correct human features. Hands must have exactly 5 fingers each with natural proportions, natural grip posture, and correct joint articulation. Arms must connect naturally to shoulders. Faces must have symmetrical features, natural skin texture, and realistic proportions. If a person is holding or using the product, ensure the grip is physically plausible — fingers wrap around the handle/body naturally, thumbs oppose correctly, and the wrist angle is anatomically possible. NEVER generate: extra fingers, fused fingers, missing fingers, distorted knuckles, backwards thumbs, floating hands, hands clipping through objects, unnatural wrist bends exceeding 90 degrees, or arms that appear disconnected. If realistic human anatomy cannot be rendered with high confidence, prefer a product-only composition instead.
 - STRICT NO-WATERMARK MANDATE: Do NOT add any watermark, logo overlay, brand emblem, AI attribution mark, Google/Gemini logo, spark icon, camera watermark, corner stamp, semi-transparent badge, or any kind of attribution mark anywhere on the image. The output must be 100% clean commercial photography with zero watermarks. Also ensure the negativePrompt includes: watermark, logo overlay, corner stamp, attribution mark, semi-transparent text.
 - COVER IMAGE RULE: For COVER images (ภาพปกสินค้า / ImageCategory.COVER), render a clean, high-impact hero product shot (or presenter holding product) with 1 dynamic Thai marketing headline tailored to this product and optionally one short supporting line. Unless the first reference visibly shows a multi-piece set, depict the purchasable product exactly once: the presenter may interact with that same hero item, but never create a duplicate item elsewhere in the scene. Require a physically plausible pose; no floating product, no clipping into the body, and no product resting on the chest. For reflective materials, reflections must match the same indoor scene, people, and light direction. Never repeat any hook, product name, or selling line. Establish three typography levels: one large main hook; at most one smaller, calmer proof line; and at most one small accent on a verified phrase or number. Each level must use visibly different scale, weight, and treatment. Use a purposeful three-colour high-contrast palette—bright/cream or vivid main fill, deep outline/shadow, and one selective accent—so the copy is readable at mobile thumbnail size. Never apply the same yellow/red/black effect, font style, or visual weight to every text line. Treat every regeneration as a fresh art direction: vary the scene, camera, composition, and headline placement while preserving the exact product and presenter brief. Do NOT default to rounded banners, sticker frames, feature pills, ratings, seals, price tags, feature lists, or metadata labels unless explicitly confirmed by the supplied product facts.
@@ -222,7 +236,18 @@ Return valid JSON only:
     throw new Error('Prompt orchestrator did not return a valid prompt.');
   }
 
-  const systemNegative = 'เผาแล้ว พร้อมใช้, static repeated phrases, จุดเด่นสินค้า, ราคาที่ผู้ขายยืนยัน, Key features, Confirmed selling price, metadata labels, category headers, specs list on cover image, watermark, logo overlay, corner stamp, attribution mark, semi-transparent text, Google logo, Gemini logo, spark icon, extra fingers, six fingers, deformed hands, fused fingers, missing fingers, distorted anatomy, backwards thumbs, unnatural hand pose, mutated hands, bad anatomy, disconnected limbs';
+  const catUpper = String(args.category || '').toUpperCase();
+  const categoryNegative = catUpper === 'CLOSE_UP'
+    ? 'double exposure, ghosted product, duplicate product, split screen, collage, floating magnifying glass circle, inset circle, promotional banner, text overlay, headline'
+    : catUpper.startsWith('LIFESTYLE_')
+      ? 'studio backdrop, product podium, cover layout, advertising banner, promotional text, marketing slogan, sticker, badge, price tag, Western showroom kitchen'
+      : catUpper === 'TUTORIAL'
+        ? 'copied source text, OCR text from reference image, text overlapping product, warped product, melted product, distorted product geometry'
+        : '';
+  const systemNegative = [
+    categoryNegative,
+    'เผาแล้ว พร้อมใช้, static repeated phrases, จุดเด่นสินค้า, ราคาที่ผู้ขายยืนยัน, Key features, Confirmed selling price, metadata labels, category headers, specs list on cover image, watermark, logo overlay, corner stamp, attribution mark, semi-transparent text, Google logo, Gemini logo, spark icon, extra fingers, six fingers, deformed hands, fused fingers, missing fingers, distorted anatomy, backwards thumbs, unnatural hand pose, mutated hands, bad anatomy, disconnected limbs',
+  ].filter(Boolean).join(', ');
   const finalNegativePrompt = parsed.negativePrompt ? `${parsed.negativePrompt}, ${systemNegative}` : systemNegative;
 
   return {

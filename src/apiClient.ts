@@ -304,12 +304,12 @@ export async function generateProductImage(
   // happens on client side using the same logic as before)
   let prompt = '';
 
-  if (customPrompt) {
+  if (customPrompt && category !== ImageCategory.TUTORIAL) {
     prompt = buildGroundedProductPrompt(customPrompt, category, productData, style);
   } else {
-    // Build category-specific prompt
+    // Build category-specific prompt (for TUTORIAL, customPrompt may contain JSON step prompts)
     prompt = buildGroundedProductPrompt(
-      buildCategoryPrompt(category, productData, style, styleIndex),
+      buildCategoryPrompt(category, productData, style, styleIndex, customPrompt),
       category,
       productData,
       style,
@@ -436,9 +436,13 @@ function buildGroundedProductPrompt(
   visualStyle?: string,
 ): string {
   const isCover = category === ImageCategory.COVER;
-  const features = (!isCover && productData.features?.filter(Boolean).slice(0, 8)) || [];
-  const price = !isCover && (productData.price?.display || (productData.price?.current ? `฿${productData.price.current.toLocaleString('th-TH')}` : ''));
-  const variants = !isCover && (productData.variantGroups || [])
+  const isPurePhotoScene =
+    category === ImageCategory.CLOSE_UP ||
+    category.startsWith('LIFESTYLE_') ||
+    category === ImageCategory.SOCIAL_PROOF;
+  const features = (!isCover && !isPurePhotoScene && productData.features?.filter(Boolean).slice(0, 8)) || [];
+  const price = !isCover && !isPurePhotoScene && (productData.price?.display || (productData.price?.current ? `฿${productData.price.current.toLocaleString('th-TH')}` : ''));
+  const variants = !isCover && !isPurePhotoScene && (productData.variantGroups || [])
     .map(group => `${group.name}: ${group.options.map(option => `${option.label}${option.price?.display ? ` (${option.price.display})` : ''}`).join(', ')}`)
     .join(' | ');
   return [
@@ -448,13 +452,16 @@ function buildGroundedProductPrompt(
     features.length ? `Product highlights: ${features.join(' | ')}` : '',
     price ? `Product price: ${price}` : '',
     variants ? `Product options: ${variants}` : '',
-    visualStyle ? `Visual direction preset: ${visualStyle}. Keep its colour palette, lighting, composition language, and typography zone consistent for this image.` : '',
+    (!isPurePhotoScene && visualStyle) ? `Visual direction preset: ${visualStyle}. Keep its colour palette, lighting, composition language, and typography zone consistent for this image.` : '',
+    isPurePhotoScene ? 'PURE PHOTOGRAPHY SCENE MANDATE (CRITICAL — NOT A COVER OR AD POSTER): This slot requires 100% pure commercial/documentary photography with ZERO advertising headlines, ZERO promotional banners, ZERO feature callout boxes, ZERO price tags, and ZERO cover-style graphic overlays. Immerse the product in the exact requested photographic context only.' : '',
     'PRODUCT IDENTITY ANCHOR: The FIRST attached reference image is the canonical physical product. Match it exactly: silhouette, dimensions/proportions, construction, handle/fasteners, colour, material finish, logos, labels, and included pieces. Additional reference images only confirm other views. Never substitute, redesign, simplify, or create a generic product from its category.',
-    '3D PERSPECTIVE FREEDOM: Reconstruct the exact 3D geometry of the product from the reference images. Do NOT copy the exact 2D camera perspective or framing of the uploaded photo. Feel free to render the product from dynamic commercial angles (such as 3/4 isometric view, low hero angle, side profile, top-down flatlay, or macro detail) that best showcase the product for each card, while keeping the product identity 100% identical.',
+    category === ImageCategory.CLOSE_UP
+      ? 'SINGLE-FRAME MACRO INTEGRITY (CRITICAL): Render ONE single physical product in a single continuous camera frame. NEVER create double exposure, ghosted secondary products, split screens, collage panels, or floating magnifying-glass circles. Keep the product geometry 100% intact and undistorted while focusing razor-sharp on material texture and craftsmanship.'
+      : '3D PERSPECTIVE FREEDOM: Reconstruct the exact 3D geometry of the product from the reference images. Do NOT copy the exact 2D camera perspective or framing of the uploaded photo. Feel free to render the product from dynamic commercial angles (such as 3/4 isometric view, low hero angle, side profile, top-down flatlay, or macro detail) that best showcase the product for each card, while keeping the product identity 100% identical.',
     'LANGUAGE MANDATE (CRITICAL): All text, headlines, badges, callouts, promotional tags, and dimension labels rendered inside the generated image MUST BE IN THAI LANGUAGE ONLY (ภาษาไทยเท่านั้น). Do not render any English words, pseudo-Latin, or gibberish text unless the brand name itself is explicitly in English.',
     'STRICT GRAPHIC RULE: NEVER render system metadata headings or label prefixes like "จุดเด่นสินค้า:", "ราคาที่ผู้ขายยืนยัน:", "Key features:", or "Confirmed price:". On COVER images, do NOT draw feature lists or specification callouts; draw ONLY high-impact hero product photography and optional clean Thai marketing slogan.',
     'STRICT NO-WATERMARK MANDATE: Do NOT add, draw, or render any digital watermark, logo overlay, brand emblem, Google/Gemini logo, spark icon, camera watermark, corner stamp, semi-transparent badge, AI attribution mark, or any kind of branding mark at the bottom-left, bottom-right, or anywhere on the image canvas. The output must be 100% clean commercial product photography with absolutely zero watermarks. Any watermark means the image is rejected.',
-    'SOURCE IMAGE WATERMARK REMOVAL RULE: If the input reference photo contains any existing watermarks, logos, text overlays, timestamps, or corner badges, do NOT reproduce or copy those watermarks into the new generated image. Remove all source watermarks completely.',
+    'SOURCE IMAGE TEXT & WATERMARK SUPPRESSION RULE (CRITICAL): If the input reference photo contains any existing promotional text, Chinese/Thai/English typography, callout lines, dimension numbers, step badges, stickers, watermarks, or infographic overlays, DO NOT copy, OCR, or reproduce any of that source text or graphic layout into the new generated image. Extract ONLY the 3D physical product itself.',
     'HUMAN ANATOMY & HAND QUALITY (CRITICAL): When generating images that include people, ensure anatomically correct human features at all times. Hands must have exactly 5 fingers each with natural proportions and correct joint articulation. If a person is holding or using the product, fingers must wrap around the handle/body naturally, thumbs must oppose correctly, and the wrist angle must be anatomically possible. NEVER generate extra fingers, fused fingers, missing fingers, distorted knuckles, backwards thumbs, floating hands, hands clipping through objects, or arms that appear disconnected. If realistic human anatomy cannot be rendered with high confidence, prefer a clean product-only composition instead.',
     'Use the attached product reference images as the source of truth. Preserve the same product identity, shape, color, materials, logos/labels, and visible details. Improve only the scene, lighting, background, composition, and sales presentation. Do not invent a different product.',
     `Image task: ${taskPrompt}`,
@@ -466,6 +473,7 @@ function buildCategoryPrompt(
   productData: ProductData,
   style: string,
   styleIndex?: number,
+  customPrompt?: string,
 ): string {
   const coverTypographyRule = `COVER TYPOGRAPHY & VISUAL HIERARCHY RULES (MANDATORY):
 1. NO DUPLICATE HOOKS (Hook ห้ามซ้ำทั้งภาพ): Never repeat the same slogan, phrase, or text across lines anywhere on the image canvas.
@@ -499,15 +507,57 @@ function buildCategoryPrompt(
     case ImageCategory.INFOGRAPHIC:
       return `Product infographic for "${productData.name}". ${productData.features?.join(' | ') || ''}. ALL TEXT CALLOUTS AND HEADLINES MUST BE IN THAI LANGUAGE ONLY (ภาษาไทยเท่านั้น). Clean flat design.`;
     case ImageCategory.CLOSE_UP:
-      return `Macro extreme close-up shot of "${productData.name}". Focus on material texture and high-quality details. Soft bokeh background.`;
+      return `Single-frame commercial close-up detail inspection photograph of "${productData.name}". SINGLE UNIFIED OBJECT MANDATE (NO DOUBLE EXPOSURE, NO GHOSTING, NO SPLIT SCREEN, NO INSET CIRCLES): Render exactly ONE single physical product in one continuous camera frame from a tight 45-degree near-focus inspection angle (filling 75–85% of the canvas). Do NOT superimpose a zoomed texture over a second ghosted product, do NOT create a split collage, and do NOT draw floating magnifying-glass circles. Keep the entire visible product geometry, proportions, and component placement 100% faithful to the reference image without warping or stretching. Highlight razor-sharp material texture, surface finish, joints/welds/stitching, and build craftsmanship under crisp directional studio lighting with a soft, clean bokeh background. Render ZERO text, ZERO banners, and ZERO slogans.`;
     case ImageCategory.LIFESTYLE_A:
-      return `Authentic home lifestyle photography of "${productData.name}" being used naturally in a cozy domestic setting. REALISTIC LIFESTYLE & KITCHEN PHYSICS (CRITICAL): If the product is cookware, a wok, pan, or appliance used for cooking, it MUST be placed directly ON A STOVE, GAS HOB, or INDUCTION BURNER when cooking food with steam. NEVER render a hot pan stir-frying food directly on a bare wooden dining table or countertop without a stove. Ensure natural hand ergonomics and believable posture—one hand holding utensil or handle with a natural grip. Warm natural daylight, high commercial realism.`;
+      return `Authentic home lifestyle photography of "${productData.name}" being used naturally in a cozy domestic setting. REALISTIC LIFESTYLE & KITCHEN PHYSICS (CRITICAL): If the product is cookware, a wok, pan, or appliance used for cooking, it MUST be placed directly ON A STOVE, GAS HOB, or INDUCTION BURNER when cooking food with steam. NEVER render a hot pan stir-frying food directly on a bare wooden dining table or countertop without a stove. Ensure natural hand ergonomics and believable posture—one hand holding utensil or handle with a natural grip. Warm natural daylight, high commercial realism, zero promotional text or cover banners.`;
     case ImageCategory.LIFESTYLE_B:
-      return `Authentic outdoor lifestyle photography of "${productData.name}" in a natural outdoor/patio setting. Ensure realistic product usage and natural hand posture. Bright sunny day, fresh feel.`;
+      return `Authentic outdoor lifestyle photography of "${productData.name}" actively used in a natural outdoor, garden, or patio setting. Ensure realistic product usage, natural hand posture, and genuine outdoor lighting with lush depth-of-field background. Zero promotional text or cover banners.`;
     case ImageCategory.LIFESTYLE_C:
-      return `Authentic modern urban lifestyle photography of "${productData.name}". Ensure realistic placement and natural human interaction. Clean modern aesthetic.`;
+      return `Authentic modern urban/professional lifestyle photography of "${productData.name}" in real-world daily use inside a clean modern workspace or city environment. Candid documentary realism, natural lighting, zero promotional text or cover banners.`;
+    case ImageCategory.LIFESTYLE_THAI_STREET_FOOD:
+      return `Authentic documentary-style real-usage photography of "${productData.name}" actively being used at a bustling Thai street food stall / stainless steel roadside food cart (ร้านสตรีทฟู้ดไทย / รถเข็นขายอาหารริมทาง). MANDATORY SCENE & ACTION CONTEXT (NOT A COVER IMAGE): Show the exact product in real-world action on a Thai street vendor's stainless steel cart or prep station, surrounded by realistic street stall details—stainless steel condiment trays (พวงเครื่องปรุง), fresh Thai street food ingredients, warm tungsten street-stall lighting or tropical daylight, plastic stools/folding tables, and softly blurred Thai street signage and lively street-food bokeh in the background. If the product is cookware or kitchenware, show it actively cooking or serving Thai street food on a real street-cart gas burner. NEVER use a studio backdrop, podium, or cover-style graphic layout. Render ZERO marketing headlines, ZERO banners, and ZERO stickers.`;
+    case ImageCategory.LIFESTYLE_THAI_MARKET:
+      return `Authentic documentary-style real-usage photography of "${productData.name}" in a vibrant traditional Thai fresh market or open-air Thai flea market (ตลาดสดไทย / ตลาดนัดไทย). MANDATORY SCENE & ACTION CONTEXT (NOT A COVER IMAGE): Show the exact product being used or handled naturally in a rich, lived-in Thai market stall environment—colorful woven plastic baskets (ตะกร้าพลาสติกในตลาด), wooden vendor tables, fresh local produce/herbs/ingredients, warm light filtering through colorful market umbrellas/awnings, and a softly blurred background of bustling Thai market vendors and shoppers. NEVER use a plain studio backdrop, podium, or cover-style graphic layout. Render ZERO marketing headlines, ZERO banners, and ZERO stickers.`;
+    case ImageCategory.LIFESTYLE_THAI_KITCHEN:
+      return `Authentic real-life photography of "${productData.name}" actively being used in a genuine Thai home kitchen or local Thai kitchen (ห้องครัวไทยจริง). MANDATORY THAI KITCHEN ENVIRONMENT & PHYSICS (NOT A COVER OR WESTERN SHOWROOM): Surround the product with unmistakable Thai culinary context—tiled or polished concrete Thai kitchen counter, real Thai gas stove burner (เตาแก๊สไทย), stone or wooden mortar and pestle (ครกสาก), fresh Thai herbs and aromatics (holy basil/กะเพรา, kaffir lime leaves, bird's eye chilies, garlic, shallots, lime), fish sauce and seasoning bottles, and warm natural daylight through Thai kitchen windows. If the product is cookware (wok, pan, pot), it MUST sit on a real gas burner actively cooking Thai food with natural steam—never stir-frying on a bare table. NEVER use a studio backdrop or cover-style graphic layout. Render ZERO marketing headlines, ZERO banners, and ZERO stickers.`;
+    case ImageCategory.LIFESTYLE_ISAN_KITCHEN:
+      return `Authentic real-life photography of "${productData.name}" actively being used in a traditional Thai-Isan kitchen or local som-tam stall setting (ครัวอีสาน / ร้านส้มตำ). Surround with authentic Isan culinary details: wooden mortar and pestle (ครกไม้), woven sticky rice basket (กระติ๊บข้าวเหนียว), fresh green papaya, lime, chilies, tomatoes, rustic wooden counter, and warm natural ambient daylight. Candid documentary realism, zero studio backdrop, zero promotional text or cover banners.`;
+    case ImageCategory.LIFESTYLE_THAI_LOCAL_RESTAURANT:
+      return `Authentic real-life photography of "${productData.name}" actively being used in a bustling local family-owned Thai restaurant (ร้านอาหารตามสั่ง / ร้านอาหารท้องถิ่นไทย). Realistic working restaurant table or kitchen station, Thai dishes, stainless steel utensils, warm inviting ambient lighting, and softly blurred local dining room background. Candid documentary realism, zero studio backdrop, zero promotional text or cover banners.`;
     case ImageCategory.SIZE_CHART:
       return `Clean product size comparison chart for "${productData.name}". Dimension annotations and specifications MUST BE IN THAI LANGUAGE ONLY (ภาษาไทยเท่านั้น, เช่น ขนาดสินค้า, ซม., มม.).`;
+    case ImageCategory.SOCIAL_PROOF:
+      return `Authentic customer review / unboxing / real-user satisfaction photograph featuring the exact "${productData.name}" in a relatable real-home environment. Natural window lighting, smartphone photography aesthetic, genuine unposed feel, zero copied source-image text.`;
+    case ImageCategory.TUTORIAL: {
+      let userSteps: string[] = [];
+      if (customPrompt) {
+        try {
+          const parsed = JSON.parse(customPrompt);
+          if (Array.isArray(parsed)) {
+            userSteps = parsed.map(s => String(s || '').trim()).filter(Boolean);
+          }
+        } catch {
+          if (customPrompt.trim()) userSteps = [customPrompt.trim()];
+        }
+      }
+      const stepsDirective = userSteps.length > 0
+        ? `Use these exact user-specified steps (translate/render in clean Thai): ${userSteps.map((s, idx) => `ขั้นตอนที่ ${idx + 1}: ${s}`).join(' | ')}`
+        : `Synthesize 3 to 4 brand-new, logical, concise Thai usage steps (ขั้นตอนที่ 1, 2, 3...) specifically explaining how a customer prepares, uses, and gets the best result from "${productData.name}" (${productData.description || ''}). Keep each step caption very short (3–5 Thai words, e.g. "1. เตรียมอุปกรณ์ให้พร้อม", "2. ใช้งานได้ทันที", "3. ล้างเก็บง่าย").`;
+      const tutorialStyles = [
+        'Clean 2x2 or 3-step modern infographic card layout with a soft neutral background, numbered circle badges (1, 2, 3), and thin clean dividers.',
+        'Horizontal step-by-step timeline flow from left to right with numbered badges and connecting arrows on a soft cream/light-blue background.',
+        'Editorial magazine how-to guide layout on warm off-white paper with generous whitespace and numbered step callout cards in the margins.',
+        'Modern dark-tech instructional layout (#1E1E2E) with glowing cyan/emerald step numbers and clean separated step cards.',
+        'Warm approachable DIY craft guide layout on light kraft-paper tone with clean numbered step badges and simple directional arrows.',
+        'Vertical story-style step sequence with bold numbered step headers (01, 02, 03) and clean separated caption zones.',
+      ];
+      const chosenTutorialLayout = tutorialStyles[((styleIndex || 1) - 1) % tutorialStyles.length];
+      return `Step-by-step "How to Use" instructional infographic (ภาพวิธีใช้งาน) for "${productData.name}".
+LAYOUT & STYLE: ${chosenTutorialLayout}
+STEP CONTENT MANDATE: ${stepsDirective}
+STRICT SOURCE-TEXT BAN (CRITICAL): NEVER copy, OCR, or reproduce any existing text, labels, Chinese/Thai/English words, or old callouts from the uploaded source reference image! All Thai step captions must be newly composed for this tutorial.
+PRODUCT FIDELITY & NON-OVERLAPPING TEXT RULE (CRITICAL): Preserve the exact 3D geometry, proportions, and details of the reference product without warping, melting, or distorting it. Place all numbered badges (1, 2, 3...) and short Thai step captions inside dedicated, clean margin or card zones so that text NEVER overlaps, covers, or cuts across the physical product.`;
+    }
     default:
       return `Generate a product image for "${productData.name}". ${productData.description}. ALL TEXT MUST BE IN THAI LANGUAGE ONLY (ภาษาไทยเท่านั้น).`;
   }

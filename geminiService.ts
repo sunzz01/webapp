@@ -1101,25 +1101,25 @@ LOCALIZATION (TH):
       promptSuffix = pickStyle(INFOGRAPHIC_VARIATIONS, styleIndex)(productData.features);
       break;
     case ImageCategory.CLOSE_UP:
-      promptSuffix = `Macro extreme close-up shot of the exact product shown in the reference image. Focus strictly on material texture and high-quality details WITHOUT altering the physical structure, shape, or placement of components (like screws, details, text). The product's anatomy and mechanical parts must remain 100% identical to the reference. Soft bokeh background, professional studio lighting.`;
+      promptSuffix = `Single-frame commercial close-up detail inspection photograph of the exact product shown in the reference image. SINGLE UNIFIED OBJECT MANDATE: Render ONE single physical product in one continuous camera frame from a tight 45-degree near-focus inspection angle (filling 75–85% of the frame). NEVER create double exposure, ghosted secondary products, split screens, collage panels, or floating magnifying-glass circles. Focus razor-sharp on material texture, surface finish, joints, and build craftsmanship while keeping the physical structure and proportions 100% identical to the reference. Soft bokeh background, studio lighting, zero text or banners.`;
       break;
     case ImageCategory.LIFESTYLE_A:
-      promptSuffix = `Lifestyle photography of the product being used by a person inside a cozy home environment. Warm natural light coming through a window, realistic living room or kitchen setting.`;
+      promptSuffix = `Authentic home lifestyle photography of the product actively being used inside a cozy domestic environment. If cookware, place on a real stove burner when cooking. Warm natural window light, realistic home setting, zero promotional text or cover banners.`;
       break;
     case ImageCategory.LIFESTYLE_B:
-      promptSuffix = `Lifestyle photography of the product in an outdoor nature setting (park, garden, or beach). Bright sunny day, organic textures, adventurous and fresh feel.`;
+      promptSuffix = `Authentic outdoor lifestyle photography of the product actively used in a natural outdoor setting (garden, patio, or park). Bright natural daylight, organic textures, zero promotional text or cover banners.`;
       break;
     case ImageCategory.LIFESTYLE_C:
-      promptSuffix = `Lifestyle photography of the product in a professional urban setting. Modern architecture, clean lines, corporate or city background, sophisticated lighting. realistic, candid, unstaged, real usage, no studio setup, no luxury kitchen, no showroom, no stock photo look`;
+      promptSuffix = `Authentic urban/professional lifestyle photography of the product in real-world daily use inside a modern workspace or city environment. Candid documentary realism, zero promotional text or cover banners.`;
       break;
     case ImageCategory.LIFESTYLE_THAI_STREET_FOOD:
-      promptSuffix = `Lifestyle photography of the product in a Thai street food setting. Street food stall, stainless steel cart, colorful ingredients, Thai signage, casual atmosphere, real usage scenario, natural daylight, vibrant yet authentic Thai street style. realistic, candid, unstaged, real usage, no studio setup, no luxury kitchen, no showroom, no stock photo look`;
+      promptSuffix = `Authentic documentary-style real-usage photography of the product actively being used at a bustling Thai street food stall / stainless steel roadside food cart (ร้านสตรีทฟู้ดไทย / รถเข็นขายอาหารริมทาง). Show stainless steel cart counter, condiment trays, fresh Thai street food ingredients, plastic stools, warm street-stall lighting, and blurred Thai street signage in the background. Real action context, zero studio backdrop, zero cover layout, zero promotional text or banners.`;
       break;
     case ImageCategory.LIFESTYLE_THAI_MARKET:
-      promptSuffix = `Lifestyle photography of the product in a traditional Thai market. Fresh produce, local vendors, busy market atmosphere, plastic baskets, wet market environment, authentic Thai daily life, natural lighting, documentary-style realism. realistic, candid, unstaged, real usage, no studio setup, no luxury kitchen, no showroom, no stock photo look`;
+      promptSuffix = `Authentic documentary-style real-usage photography of the product in a vibrant traditional Thai fresh market or open-air Thai flea market (ตลาดสดไทย / ตลาดนัดไทย). Show colorful woven plastic baskets, wooden vendor tables, fresh local produce/herbs, warm light under colorful market umbrellas, and a lively background of Thai market vendors and shoppers. Real market context, zero studio backdrop, zero cover layout, zero promotional text or banners.`;
       break;
     case ImageCategory.LIFESTYLE_THAI_KITCHEN:
-      promptSuffix = `Lifestyle photography of the product in a Thai kitchen. Cooking Thai food, herbs and spices, fish sauce bottles, chili, garlic, mortar and pestle, warm lighting, real home or restaurant kitchen environment. realistic, candid, unstaged, real usage, no studio setup, no luxury kitchen, no showroom, no stock photo look`;
+      promptSuffix = `Authentic real-life photography of the product actively being used in a genuine Thai home or local Thai kitchen (ห้องครัวไทยจริง). Surround with unmistakable Thai culinary context: tiled or concrete Thai kitchen counter, real Thai gas stove burner, stone/wooden mortar and pestle (ครกสาก), fresh holy basil, chilies, lime, garlic, shallots, fish sauce bottles, and warm natural daylight. If cookware, place directly on a real gas burner actively cooking Thai food. Zero studio backdrop, zero Western showroom kitchen, zero promotional text or banners.`;
       break;
     case ImageCategory.LIFESTYLE_ISAN_KITCHEN:
       promptSuffix = `Lifestyle photography of the product in an Isan kitchen setting. Som tam preparation, papaya shredder, mortar and pestle, sticky rice baskets, local Thai-Isan atmosphere, rustic kitchen, real usage, natural ambient lighting. realistic, candid, unstaged, real usage, no studio setup, no luxury kitchen, no showroom, no stock photo look`;
@@ -1204,23 +1204,33 @@ LOCALIZATION (TH):
           break;
       }
       break;
-    case ImageCategory.TUTORIAL:
-      // สำหรับ TUTORIAL: parse custom step prompts จาก JSON หากมี
-      let tutorialSteps = [
-        "Step 1: Unboxing/Prepare",
-        "Step 2: Setup/Install",
-        "Step 3: Usage",
-        "Step 4: Result"
+    case ImageCategory.TUTORIAL: {
+      // สำหรับ TUTORIAL: parse custom step prompts จาก JSON หากมี และกรองค่าว่างออก
+      const defaultSteps = [
+        `เตรียม "${productData.name}" ให้พร้อมใช้งาน (คิดข้อความไทยสั้นๆ 3-5 คำสำหรับขั้นที่ 1)`,
+        `เริ่มใช้งานตามฟังก์ชันหลักของสินค้า (คิดข้อความไทยสั้นๆ 3-5 คำสำหรับขั้นที่ 2)`,
+        `ใช้งานได้เต็มประสิทธิภาพ สะดวกสบาย (คิดข้อความไทยสั้นๆ 3-5 คำสำหรับขั้นที่ 3)`,
+        `ดูแลรักษาหรือจัดเก็บง่ายหลังใช้งาน (คิดข้อความไทยสั้นๆ 3-5 คำสำหรับขั้นที่ 4)`,
       ];
+      let tutorialSteps = defaultSteps;
       if (customPrompt) {
         try {
-          tutorialSteps = JSON.parse(customPrompt) as string[];
+          const parsed = JSON.parse(customPrompt);
+          if (Array.isArray(parsed)) {
+            const nonEmpty = parsed.map(s => String(s || '').trim()).filter(Boolean);
+            if (nonEmpty.length > 0) {
+              tutorialSteps = defaultSteps.map((def, idx) => nonEmpty[idx] || def);
+            }
+          }
         } catch (e) {
           console.warn("Failed to parse tutorial prompts, using defaults");
         }
       }
-      promptSuffix = pickStyle(TUTORIAL_VARIATIONS, styleIndex)(tutorialSteps);
+      promptSuffix = `${pickStyle(TUTORIAL_VARIATIONS, styleIndex)(tutorialSteps)}
+
+STRICT TUTORIAL RULES: NEVER copy, OCR, or repeat any existing text or labels from the uploaded source reference image. Synthesize brand-new, concise Thai step captions (ภาษาไทยเท่านั้น). Preserve the exact 3D product geometry without distortion, and place all numbered step badges and captions in clean separated card/margin zones so text NEVER overlaps the product.`;
       break;
+    }
   }
 
   // แปลง aspect ratio เป็นคำอธิบายที่ชัดเจนสำหรับ AI
