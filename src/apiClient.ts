@@ -435,7 +435,10 @@ function buildGroundedProductPrompt(
   productData: ProductData,
   visualStyle?: string,
 ): string {
-  const isCover = category === ImageCategory.COVER;
+  const isVariantMode =
+    taskPrompt.includes('[VARIANT_STUDIO_MODE]') ||
+    Boolean(productData.description?.includes('ตัวเลือกที่ต้องสร้างภาพนี้:'));
+  const isCover = category === ImageCategory.COVER && !isVariantMode;
   const isPurePhotoScene =
     category === ImageCategory.CLOSE_UP ||
     category.startsWith('LIFESTYLE_') ||
@@ -446,7 +449,7 @@ function buildGroundedProductPrompt(
     .map(group => `${group.name}: ${group.options.map(option => `${option.label}${option.price?.display ? ` (${option.price.display})` : ''}`).join(', ')}`)
     .join(' | ');
   return [
-    `Create a ${category} ecommerce image for this exact product.`,
+    `Create a ${isVariantMode ? 'VARIANT_SPEC_SHOWCASE' : category} ecommerce image for this exact product.`,
     `Product name: ${productData.name || 'Unknown product'}`,
     productData.description ? `Product description: ${productData.description}` : '',
     features.length ? `Product highlights: ${features.join(' | ')}` : '',
@@ -457,11 +460,17 @@ function buildGroundedProductPrompt(
     'PRODUCT IDENTITY ANCHOR: The FIRST attached reference image is the canonical physical product. Match it exactly: silhouette, dimensions/proportions, construction, handle/fasteners, colour, material finish, logos, labels, and included pieces. Additional reference images only confirm other views. Never substitute, redesign, simplify, or create a generic product from its category.',
     category === ImageCategory.CLOSE_UP
       ? 'SINGLE-FRAME MACRO INTEGRITY (CRITICAL): Render ONE single physical product in a single continuous camera frame. NEVER create double exposure, ghosted secondary products, split screens, collage panels, or floating magnifying-glass circles. Keep the product geometry 100% intact and undistorted while focusing razor-sharp on material texture and craftsmanship.'
-      : '3D PERSPECTIVE FREEDOM: Reconstruct the exact 3D geometry of the product from the reference images. Do NOT copy the exact 2D camera perspective or framing of the uploaded photo. Feel free to render the product from dynamic commercial angles (such as 3/4 isometric view, low hero angle, side profile, top-down flatlay, or macro detail) that best showcase the product for each card, while keeping the product identity 100% identical.',
+      : isVariantMode
+        ? 'COHESIVE VARIANT STUDIO PERSPECTIVE: Render the exact product centered in a clean, straight-on / 10-degree elevated commercial studio angle on a softly lit 3D warm pearl-alabaster studio cyclorama with realistic floor contact shadow so all variant cards share a single unified catalog look and leave clean margin space for dimension arrows when present.'
+        : '3D PERSPECTIVE FREEDOM: Reconstruct the exact 3D geometry of the product from the reference images. Do NOT copy the exact 2D camera perspective or framing of the uploaded photo. Feel free to render the product from dynamic commercial angles (such as 3/4 isometric view, low hero angle, side profile, top-down flatlay, or macro detail) that best showcase the product for each card, while keeping the product identity 100% identical.',
     'LANGUAGE MANDATE (CRITICAL): All text, headlines, badges, callouts, promotional tags, and dimension labels rendered inside the generated image MUST BE IN THAI LANGUAGE ONLY (ภาษาไทยเท่านั้น). Do not render any English words, pseudo-Latin, or gibberish text unless the brand name itself is explicitly in English.',
-    'STRICT GRAPHIC RULE: NEVER render system metadata headings or label prefixes like "จุดเด่นสินค้า:", "ราคาที่ผู้ขายยืนยัน:", "Key features:", or "Confirmed price:". On COVER images, do NOT draw feature lists or specification callouts; draw ONLY high-impact hero product photography and optional clean Thai marketing slogan.',
+    isVariantMode
+      ? 'STRICT GRAPHIC RULE FOR VARIANT STUDIO: NEVER render system metadata headings like "จุดเด่นสินค้า:" or "ราคาที่ผู้ขายยืนยัน:". Render a clean modern Thai header for the variant name/option badge, AND if the reference image contains dimension arrows/measurements, re-render those exact dimension arrows and Thai measurement numbers in a sleek, redesigned modern infographic style.'
+      : 'STRICT GRAPHIC RULE: NEVER render system metadata headings or label prefixes like "จุดเด่นสินค้า:", "ราคาที่ผู้ขายยืนยัน:", "Key features:", or "Confirmed price:". On COVER images, do NOT draw feature lists or specification callouts; draw ONLY high-impact hero product photography and optional clean Thai marketing slogan.',
     'STRICT NO-WATERMARK MANDATE: Do NOT add, draw, or render any digital watermark, logo overlay, brand emblem, Google/Gemini logo, spark icon, camera watermark, corner stamp, semi-transparent badge, AI attribution mark, or any kind of branding mark at the bottom-left, bottom-right, or anywhere on the image canvas. The output must be 100% clean commercial product photography with absolutely zero watermarks. Any watermark means the image is rejected.',
-    'SOURCE IMAGE TEXT & WATERMARK SUPPRESSION RULE (CRITICAL): If the input reference photo contains any existing promotional text, Chinese/Thai/English typography, callout lines, dimension numbers, step badges, stickers, watermarks, or infographic overlays, DO NOT copy, OCR, or reproduce any of that source text or graphic layout into the new generated image. Extract ONLY the 3D physical product itself.',
+    (isVariantMode || category === ImageCategory.SIZE_CHART)
+      ? 'SMART VARIANT DIMENSION LEARNING & ANTI-MULTI-SHOP REDESIGN RULE (CRITICAL): Inspect the primary reference image carefully. (1) IF the source image contains dimension lines, scale arrows, measurement numbers (e.g., 36 ซม., 11 ซม., 10.5 ซม., 14.3 ซม.), or capacity specs (e.g., บรรจุน้ำได้ 13 ลิตร), LEARN and EXTRACT 100% of those exact numeric measurements, units, and anatomical arrow anchor points on the product, and DRAW clean dimension arrows with those exact Thai measurement labels on the new image. (2) COMPLETELY REMOVE any third-party seller store logo/watermark (such as corner circle shop logos like "Allgoodz88") and any webpage screenshot UI elements (such as left/right "<" ">" carousel slider arrows), while keeping authentic manufacturer markings physically on the product body itself. (3) ANTI-FOOTPRINT RESTYLING: NEVER copy the source image old font family, old red/green text color combination, or flat cutout white background—redesign all typography, dimension arrows, and measurement pill badges in a fresh, modern, unified commercial studio style.'
+      : 'SOURCE IMAGE TEXT & WATERMARK SUPPRESSION RULE (CRITICAL): If the input reference photo contains any existing promotional text, Chinese/Thai/English typography, callout lines, dimension numbers, step badges, stickers, watermarks, or infographic overlays, DO NOT copy, OCR, or reproduce any of that source text or graphic layout into the new generated image. Extract ONLY the 3D physical product itself.',
     'HUMAN ANATOMY & HAND QUALITY (CRITICAL): When generating images that include people, ensure anatomically correct human features at all times. Hands must have exactly 5 fingers each with natural proportions and correct joint articulation. If a person is holding or using the product, fingers must wrap around the handle/body naturally, thumbs must oppose correctly, and the wrist angle must be anatomically possible. NEVER generate extra fingers, fused fingers, missing fingers, distorted knuckles, backwards thumbs, floating hands, hands clipping through objects, or arms that appear disconnected. If realistic human anatomy cannot be rendered with high confidence, prefer a clean product-only composition instead.',
     'Use the attached product reference images as the source of truth. Preserve the same product identity, shape, color, materials, logos/labels, and visible details. Improve only the scene, lighting, background, composition, and sales presentation. Do not invent a different product.',
     `Image task: ${taskPrompt}`,

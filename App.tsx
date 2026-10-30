@@ -1615,6 +1615,20 @@ const App: React.FC = () => {
     }
   };
 
+  const buildVariantStudioPrompt = (variantLabel: string, hasDedicatedVariantImage: boolean, visualStyle: string) => [
+    `[VARIANT_STUDIO_MODE] Create a dedicated, studio-grade product variation card for "${productName || 'สินค้า'} — ${variantLabel}".`,
+    `COHESIVE VARIANT SERIES THEME LOCK (CRITICAL — ALL VARIANTS MUST MATCH): Every variant image in this set MUST share the exact same unified visual theme, lighting, camera angle, background tone, and infographic callout language so the entire store catalog looks like one cohesive official flagship set. Specifically: use a clean, softly lit 3D warm pearl-alabaster studio cyclorama surface with subtle floor contact shadow, crisp directional studio lighting, a consistent straight-on / 10-degree elevated commercial studio angle, and a unified top header zone with a sleek modern Thai title and a high-contrast accent pill badge for the exact variant option ("${variantLabel}"). Visual style preset: ${visualStyle}.`,
+    `SMART SOURCE DIMENSION & SCALE LEARNING (CRITICAL): Carefully inspect the FIRST attached reference image${hasDedicatedVariantImage ? ' (which is the dedicated source image for this specific variant)' : ''}. IF the source image contains dimension lines, scale arrows, measurement numbers (e.g., width/diameter in ซม./มม./นิ้ว, lid height, tier heights, overall height), or capacity/volume notes (e.g., บรรจุน้ำได้ ... ลิตร, จำนวนชั้น, เบอร์ ...):
+1. Extract and preserve 100% of those exact numeric measurements, units, and capacity specifications without changing or inventing numbers.
+2. Re-render clean, accurate bi-directional dimension arrows and extension lines anchored to the exact same anatomical parts of the product (e.g., top rim width across the top, vertical segmented arrows along the right side for lid height, each tier height, and bottom base height/capacity).
+3. Place each Thai measurement label inside a clean, modern high-contrast rounded pill or callout tag next to its arrow so customers can read the exact scale at a glance.
+IF the source image does NOT contain dimension arrows or numbers, do NOT invent measurements—focus on showcasing the exact variant option clearly.`,
+    `ANTI-MULTI-SHOP FOOTPRINT & STORE LOGO REMOVAL (CRITICAL — SHOPEE MULTI-STORE SAFE):
+1. ERASE ALL SELLER STORE LOGOS & UI CHROME: Completely strip out and NEVER reproduce any third-party seller/store logo, shop name badge, corner circle watermark (such as "Allgoodz88" or any shop stamp), phone/Line IDs, or screenshot UI elements (such as left/right "<" ">" carousel slider arrows) from the source image.
+2. PRESERVE AUTHENTIC PRODUCT BRANDING ONLY: Keep authentic manufacturer markings physically embossed, printed, or stickered on the 3D product body itself (e.g., manufacturer emblem on the pot/product).
+3. REDESIGN TYPOGRAPHY & ARROW STYLING: NEVER copy the source image's old font style, old red/green text color combination, or flat cutout white background. Use a completely fresh, modern Thai commercial typography hierarchy and sleek modern architectural dimension arrows (deep slate/charcoal lines with warm orange/gold or emerald accent pills) so the generated image has a 100% unique visual fingerprint that cannot be linked to other shops.`,
+  ].join('\n\n');
+
   const generateSelectedVariantImages = async () => {
     const targets = variantGroups.flatMap(group => group.options
       .filter(option => selectedVariantOptionIds.includes(option.id))
@@ -1626,8 +1640,9 @@ const App: React.FC = () => {
     const sourceImages = orderProductReferenceImages([...localImages, ...scrapedImages]);
     const converted = await Promise.all(sourceImages.map(imageUrlToBase64));
     const images = converted.filter(Boolean);
-    if (!images.length) {
-      addNotification('error', 'อ่านรูปสินค้าไม่ได้', 'ต้องมีรูปสินค้าอ้างอิงก่อนสร้างภาพแยกตัวเลือก');
+    const hasAnyVariantImage = targets.some(t => Boolean(t.option.imageUrl));
+    if (!images.length && !hasAnyVariantImage) {
+      addNotification('error', 'อ่านรูปสินค้าไม่ได้', 'ต้องมีรูปสินค้าอ้างอิงหรือรูปตัวเลือกสินค้าก่อนสร้างภาพแยกตัวเลือก');
       return;
     }
 
@@ -1638,13 +1653,14 @@ const App: React.FC = () => {
     setShouldScrollToVariantStudio(true);
     setStep(3);
     let completedTargets = 0;
+    const unifiedVariantStyle = cardVisualStyles.COVER || selectedStyle;
     for (const [targetIndex, target] of targets.entries()) {
       if (generationController.signal.aborted) break;
       setVariantGenerationProgress({ current: targetIndex + 1, total: targets.length, label: target.label, status: 'generating' });
       const id = `variant-${target.option.id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
       setGeneratedImages(previous => {
         const filtered = previous.filter(img => img.variantLabel !== target.label);
-        return [...filtered, { id, category: ImageCategory.COVER, url: '', prompt: '', status: 'generating', variantLabel: target.label, visualStyle: cardVisualStyles.COVER || selectedStyle }];
+        return [...filtered, { id, category: ImageCategory.COVER, url: '', prompt: '', status: 'generating', variantLabel: target.label, visualStyle: unifiedVariantStyle }];
       });
       try {
         let variantBase64: string | undefined;
@@ -1658,8 +1674,8 @@ const App: React.FC = () => {
         const result = await generateProductImage(
           ImageCategory.COVER,
           buildCurrentProductData(variantImages, target.label),
-          cardVisualStyles.COVER || selectedStyle,
-          `Create a dedicated, exact-variant product cover for "${target.label}". Clearly distinguish only this confirmed purchasable option from other variants${target.option.imageUrl ? ', strictly matching the appearance, color, model, and details shown in the primary variant reference image' : ''}. Leave a clean editable Thai overlay zone for the exact variant name${usePriceInGeneration ? ' and confirmed price' : ''}.`,
+          unifiedVariantStyle,
+          buildVariantStudioPrompt(target.label, Boolean(variantBase64), unifiedVariantStyle),
           selectedImageModel,
           selectedAspectRatio,
           undefined,
