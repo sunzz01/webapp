@@ -418,6 +418,7 @@ const App: React.FC = () => {
   const [summaryLength, setSummaryLength] = useState<'short' | 'medium' | 'long'>('medium');
   const [isSavingToFolder, setIsSavingToFolder] = useState(false);
   const [selectedStyle, setSelectedStyle] = useState<string>('shopee');
+  const [selectedVariantStyle, setSelectedVariantStyle] = useState<string>('shopee');
   const [selectedImageModel, setSelectedImageModel] = useState<string>('gemini-3.1-flash-image'); // โมเดลสำหรับสร้างภาพ
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [isScrapingOnly, setIsScrapingOnly] = useState<boolean>(false);
@@ -698,6 +699,7 @@ const App: React.FC = () => {
           }
           if (savedState.generatedImages) setGeneratedImages(savedState.generatedImages);
           if (savedState.selectedStyle) setSelectedStyle(savedState.selectedStyle);
+          if (savedState.selectedVariantStyle) setSelectedVariantStyle(savedState.selectedVariantStyle);
           if (savedState.selectedImageModel) setSelectedImageModel(normalizeImageModelSelection(savedState.selectedImageModel));
           if (savedState.step) setStep(savedState.step);
           if (savedState.selectedCategories) setSelectedCategories(new Set(savedState.selectedCategories));
@@ -743,6 +745,7 @@ const App: React.FC = () => {
       localImages,
       generatedImages,
       selectedStyle,
+      selectedVariantStyle,
       selectedImageModel,
       step,
       selectedCategories: Array.from(selectedCategories),
@@ -768,6 +771,7 @@ const App: React.FC = () => {
     localImages,
     generatedImages,
     selectedStyle,
+    selectedVariantStyle,
     selectedImageModel,
     step,
     selectedCategories,
@@ -884,30 +888,47 @@ const App: React.FC = () => {
     setKeyVisibility(updated);
   };
 
-  // Helper to convert URL to Base64 (using proxy to avoid CORS)
+  // Helper to convert URL to Base64 (with multi-stage CORS & image verification)
   const imageUrlToBase64 = async (url: string): Promise<string> => {
     try {
-      // Return data URL directly if it's already one
-      if (url.startsWith('data:')) return url;
+      if (!url) return "";
+      if (url.startsWith('data:image/')) return url;
+      if (url.startsWith('data:')) return "";
 
-      let blob: Blob;
+      const blobToDataUrl = (blob: Blob): Promise<string> =>
+        new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
 
-      // Handle local blob URLs directly without proxy
       if (url.startsWith('blob:')) {
         const response = await fetch(url);
-        blob = await response.blob();
-      } else {
-        // Use proxy for remote URLs
-        const imgRes = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url as string)}`);
-        blob = await imgRes.blob();
+        const blob = await response.blob();
+        return blob.type.startsWith('image/') ? await blobToDataUrl(blob) : "";
       }
 
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
+      const candidateUrls = [
+        url,
+        `https://wsrv.nl/?url=${encodeURIComponent(url)}&output=png`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+      ];
+
+      for (const candidate of candidateUrls) {
+        try {
+          const res = await fetch(candidate);
+          if (!res.ok) continue;
+          const blob = await res.blob();
+          if (blob && blob.size > 100 && blob.type.startsWith('image/')) {
+            return await blobToDataUrl(blob);
+          }
+        } catch {
+          // Try next candidate
+        }
+      }
+
+      return "";
     } catch (e) {
       console.error("Failed to convert image:", url, e);
       return "";
@@ -947,12 +968,16 @@ const App: React.FC = () => {
     // Callers order the selected identity anchor first before conversion. Keep
     // that order intact here instead of applying the gallery index a second time.
     const referenceImages = images.filter(Boolean).slice(0, 3);
-    const optionFacts = useVariantsInGeneration
+    const optionFacts = (!variantLabel && useVariantsInGeneration)
       ? variantGroups.flatMap(group => group.options.slice(0, 12).map(option => `${group.name}: ${option.label}${usePriceInGeneration && option.price?.display ? ` (${option.price.display})` : ''}`))
-      : [];
+      : variantLabel
+        ? [`ตัวเลือกสินค้านี้: ${variantLabel}`]
+        : [];
     const confirmedPrice = usePriceInGeneration ? getPriceDisplay() : '';
     const description = [
-      productDesc || 'ไม่มีรายละเอียด',
+      variantLabel
+        ? `สร้างภาพเฉพาะสำหรับตัวเลือก "${variantLabel}" เท่านั้น (ยึดจำนวนชั้น รูปทรง และสัดส่วนตามภาพอ้างอิงที่ 1 ของตัวเลือกนี้เป็นหลัก ห้ามนำตัวเลือกอื่นมารวมในภาพเดียว)`
+        : (productDesc || 'ไม่มีรายละเอียด'),
       confirmedPrice ? `ราคาที่ยืนยันแล้ว: ${confirmedPrice}` : '',
       variantLabel ? `ตัวเลือกที่ต้องสร้างภาพนี้: ${variantLabel}` : '',
     ].filter(Boolean).join('\n');
@@ -961,9 +986,11 @@ const App: React.FC = () => {
       description,
       images: referenceImages,
       referenceImages,
-      features: [...productDesc.split('\n').map(line => line.replace(/^[-*•\s]+/, '').trim()).filter(line => line.length > 2).slice(0, 8), ...optionFacts].slice(0, 12),
+      features: variantLabel
+        ? [`ตัวเลือก: ${variantLabel}`, ...(confirmedPrice ? [`ราคา: ${confirmedPrice}`] : [])]
+        : [...productDesc.split('\n').map(line => line.replace(/^[-*•\s]+/, '').trim()).filter(line => line.length > 2).slice(0, 8), ...optionFacts].slice(0, 12),
       price: usePriceInGeneration ? productPrice : undefined,
-      variantGroups: useVariantsInGeneration ? variantGroups : [],
+      variantGroups: (!variantLabel && useVariantsInGeneration) ? variantGroups : [],
     };
   };
 
@@ -1615,21 +1642,32 @@ const App: React.FC = () => {
     }
   };
 
-  const buildVariantStudioPrompt = (variantLabel: string, hasDedicatedVariantImage: boolean, visualStyle: string) => [
-    `[VARIANT_STUDIO_MODE] Create a dedicated, studio-grade product variation card for "${productName || 'สินค้า'} — ${variantLabel}".`,
-    `COHESIVE VARIANT SERIES THEME LOCK (CRITICAL — ALL VARIANTS MUST MATCH): Every variant image in this set MUST share the exact same unified visual theme, lighting, camera angle, background tone, and infographic callout language so the entire store catalog looks like one cohesive official flagship set. Specifically: use a clean, softly lit 3D warm pearl-alabaster studio cyclorama surface with subtle floor contact shadow, crisp directional studio lighting, a consistent straight-on / 10-degree elevated commercial studio angle, and a unified top header zone with a sleek modern Thai title and a high-contrast accent pill badge for the exact variant option ("${variantLabel}"). Visual style preset: ${visualStyle}.`,
-    `SMART SOURCE DIMENSION & SCALE LEARNING (CRITICAL): Carefully inspect the FIRST attached reference image${hasDedicatedVariantImage ? ' (which is the dedicated source image for this specific variant)' : ''}. IF the source image contains dimension lines, scale arrows, measurement numbers (e.g., width/diameter in ซม./มม./นิ้ว, lid height, tier heights, overall height), or capacity/volume notes (e.g., บรรจุน้ำได้ ... ลิตร, จำนวนชั้น, เบอร์ ...):
-1. Extract and preserve 100% of those exact numeric measurements, units, and capacity specifications without changing or inventing numbers.
-2. Re-render clean, accurate bi-directional dimension arrows and extension lines anchored to the exact same anatomical parts of the product (e.g., top rim width across the top, vertical segmented arrows along the right side for lid height, each tier height, and bottom base height/capacity).
-3. Place each Thai measurement label inside a clean, modern high-contrast rounded pill or callout tag next to its arrow so customers can read the exact scale at a glance.
-IF the source image does NOT contain dimension arrows or numbers, do NOT invent measurements—focus on showcasing the exact variant option clearly.`,
-    `ANTI-MULTI-SHOP FOOTPRINT & STORE LOGO REMOVAL (CRITICAL — SHOPEE MULTI-STORE SAFE):
+  const buildVariantStudioPrompt = (variantLabel: string, hasDedicatedVariantImage: boolean, visualStyle: string) => {
+    const styleObj = STYLES.find(s => s.id === visualStyle) || STYLES[0];
+    return [
+      `[VARIANT_STUDIO_MODE] Create a dedicated, studio-grade product variation card for "${productName || 'สินค้า'} — ${variantLabel}".`,
+      `SELECTED VISUAL STYLE & UNIFIED THEME LOCK (CRITICAL — MUST FOLLOW "${styleObj.name}" STYLE):
+- Selected Style ID: "${styleObj.id}" (${styleObj.name} — ${styleObj.desc}).
+- Style Art Direction: ${styleObj.promptTemplate}
+- Every variant image using "${styleObj.name}" MUST share the exact same background aesthetic, colour palette, studio lighting direction, camera elevation, and badge/typography styling defined by "${styleObj.name}" so the entire variant set looks cohesive.
+- Display a clean modern Thai header at the top with a high-contrast badge clearly showing the exact variant option ("${variantLabel}").`,
+      `SINGLE VARIANT UNIT INTEGRITY (CRITICAL — DO NOT DRAW MULTIPLE PRODUCTS):
+- Render strictly ONE single product unit matching the exact structure, tier count (เช่น ซึ้ง 2 ชั้น vs 3 ชั้น), proportions, and details shown in the FIRST attached reference image${hasDedicatedVariantImage ? ' (which is the dedicated source image for this specific variant)' : ''}.
+- NEVER render a group of multiple pots/products of different sizes together, and NEVER change a 2-tier steamer into a 3-tier steamer!`,
+      `SMART SOURCE DIMENSION & SCALE LEARNING (CRITICAL — MANDATORY WHEN SOURCE HAS ARROWS):
+- Carefully inspect the FIRST attached reference image. IF the source image contains dimension lines, bi-directional scale arrows, measurement numbers (e.g., width/diameter like "24 ซม.", "26 ซม.", "36 ซม.", lid height "11 ซม.", tier heights "10.5 ซม.", base pot height "14.3 ซม."), or capacity/volume notes (e.g., "บรรจุน้ำได้ 13 ลิตร"):
+  1. You MUST extract and preserve 100% of those exact numeric measurements, units, and capacity specifications without omitting, changing, or inventing any numbers.
+  2. You MUST draw clean, high-contrast bi-directional dimension arrows and extension lines on the generated image anchored to the exact same anatomical parts of the product (e.g., horizontal arrow across the top rim for diameter/width, and vertical segmented arrows along the right side for lid height, each tier height, and bottom water-pot height + capacity).
+  3. Render each Thai measurement label clearly next to its corresponding dimension arrow using a modern, high-contrast pill badge or clean technical callout that matches the "${styleObj.name}" theme.
+- IF the source image does NOT contain dimension arrows or numbers, do NOT invent measurements—focus on showcasing the exact variant option clearly.`,
+      `ANTI-MULTI-SHOP FOOTPRINT & STORE LOGO REMOVAL (CRITICAL — SHOPEE MULTI-STORE SAFE):
 1. ERASE ALL SELLER STORE LOGOS & UI CHROME: Completely strip out and NEVER reproduce any third-party seller/store logo, shop name badge, corner circle watermark (such as "Allgoodz88" or any shop stamp), phone/Line IDs, or screenshot UI elements (such as left/right "<" ">" carousel slider arrows) from the source image.
-2. PRESERVE AUTHENTIC PRODUCT BRANDING ONLY: Keep authentic manufacturer markings physically embossed, printed, or stickered on the 3D product body itself (e.g., manufacturer emblem on the pot/product).
-3. REDESIGN TYPOGRAPHY & ARROW STYLING: NEVER copy the source image's old font style, old red/green text color combination, or flat cutout white background. Use a completely fresh, modern Thai commercial typography hierarchy and sleek modern architectural dimension arrows (deep slate/charcoal lines with warm orange/gold or emerald accent pills) so the generated image has a 100% unique visual fingerprint that cannot be linked to other shops.`,
-  ].join('\n\n');
+2. PRESERVE AUTHENTIC PRODUCT BRANDING ONLY: Keep authentic manufacturer markings physically embossed, printed, or stickered on the 3D product body itself (e.g., manufacturer crocodile emblem on the pot/product).
+3. REDESIGN TYPOGRAPHY & ARROW STYLING: NEVER copy the source image's old font style, old red/green text color combination, or flat cutout white background. Redesign the typography, header badge, and dimension arrows in the "${styleObj.name}" visual style so the generated image has a 100% unique visual fingerprint.`,
+    ].join('\n\n');
+  };
 
-  const generateSelectedVariantImages = async () => {
+  const generateSelectedVariantImages = async (styleOverride?: string) => {
     const targets = variantGroups.flatMap(group => group.options
       .filter(option => selectedVariantOptionIds.includes(option.id))
       .map(option => ({ group, option, label: `${group.name}: ${option.label}${usePriceInGeneration && option.price?.display ? ` · ${option.price.display}` : ''}` })));
@@ -1646,6 +1684,11 @@ IF the source image does NOT contain dimension arrows or numbers, do NOT invent 
       return;
     }
 
+    const activeVariantStyle = styleOverride || selectedVariantStyle || selectedStyle || 'shopee';
+    if (styleOverride && styleOverride !== selectedVariantStyle) {
+      setSelectedVariantStyle(styleOverride);
+    }
+
     const generationController = new AbortController();
     activeGenerationRef.current = generationController;
     setIsGenerating(true);
@@ -1653,36 +1696,36 @@ IF the source image does NOT contain dimension arrows or numbers, do NOT invent 
     setShouldScrollToVariantStudio(true);
     setStep(3);
     let completedTargets = 0;
-    const unifiedVariantStyle = cardVisualStyles.COVER || selectedStyle;
     for (const [targetIndex, target] of targets.entries()) {
       if (generationController.signal.aborted) break;
       setVariantGenerationProgress({ current: targetIndex + 1, total: targets.length, label: target.label, status: 'generating' });
       const id = `variant-${target.option.id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
       setGeneratedImages(previous => {
         const filtered = previous.filter(img => img.variantLabel !== target.label);
-        return [...filtered, { id, category: ImageCategory.COVER, url: '', prompt: '', status: 'generating', variantLabel: target.label, visualStyle: unifiedVariantStyle }];
+        return [...filtered, { id, category: ImageCategory.COVER, url: '', prompt: '', status: 'generating', variantLabel: target.label, variantOptionId: target.option.id, visualStyle: activeVariantStyle }];
       });
       try {
         let variantBase64: string | undefined;
         if (target.option.imageUrl) {
           variantBase64 = await imageUrlToBase64(target.option.imageUrl);
         }
-        const variantImages = variantBase64
-          ? [variantBase64, ...images.filter(img => img !== variantBase64)].slice(0, 3)
-          : images;
+        // When a variant has its own dedicated reference image, send ONLY [variantBase64]
+        // so the AI reads its exact dimension arrows at full resolution and is never confused
+        // by main gallery group shots or other variants with different tier counts.
+        const variantImages = variantBase64 ? [variantBase64] : images;
 
         const result = await generateProductImage(
           ImageCategory.COVER,
           buildCurrentProductData(variantImages, target.label),
-          unifiedVariantStyle,
-          buildVariantStudioPrompt(target.label, Boolean(variantBase64), unifiedVariantStyle),
+          activeVariantStyle,
+          buildVariantStudioPrompt(target.label, Boolean(variantBase64), activeVariantStyle),
           selectedImageModel,
           selectedAspectRatio,
           undefined,
           undefined,
           generationController.signal,
         );
-        setGeneratedImages(previous => previous.map(image => image.id === id ? { ...image, url: result.imageUrl, status: 'completed', thaiTexts: [`${target.label}`, ...result.thaiTexts], promptUsed: result.promptUsed, modelUsed: result.modelUsed } : image));
+        setGeneratedImages(previous => previous.map(image => image.id === id ? { ...image, url: result.imageUrl, status: 'completed', thaiTexts: [`${target.label}`, ...result.thaiTexts], promptUsed: result.promptUsed, modelUsed: result.modelUsed, visualStyle: activeVariantStyle } : image));
         completedTargets += 1;
       } catch (error) {
         if (generationController.signal.aborted) break;
@@ -1697,6 +1740,103 @@ IF the source image does NOT contain dimension arrows or numbers, do NOT invent 
       label: generationController.signal.aborted ? 'หยุดการสร้างตามคำสั่งแล้ว' : `ประมวลผลครบแล้ว · สำเร็จ ${completedTargets}/${targets.length} ภาพ`,
       status: generationController.signal.aborted ? 'stopped' : 'completed',
     });
+  };
+
+  const regenerateSingleVariantImage = async (imageId: string, styleOverride?: string) => {
+    const targetCard = generatedImages.find(img => img.id === imageId && img.variantLabel);
+    if (!targetCard || !targetCard.variantLabel) return;
+
+    const variantLabel = targetCard.variantLabel;
+    const styleToUse = styleOverride || targetCard.visualStyle || selectedVariantStyle || selectedStyle || 'shopee';
+
+    // Match the original option from variantGroups by variantOptionId or label prefix
+    const allOptions = variantGroups.flatMap(group =>
+      group.options.map(option => ({
+        group,
+        option,
+        labelWithPrice: `${group.name}: ${option.label}${usePriceInGeneration && option.price?.display ? ` · ${option.price.display}` : ''}`,
+        labelBase: `${group.name}: ${option.label}`,
+      }))
+    );
+    const matched = allOptions.find(item =>
+      (targetCard.variantOptionId && item.option.id === targetCard.variantOptionId) ||
+      item.labelWithPrice === variantLabel ||
+      item.labelBase === variantLabel ||
+      variantLabel.startsWith(item.labelBase)
+    );
+
+    const generationController = new AbortController();
+    activeGenerationRef.current = generationController;
+    setIsGenerating(true);
+    setVariantGenerationProgress({ current: 1, total: 1, label: `กำลังสร้างใหม่: ${variantLabel}`, status: 'generating' });
+
+    setGeneratedImages(previous =>
+      previous.map(img =>
+        img.id === imageId
+          ? { ...img, status: 'generating', error: undefined, visualStyle: styleToUse }
+          : img
+      )
+    );
+
+    try {
+      let variantBase64: string | undefined;
+      if (matched?.option.imageUrl) {
+        variantBase64 = await imageUrlToBase64(matched.option.imageUrl);
+      }
+      let fallbackImages: string[] = [];
+      if (!variantBase64) {
+        const sourceImages = orderProductReferenceImages([...localImages, ...scrapedImages]);
+        const converted = await Promise.all(sourceImages.map(imageUrlToBase64));
+        fallbackImages = converted.filter(Boolean);
+      }
+      const variantImages = variantBase64 ? [variantBase64] : fallbackImages;
+      if (!variantImages.length) {
+        throw new Error('ไม่พบรูปอ้างอิงสำหรับตัวเลือกนี้ กรุณาอัปโหลดรูปสินค้าหรือรูปตัวเลือก');
+      }
+
+      const result = await generateProductImage(
+        ImageCategory.COVER,
+        buildCurrentProductData(variantImages, variantLabel),
+        styleToUse,
+        buildVariantStudioPrompt(variantLabel, Boolean(variantBase64), styleToUse),
+        selectedImageModel,
+        selectedAspectRatio,
+        undefined,
+        undefined,
+        generationController.signal,
+      );
+
+      setGeneratedImages(previous =>
+        previous.map(img =>
+          img.id === imageId
+            ? {
+                ...img,
+                url: result.imageUrl,
+                status: 'completed',
+                thaiTexts: [`${variantLabel}`, ...result.thaiTexts],
+                promptUsed: result.promptUsed,
+                modelUsed: result.modelUsed,
+                visualStyle: styleToUse,
+              }
+            : img
+        )
+      );
+      setVariantGenerationProgress({ current: 1, total: 1, label: `สร้างใหม่สำเร็จ: ${variantLabel}`, status: 'completed' });
+    } catch (error) {
+      if (!generationController.signal.aborted) {
+        setGeneratedImages(previous =>
+          previous.map(img =>
+            img.id === imageId
+              ? { ...img, status: 'error', error: error instanceof Error ? error.message : 'สร้างภาพตัวเลือกไม่สำเร็จ' }
+              : img
+          )
+        );
+        setVariantGenerationProgress({ current: 0, total: 1, label: `สร้างไม่สำเร็จ: ${variantLabel}`, status: 'stopped' });
+      }
+    } finally {
+      if (activeGenerationRef.current === generationController) activeGenerationRef.current = null;
+      setIsGenerating(false);
+    }
   };
 
   // ลบอักขระที่ทำให้เกิด subfolder ใน ZIP หรือ OS
@@ -2586,9 +2726,57 @@ IF the source image does NOT contain dimension arrows or numbers, do NOT invent 
                   )}
                 </div>
                 {variantGroups.length > 0 && (
-                  <button onClick={generateSelectedVariantImages} disabled={isGenerating || selectedVariantOptionIds.length === 0} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 shadow-md shadow-emerald-600/20 disabled:opacity-40 transition-all">
-                    <Layers className="h-4 w-4" /> {selectedVariantOptionIds.length ? `สร้าง ${selectedVariantOptionIds.length} ภาพตามตัวเลือก → ดูใน Results` : 'เลือกตัวเลือกเพื่อสร้างภาพ'}
-                  </button>
+                  <div className="space-y-3 pt-2 border-t border-slate-200/70 dark:border-slate-800/80">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <label className={`text-xs font-black flex items-center gap-1.5 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-800'}`}>
+                          <span>🎨 สไตล์ภาพตัวเลือกสินค้า (Variant Style)</span>
+                        </label>
+                        <span className="rounded-full bg-orange-500/10 border border-orange-500/20 px-2.5 py-0.5 text-[10px] font-black text-orange-600 dark:text-orange-400">
+                          {STYLES.find(s => s.id === selectedVariantStyle)?.emoji} {STYLES.find(s => s.id === selectedVariantStyle)?.name || selectedVariantStyle}
+                        </span>
+                      </div>
+                      <select
+                        value={selectedVariantStyle}
+                        onChange={e => setSelectedVariantStyle(e.target.value)}
+                        className={`w-full rounded-xl border px-3 py-2.5 text-xs font-bold outline-none transition-all focus:border-orange-500 ${theme === 'dark' ? 'border-slate-800 bg-slate-950/80 text-white' : 'border-slate-200 bg-slate-50 text-slate-800'}`}
+                        aria-label="เลือกสไตล์ภาพตัวเลือกสินค้า"
+                      >
+                        {STYLES.map(style => (
+                          <option key={style.id} value={style.id} className={theme === 'dark' ? 'bg-slate-900 text-white' : 'bg-white text-slate-900'}>
+                            {style.emoji} {style.name} — {style.desc}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="flex flex-wrap gap-1.5 pt-0.5">
+                        {['shopee', 'shopee-mall', 'minimalist', 'minimalist02', 'lazada-flagship', 'taobao02', 'etsy', 'brand-ambassador-female'].map(presetId => {
+                          const preset = STYLES.find(s => s.id === presetId);
+                          if (!preset) return null;
+                          const isSelected = selectedVariantStyle === preset.id;
+                          return (
+                            <button
+                              key={preset.id}
+                              type="button"
+                              onClick={() => setSelectedVariantStyle(preset.id)}
+                              className={`rounded-lg border px-2.5 py-1 text-[10px] font-bold transition-all ${
+                                isSelected
+                                  ? 'border-orange-500 bg-orange-500 text-white shadow-xs shadow-orange-500/30'
+                                  : theme === 'dark'
+                                    ? 'border-slate-800 bg-slate-900/70 text-slate-300 hover:border-slate-700'
+                                    : 'border-slate-200 bg-white text-slate-600 hover:border-orange-300'
+                              }`}
+                            >
+                              {preset.emoji} {preset.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <button onClick={() => generateSelectedVariantImages()} disabled={isGenerating || selectedVariantOptionIds.length === 0} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 shadow-md shadow-emerald-600/20 disabled:opacity-40 transition-all">
+                      <Layers className="h-4 w-4" /> {selectedVariantOptionIds.length ? `สร้าง ${selectedVariantOptionIds.length} ภาพตามตัวเลือก (${STYLES.find(s => s.id === selectedVariantStyle)?.name || selectedVariantStyle}) → ดูใน Results` : 'เลือกตัวเลือกเพื่อสร้างภาพ'}
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -3379,9 +3567,38 @@ IF the source image does NOT contain dimension arrows or numbers, do NOT invent 
                   <div>
                     <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-600">Variant Studio</p>
                     <h3 className={`mt-1 text-2xl font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>ภาพแยกตามตัวเลือกสินค้า</h3>
-                    <p className={`mt-1 text-xs ${theme === 'dark' ? 'text-emerald-200/70' : 'text-emerald-800/70'}`}>ผลลัพธ์จากตัวเลือกที่เลือกใน Analyze · ราคาจะถูกใช้เฉพาะเมื่อเปิด Toggle ราคา</p>
+                    <p className={`mt-1 text-xs ${theme === 'dark' ? 'text-emerald-200/70' : 'text-emerald-800/70'}`}>เลือกเปลี่ยนสไตล์และกดสร้างใหม่ (Regenerate) ได้ทั้งแบบรายภาพหรือยกเซ็ต · เรียนรู้สเกลลูกศรจากภาพต้นฉบับอัตโนมัติ</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-white/80 dark:bg-slate-900/80 px-2.5 py-1.5">
+                      <span className="text-[10px] font-black text-emerald-700 dark:text-emerald-300 shrink-0">🎨 สไตล์ทั้งเซ็ต:</span>
+                      <select
+                        value={selectedVariantStyle}
+                        onChange={e => {
+                          const newStyle = e.target.value;
+                          setSelectedVariantStyle(newStyle);
+                          setGeneratedImages(prev => prev.map(img => img.variantLabel ? { ...img, visualStyle: newStyle } : img));
+                        }}
+                        disabled={isGenerating}
+                        className={`bg-transparent text-xs font-black outline-none cursor-pointer ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}
+                        aria-label="เปลี่ยนสไตล์ภาพตัวเลือกทั้งเซ็ต"
+                      >
+                        {STYLES.map(style => (
+                          <option key={style.id} value={style.id} className={theme === 'dark' ? 'bg-slate-900 text-white' : 'bg-white text-slate-900'}>
+                            {style.emoji} {style.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <button
+                      onClick={() => generateSelectedVariantImages(selectedVariantStyle)}
+                      disabled={isGenerating || selectedVariantOptionIds.length === 0}
+                      className="flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 px-3 py-2 text-xs font-black text-white shadow-sm transition-all"
+                      title="สร้างภาพตัวเลือกทั้งหมดใหม่ด้วยสไตล์ที่เลือก"
+                    >
+                      <RotateCcw className={`h-3.5 w-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
+                      <span>สร้างใหม่ทั้งเซ็ต</span>
+                    </button>
                     <button onClick={() => setStep(1)} className={`rounded-xl border px-3 py-2 text-xs font-black transition ${theme === 'dark' ? 'border-slate-700 text-slate-200 hover:bg-slate-800' : 'border-emerald-200 bg-white text-emerald-800 hover:bg-emerald-50'}`}>กลับไปแก้ตัวเลือก</button>
                     <span className="rounded-full bg-emerald-500 px-3 py-1.5 text-xs font-black text-white">{generatedImages.filter(image => image.variantLabel).length} ภาพ</span>
                   </div>
@@ -3403,14 +3620,108 @@ IF the source image does NOT contain dimension arrows or numbers, do NOT invent 
                 )}
 
                 <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {generatedImages.filter(image => image.variantLabel).map(image => (
-                    <article key={image.id} className={`overflow-hidden rounded-3xl border ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-white bg-white shadow-sm'}`}>
-                      <div className={`aspect-square ${theme === 'dark' ? 'bg-gray-800' : 'bg-slate-100'}`}>
-                        {image.status === 'completed' && image.url ? <img src={image.url} alt={image.variantLabel} className="h-full w-full object-cover"/> : <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center text-xs text-slate-500">{image.status === 'generating' ? <Loader2 className="animate-spin text-emerald-500"/> : <ImageIcon className="text-emerald-500"/>}<span>{image.status === 'generating' ? `กำลังสร้าง ${image.variantLabel}…` : image.error || 'รอสร้างภาพ'}</span></div>}
-                      </div>
-                      <div className="p-4"><p className={`text-sm font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{image.variantLabel}</p><p className="mt-1 truncate text-[10px] font-bold text-emerald-600">{image.modelUsed ? `ใช้จริง: ${image.modelUsed}` : image.status === 'generating' ? 'กำลังส่งข้อมูลตัวเลือกให้ AI' : 'รอผลลัพธ์'}</p><p className={`mt-2 text-[10px] ${theme === 'dark' ? 'text-gray-400' : 'text-slate-500'}`}>สไตล์: {STYLES.find(style => style.id === image.visualStyle)?.name || image.visualStyle || selectedStyleName}</p>{image.url && <button onClick={() => downloadSingleImage(image.url, image.variantLabel || 'variant')} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2 text-xs font-black text-white hover:bg-emerald-700"><Download className="h-4 w-4"/>บันทึกภาพ</button>}</div>
-                    </article>
-                  ))}
+                  {generatedImages.filter(image => image.variantLabel).map(image => {
+                    const cardStyleId = image.visualStyle || selectedVariantStyle || selectedStyle || 'shopee';
+                    const cardStyleMeta = STYLES.find(style => style.id === cardStyleId);
+                    return (
+                      <article key={image.id} className={`group overflow-hidden rounded-3xl border flex flex-col ${theme === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-white bg-white shadow-sm'}`}>
+                        <div className={`relative aspect-square ${theme === 'dark' ? 'bg-gray-800' : 'bg-slate-100'}`}>
+                          {image.status === 'completed' && image.url ? (
+                            <>
+                              <img src={image.url} alt={image.variantLabel} className="h-full w-full object-cover" />
+                              <div className="absolute right-3 top-3 z-10 flex gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                                <button
+                                  type="button"
+                                  onClick={() => openPreview(image.url)}
+                                  className="rounded-full bg-black/50 p-2 text-white backdrop-blur-md hover:bg-black/75 transition"
+                                  title="ดูภาพขนาดใหญ่"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingResultImage({ id: image.id, url: image.url, title: image.variantLabel || 'Variant' })}
+                                  className="rounded-full bg-orange-500/90 p-2 text-white backdrop-blur-md hover:bg-orange-600 transition"
+                                  title="แก้ไขภาพนี้"
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center text-xs text-slate-500">
+                              {image.status === 'generating' ? <Loader2 className="animate-spin text-emerald-500" /> : <ImageIcon className="text-emerald-500" />}
+                              <span>{image.status === 'generating' ? `กำลังสร้าง ${image.variantLabel}…` : image.error || 'รอสร้างภาพ'}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-4 flex-1 flex flex-col justify-between gap-3">
+                          <div>
+                            <p className={`text-sm font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{image.variantLabel}</p>
+                            <p className="mt-1 truncate text-[10px] font-bold text-emerald-600">
+                              {image.modelUsed ? `ใช้จริง: ${image.modelUsed}` : image.status === 'generating' ? 'กำลังส่งข้อมูลตัวเลือกให้ AI' : 'รอผลลัพธ์'}
+                            </p>
+
+                            {/* Per-Variant Style Selector */}
+                            <div className="mt-2.5 space-y-1">
+                              <label className={`block text-[10px] font-bold ${theme === 'dark' ? 'text-gray-400' : 'text-slate-500'}`}>
+                                สไตล์: {cardStyleMeta ? `${cardStyleMeta.emoji} ${cardStyleMeta.name}` : cardStyleId}
+                              </label>
+                              <select
+                                value={cardStyleId}
+                                onChange={e => {
+                                  const nextStyle = e.target.value;
+                                  setGeneratedImages(prev =>
+                                    prev.map(item => item.id === image.id ? { ...item, visualStyle: nextStyle } : item)
+                                  );
+                                }}
+                                disabled={image.status === 'generating'}
+                                className={`w-full rounded-xl border px-2.5 py-1.5 text-[11px] font-bold outline-none transition-all focus:border-emerald-500 ${
+                                  theme === 'dark'
+                                    ? 'border-gray-700 bg-gray-800 text-white'
+                                    : 'border-slate-200 bg-slate-50 text-slate-800'
+                                }`}
+                                aria-label={`เลือกสไตล์สำหรับ ${image.variantLabel}`}
+                              >
+                                {STYLES.map(style => (
+                                  <option key={style.id} value={style.id} className={theme === 'dark' ? 'bg-slate-900 text-white' : 'bg-white text-slate-900'}>
+                                    {style.emoji} {style.name} — {style.desc}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="flex gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => regenerateSingleVariantImage(image.id, cardStyleId)}
+                              disabled={isGenerating || image.status === 'generating'}
+                              className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-black transition-all disabled:opacity-40 ${
+                                theme === 'dark'
+                                  ? 'border-emerald-700 bg-emerald-950/60 text-emerald-300 hover:bg-emerald-900/70'
+                                  : 'border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+                              }`}
+                              title="สร้างภาพตัวเลือกนี้ใหม่ด้วยสไตล์ที่เลือก"
+                            >
+                              <RotateCcw className={`h-3.5 w-3.5 ${image.status === 'generating' ? 'animate-spin' : ''}`} />
+                              <span>สร้างใหม่</span>
+                            </button>
+                            {image.url && (
+                              <button
+                                type="button"
+                                onClick={() => downloadSingleImage(image.url, image.variantLabel || 'variant')}
+                                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-black text-white hover:bg-emerald-700 transition-all"
+                              >
+                                <Download className="h-3.5 w-3.5" />
+                                <span>บันทึกภาพ</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
                 </div>
               </section>
             )}
