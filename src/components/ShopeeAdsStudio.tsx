@@ -717,6 +717,16 @@ export function ShopeeAdsStudio({ dark, imageModel, session, setSession }: {
             <label className={`flex cursor-pointer items-center justify-between gap-3 rounded-xl border p-3 ${usePrice ? 'border-orange-300 bg-white dark:bg-slate-900' : 'border-slate-200 bg-white/60 dark:border-slate-700 dark:bg-slate-900/50'}`}><span><span className="block text-xs font-black">ใช้ราคายืนยัน</span><span className="block text-[11px] text-slate-500">ส่งราคาให้ AI เฉพาะเมื่อเปิด</span></span><input type="checkbox" checked={usePrice} onChange={event => setSession(prev => ({ ...prev, usePrice: event.target.checked }))} className="h-5 w-5 shrink-0 accent-orange-500" aria-label="ใช้ราคายืนยันใน Thai Ads" /></label>
             <label className={`flex cursor-pointer items-center justify-between gap-3 rounded-xl border p-3 ${useVariants ? 'border-orange-300 bg-white dark:bg-slate-900' : 'border-slate-200 bg-white/60 dark:border-slate-700 dark:bg-slate-900/50'}`}><span><span className="block text-xs font-black">ใช้รุ่น / ตัวเลือกสินค้า</span><span className="block text-[11px] text-slate-500">ส่งสี ขนาด และรุ่นให้ AI เฉพาะเมื่อเปิด</span></span><input type="checkbox" checked={useVariants} onChange={event => setSession(prev => ({ ...prev, useVariants: event.target.checked }))} className="h-5 w-5 shrink-0 accent-orange-500" aria-label="ใช้รุ่นและตัวเลือกใน Thai Ads" /></label>
           </div>
+          {variantGroups.some(g => g.options.some(o => o.imageUrl)) && (
+            <div className="mt-3 flex flex-wrap gap-2 pt-2 border-t border-orange-200/60 dark:border-orange-900/40">
+              {variantGroups.flatMap(g => g.options).filter(o => o.imageUrl).map(o => (
+                <div key={o.id} className="flex items-center gap-1.5 rounded-xl border border-orange-200 bg-white/90 dark:bg-slate-900 px-2 py-1 text-xs shadow-2xs">
+                  <img src={o.imageUrl} alt={o.label} className="w-5 h-5 rounded-md object-cover border border-slate-200 dark:border-slate-700" />
+                  <span className="font-semibold text-[11px] text-slate-700 dark:text-slate-200">{o.label}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>}
         {commerceFacts.length > 0 && <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200"><b>ข้อมูลการขายที่จะส่งให้ AI</b><div className="mt-1 space-y-1">{commerceFacts.map(fact => <p key={fact}>• {fact}</p>)}</div></div>}
       </div>

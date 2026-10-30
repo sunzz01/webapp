@@ -1446,7 +1446,11 @@ const App: React.FC = () => {
       status: 'idle'
     }));
 
-    setGeneratedImages(initialGenerated);
+    setGeneratedImages(prev => {
+      const preservedVariantImages = prev.filter(img => Boolean(img.variantLabel));
+      const preservedOtherMainImages = prev.filter(img => !img.variantLabel && !categoriesToGenerate.includes(img.category));
+      return [...initialGenerated, ...preservedOtherMainImages, ...preservedVariantImages];
+    });
     setStep(3);
     addNotification('info', 'กำลังประมวลผลรูปภาพ', `ใช้รูปอ้างอิงลำดับ 1 เป็น Product Identity Anchor และส่งตามลำดับล่าสุดให้ AI Gemini...`);
 
@@ -1458,7 +1462,7 @@ const App: React.FC = () => {
 
     if (validImages.length === 0) {
       addNotification('error', 'อ่านรูปสินค้าไม่ได้', 'ระบบไม่สามารถแปลงรูปสินค้าเป็นไฟล์สำหรับส่งให้ AI ได้ กรุณาอัปโหลดรูปใหม่หรือใช้รูปที่มีขนาดเล็กลง');
-      setGeneratedImages([]);
+      setGeneratedImages(prev => prev.filter(img => Boolean(img.variantLabel) || img.status === 'completed'));
       setThaiAdsSession(createThaiAdsSession());
       if (activeGenerationRef.current === generationController) activeGenerationRef.current = null;
       setIsGenerating(false);
@@ -1635,13 +1639,24 @@ const App: React.FC = () => {
       if (generationController.signal.aborted) break;
       setVariantGenerationProgress({ current: targetIndex + 1, total: targets.length, label: target.label, status: 'generating' });
       const id = `variant-${target.option.id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-      setGeneratedImages(previous => [...previous, { id, category: ImageCategory.COVER, url: '', prompt: '', status: 'generating', variantLabel: target.label, visualStyle: cardVisualStyles.COVER || selectedStyle }]);
+      setGeneratedImages(previous => {
+        const filtered = previous.filter(img => img.variantLabel !== target.label);
+        return [...filtered, { id, category: ImageCategory.COVER, url: '', prompt: '', status: 'generating', variantLabel: target.label, visualStyle: cardVisualStyles.COVER || selectedStyle }];
+      });
       try {
+        let variantBase64: string | undefined;
+        if (target.option.imageUrl) {
+          variantBase64 = await imageUrlToBase64(target.option.imageUrl);
+        }
+        const variantImages = variantBase64
+          ? [variantBase64, ...images.filter(img => img !== variantBase64)].slice(0, 3)
+          : images;
+
         const result = await generateProductImage(
           ImageCategory.COVER,
-          buildCurrentProductData(images, target.label),
+          buildCurrentProductData(variantImages, target.label),
           cardVisualStyles.COVER || selectedStyle,
-          `Create a dedicated, exact-variant product cover for "${target.label}". Clearly distinguish only this confirmed purchasable option from other variants. Leave a clean editable Thai overlay zone for the exact variant name${usePriceInGeneration ? ' and confirmed price' : ''}.`,
+          `Create a dedicated, exact-variant product cover for "${target.label}". Clearly distinguish only this confirmed purchasable option from other variants${target.option.imageUrl ? ', strictly matching the appearance, color, model, and details shown in the primary variant reference image' : ''}. Leave a clean editable Thai overlay zone for the exact variant name${usePriceInGeneration ? ' and confirmed price' : ''}.`,
           selectedImageModel,
           selectedAspectRatio,
           undefined,
@@ -1716,14 +1731,16 @@ const App: React.FC = () => {
     // Add completed images to zip
     for (const img of generatedImages) {
       if (img.status === 'completed' && img.url) {
-        // ใช้ชื่อหมวดหมู่ภาษาไทยจาก metadata สำหรับชื่อไฟล์
+        // ใช้ชื่อหมวดหมู่ภาษาไทยจาก metadata หรือชื่อตัวเลือกสินค้าสำหรับชื่อไฟล์
         const categoryMeta = IMAGE_CATEGORIES_METADATA[img.category];
-        const thaiTitle = categoryMeta?.title || img.category;
+        const thaiTitle = img.variantLabel ? `ตัวเลือก_${img.variantLabel}` : (categoryMeta?.title || img.category);
         const order = categoryMeta?.order || 0;
 
         // Remove data:image/png;base64, prefix
         const base64Data = img.url.replace(/^data:image\/\w+;base64,/, "");
-        const fileName = sanitizeFileName(`${order}__${thaiTitle}${productName || 'product'}`) + '.png';
+        const fileName = img.variantLabel
+          ? sanitizeFileName(`variant__${img.variantLabel}__${productName || 'product'}`) + '.png'
+          : sanitizeFileName(`${order}__${thaiTitle}${productName || 'product'}`) + '.png';
         zip.file(fileName, base64Data, { base64: true });
 
         // เพิ่มข้อมูลข้อความภาษาไทยของแต่ละภาพ
@@ -1801,9 +1818,11 @@ const App: React.FC = () => {
       for (const img of generatedImages) {
         if (img.status === 'completed' && img.url) {
           const categoryMeta = IMAGE_CATEGORIES_METADATA[img.category];
-          const thaiTitle = categoryMeta?.title || img.category;
+          const thaiTitle = img.variantLabel ? `ตัวเลือก_${img.variantLabel}` : (categoryMeta?.title || img.category);
           const order = categoryMeta?.order || 0;
-          const fileName = sanitizeFileName(`${order}__${thaiTitle}${productName || 'product'}`) + '.png';
+          const fileName = img.variantLabel
+            ? sanitizeFileName(`variant__${img.variantLabel}__${productName || 'product'}`) + '.png'
+            : sanitizeFileName(`${order}__${thaiTitle}${productName || 'product'}`) + '.png';
 
           // แปลง base64 เป็น blob แล้วเขียนไฟล์
           const base64Data = img.url.replace(/^data:image\/\w+;base64,/, '');
@@ -2496,11 +2515,46 @@ const App: React.FC = () => {
                       </div>
                       <div className="grid gap-2 sm:grid-cols-2">
                         {group.options.map(option => (
-                          <label key={option.id} className={`flex items-center gap-2 rounded-xl border px-2.5 py-1.5 text-xs transition-all ${selectedVariantOptionIds.includes(option.id) ? 'border-orange-500/50 bg-orange-500/10' : theme === 'dark' ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'}`}>
-                            <input type="checkbox" checked={selectedVariantOptionIds.includes(option.id)} onChange={() => toggleVariantOption(option.id)} className="accent-orange-500" />
+                          <div key={option.id} className={`flex items-center gap-2 rounded-xl border px-2.5 py-1.5 text-xs transition-all ${selectedVariantOptionIds.includes(option.id) ? 'border-orange-500/50 bg-orange-500/10' : theme === 'dark' ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'}`}>
+                            <input type="checkbox" checked={selectedVariantOptionIds.includes(option.id)} onChange={() => toggleVariantOption(option.id)} className="accent-orange-500 cursor-pointer" />
+                            
+                            {/* Variant image preview / upload button */}
+                            <div className="relative group/optimg shrink-0">
+                              {option.imageUrl ? (
+                                <img src={option.imageUrl} alt={option.label} className="h-8 w-8 rounded-lg object-cover border border-slate-200 dark:border-slate-700 shadow-2xs" />
+                              ) : (
+                                <div className="h-8 w-8 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center text-slate-400 bg-slate-50 dark:bg-slate-800" title="ไม่มีรูปตัวเลือก">
+                                  <ImageIcon className="w-3.5 h-3.5" />
+                                </div>
+                              )}
+                              <label className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center opacity-0 group-hover/optimg:opacity-100 cursor-pointer transition-opacity text-white" title="เปลี่ยนหรือเพิ่มรูปตัวเลือกนี้">
+                                <ImagePlus className="w-3.5 h-3.5" />
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={e => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      const reader = new FileReader();
+                                      reader.onloadend = () => {
+                                        if (typeof reader.result === 'string') {
+                                          updateVariantOption(group.id, option.id, { imageUrl: reader.result });
+                                        }
+                                      };
+                                      reader.readAsDataURL(file);
+                                    }
+                                  }}
+                                />
+                              </label>
+                            </div>
+
                             <input value={option.label} onChange={e => updateVariantOption(group.id, option.id, { label: e.target.value })} className={`min-w-0 flex-1 bg-transparent text-xs font-bold outline-none ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`} />
                             <input type="number" min="0" value={option.price?.current ?? option.price?.min ?? ''} onChange={e => { const amount = e.target.value === '' ? undefined : Number(e.target.value); updateVariantOption(group.id, option.id, { price: amount === undefined || !Number.isFinite(amount) ? undefined : { currency: 'THB', current: amount, min: amount, max: amount, display: `฿${amount.toLocaleString('th-TH')}` } }); }} placeholder="ราคา" className={`w-16 rounded-lg border px-2 py-1 text-right text-[11px] font-bold outline-none ${theme === 'dark' ? 'border-slate-800 bg-slate-950 text-white' : 'border-slate-200 bg-slate-50 text-slate-800'}`} />
-                          </label>
+                            <button onClick={() => setVariantGroups(prev => prev.map(g => g.id === group.id ? { ...g, options: g.options.filter(o => o.id !== option.id) } : g))} className="text-slate-400 hover:text-red-500 transition-colors p-0.5" title="ลบตัวเลือก">
+                              <X size={13} />
+                            </button>
+                          </div>
                         ))}
                       </div>
                     </div>
@@ -3381,7 +3435,7 @@ const App: React.FC = () => {
               {Object.entries(IMAGE_CATEGORIES_METADATA)
                 .sort(([, a], [, b]) => a.order - b.order)
                 .map(([catKey, meta]) => {
-                  const img = generatedImages.find(g => g.category === catKey);
+                  const img = generatedImages.find(g => g.category === catKey && !g.variantLabel);
                   const strategy = getStrategyLabel(meta.order);
                   const isHero = meta.order === 1;
 
