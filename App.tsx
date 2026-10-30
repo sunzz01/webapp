@@ -595,6 +595,16 @@ const App: React.FC = () => {
   // เพิ่ม state สำหรับเลือก Style เฉพาะของ Cover Image
   const [selectedCoverStyle, setSelectedCoverStyle] = useState<string | null>(null);
 
+  // เลือกสไตล์ระดับ Global: ล้าง per-card overrides เพื่อให้ทุกการ์ด (รวมภาพปก COVER) เปลี่ยนตามสไตล์ที่เลือก
+  const handleSelectGlobalStyle = (styleId: string) => {
+    setSelectedStyle(styleId);
+    setCardVisualStyles({});
+    setSelectedCoverStyle(null);
+  };
+
+  // State สำหรับเปิด/ปิดตัวแก้ไข 4 ขั้นตอนใน Tutorial card
+  const [showTutorialEditor, setShowTutorialEditor] = useState<boolean>(false);
+
   // Lifestyle options สำหรับ dropdown
   const LIFESTYLE_OPTIONS = [
     { id: ImageCategory.LIFESTYLE_A, name: 'Home (ในบ้าน)', desc: 'Indoor / Cozy setting' },
@@ -689,6 +699,8 @@ const App: React.FC = () => {
        setSelectedVariantOptionIds([]);
        setUsePriceInGeneration(false);
        setUseVariantsInGeneration(false);
+       setCardVisualStyles({});
+       setSelectedCoverStyle(null);
 
       // ตั้งค่าข้อมูลใหม่
       if (productUrl) {
@@ -749,7 +761,14 @@ const App: React.FC = () => {
            if (Array.isArray(savedState.selectedVariantOptionIds)) setSelectedVariantOptionIds(savedState.selectedVariantOptionIds);
            if (typeof savedState.usePriceInGeneration === 'boolean') setUsePriceInGeneration(savedState.usePriceInGeneration);
            if (typeof savedState.useVariantsInGeneration === 'boolean') setUseVariantsInGeneration(savedState.useVariantsInGeneration);
-           if (savedState.cardVisualStyles) setCardVisualStyles(savedState.cardVisualStyles);
+           if (savedState.cardVisualStyles) {
+      const styles = { ...savedState.cardVisualStyles };
+      // ปลดล็อกกรณีมีค่าค้าง COVER: 'shopee' จากบั๊กเวอร์ชันเดิม
+      if (styles['COVER'] === 'shopee' && savedState.selectedStyle && savedState.selectedStyle !== 'shopee' && Object.keys(styles).length === 1) {
+        delete styles['COVER'];
+      }
+      setCardVisualStyles(styles);
+    }
            if (savedState.resultsDensity === 'overview' || savedState.resultsDensity === 'standard' || savedState.resultsDensity === 'focus') setResultsDensity(savedState.resultsDensity);
            if (savedState.manualScaleDraft && typeof savedState.manualScaleDraft === 'object') setManualScaleDraft(previous => ({ ...previous, ...savedState.manualScaleDraft }));
            if (typeof savedState.mainImageIndex === 'number') setMainImageIndex(savedState.mainImageIndex);
@@ -1586,7 +1605,7 @@ const App: React.FC = () => {
           const val = selectedTutorialStyle[cat] || '0';
           styleIdx = parseInt(val) || undefined;
         }
-        const styleForCard = cardVisualStyles[cat] || (cat === ImageCategory.COVER ? selectedCoverStyle || selectedStyle : selectedStyle);
+        const styleForCard = cardVisualStyles[cat] || selectedStyle;
         const result = await generateProductImage(cat, productData, styleForCard, customPromptForTutorial, selectedImageModel, imageAspectRatios[cat] || selectedAspectRatio, styleIdx, undefined, generationController.signal);
         setGeneratedImages(prev => prev.map(p => p.category === cat && !p.variantLabel ? { ...p, url: result.imageUrl, status: 'completed', thaiTexts: result.thaiTexts, promptUsed: result.promptUsed, modelUsed: result.modelUsed, visualStyle: styleForCard } : p));
         successCount++;
@@ -1669,7 +1688,7 @@ const App: React.FC = () => {
       const effectiveCategory = (category.startsWith('LIFESTYLE_') && selectedLifestyle[category])
         ? selectedLifestyle[category]
         : category;
-      const styleToUse = styleOverride || cardVisualStyles[category] || (category === ImageCategory.COVER ? selectedCoverStyle || selectedStyle : selectedStyle);
+      const styleToUse = styleOverride || cardVisualStyles[category] || selectedStyle;
       const ratio = imageAspectRatios[category] || selectedAspectRatio;
       const coverVariationIndex = category === ImageCategory.COVER && styleToUse.startsWith('brand-ambassador')
         ? attemptCount
@@ -3344,8 +3363,11 @@ const App: React.FC = () => {
                   <div className="absolute inset-0 z-20 pointer-events-none flex flex-col items-center justify-center">
                     <button
                       onClick={() => {
+                        const currentIdx = STYLES.findIndex(s => s.id === selectedStyle);
+                        const nextIdx = Math.max(0, currentIdx - 1);
+                        handleSelectGlobalStyle(STYLES[nextIdx].id);
                         const container = document.getElementById('style-roller');
-                        if (container) container.scrollBy({ top: -88, behavior: 'smooth' });
+                        if (container) container.scrollTo({ top: nextIdx * 88, behavior: 'smooth' });
                       }}
                       className={`pointer-events-auto p-0.5 rounded-full transition-all hover:scale-125 mb-1 ${theme === 'dark' ? 'text-orange-400' : 'text-orange-500'}`}
                     >
@@ -3356,8 +3378,11 @@ const App: React.FC = () => {
 
                     <button
                       onClick={() => {
+                        const currentIdx = STYLES.findIndex(s => s.id === selectedStyle);
+                        const nextIdx = Math.min(STYLES.length - 1, currentIdx + 1);
+                        handleSelectGlobalStyle(STYLES[nextIdx].id);
                         const container = document.getElementById('style-roller');
-                        if (container) container.scrollBy({ top: 88, behavior: 'smooth' });
+                        if (container) container.scrollTo({ top: nextIdx * 88, behavior: 'smooth' });
                       }}
                       className={`pointer-events-auto p-0.5 rounded-full transition-all hover:scale-125 mt-1 ${theme === 'dark' ? 'text-orange-400' : 'text-orange-500'}`}
                     >
@@ -3393,6 +3418,9 @@ const App: React.FC = () => {
                           osc.stop(audioCtx.currentTime + 0.08);
                         } catch { /* ignore audio errors */ }
                         // Auto-select the style in the center
+                        if (STYLES[currentIdx]) {
+                          handleSelectGlobalStyle(STYLES[currentIdx].id);
+                        }
                       }
                     }}
                     ref={(el) => {
@@ -3423,7 +3451,7 @@ const App: React.FC = () => {
                           key={style.id}
                           className="snap-center h-[88px] flex items-center justify-center cursor-pointer"
                           onClick={() => {
-                            setSelectedStyle(style.id);
+                            handleSelectGlobalStyle(style.id);
                             const container = document.getElementById('style-roller');
                             if (container) container.scrollTo({ top: idx * 88, behavior: 'smooth' });
                           }}
@@ -3876,303 +3904,276 @@ const App: React.FC = () => {
                   const img = generatedImages.find(g => g.category === catKey && !g.variantLabel);
                   const strategy = getStrategyLabel(meta.order);
                   const isHero = meta.order === 1;
+                  const currentCardStyle = cardVisualStyles[catKey] || selectedStyle;
 
                   return (
-                    <div key={catKey} className={`group flex flex-col ${isHero && resultsDensity !== 'overview' ? 'lg:scale-105 z-10' : ''}`}>
-                      <div className={`aspect-square relative rounded-[3rem] overflow-hidden border-4 transition-all duration-700 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} ${img?.status === 'completed' ? (theme === 'dark' ? 'border-gray-700 shadow-2xl ring-gray-700' : 'border-white shadow-2xl ring-slate-100') : (theme === 'dark' ? 'border-gray-700 border-dashed bg-gray-800/50 hover:bg-gray-700 hover:border-orange-500' : 'border-slate-200 border-dashed bg-slate-50/50 hover:bg-white hover:border-orange-200')}`}>
+                    <div key={catKey} className={`group flex flex-col ${isHero && resultsDensity !== 'overview' ? 'lg:scale-[1.02] z-10' : ''}`}>
+                      <div className={`aspect-square relative rounded-[2.5rem] overflow-hidden border-2 transition-all duration-500 ${
+                        theme === 'dark' ? 'bg-gray-800' : 'bg-white'
+                      } ${
+                        img?.status === 'completed'
+                          ? (theme === 'dark' ? 'border-gray-700 shadow-xl ring-1 ring-gray-700/50' : 'border-slate-100 shadow-xl ring-1 ring-slate-200/60')
+                          : (theme === 'dark' ? 'border-gray-700 border-dashed bg-gray-800/40 hover:border-orange-500/80 hover:bg-gray-800/60' : 'border-slate-300 border-dashed bg-slate-50/60 hover:border-orange-400 hover:bg-white')
+                      }`}>
+
+                        {/* Top Left: Strategy badges & Model/Scale tags (Compact, Non-overlapping) */}
+                        <div className="absolute top-3 left-3 z-20 flex flex-wrap items-center gap-1.5 max-w-[calc(100%-6.5rem)] pointer-events-none">
+                          <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-white text-[9px] font-black uppercase tracking-wider shadow-md backdrop-blur-sm ${strategy.color}`}>
+                            {strategy.icon}
+                            <span>{strategy.text}</span>
+                          </div>
+                          {isHero && (
+                            <div className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider shadow-md flex items-center gap-1 ${
+                              theme === 'dark' ? 'bg-gray-900/90 text-amber-300 border border-amber-400/30' : 'bg-slate-900/90 text-amber-300'
+                            }`}>
+                              <Target className="w-2.5 h-2.5 text-amber-400" /> HERO
+                            </div>
+                          )}
+                          {img?.status === 'completed' && img.isManualScale && (
+                            <div className="rounded-full border border-orange-200/40 bg-orange-500/90 px-2 py-0.5 text-[8px] font-black text-white shadow backdrop-blur-md flex items-center gap-1">
+                              <Ruler className="h-2.5 w-2.5" /> ล็อกสเกลจริง
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Top Right: Quick Action Buttons (Completed State Only) */}
+                        {img?.status === 'completed' && (
+                          <div className="absolute top-3 right-3 z-30 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openPreview(img.url);
+                              }}
+                              className="rounded-full bg-black/60 p-2 text-white shadow-md backdrop-blur-md transition-all hover:scale-110 hover:bg-black/80 active:scale-95"
+                              title="ดูภาพขนาดใหญ่"
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingResultImage({ id: img.id, url: img.url, title: meta.title });
+                              }}
+                              className="rounded-full bg-orange-500/90 p-2 text-white shadow-md backdrop-blur-md transition-all hover:scale-110 hover:bg-orange-600 active:scale-95"
+                              title="แก้ไขภาพนี้ใน Results"
+                            >
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteResultImage(img.id, meta.title);
+                              }}
+                              className="rounded-full bg-rose-600/90 p-2 text-white shadow-md backdrop-blur-md transition-all hover:scale-110 hover:bg-rose-700 active:scale-95"
+                              title="ลบภาพนี้จาก Results"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        )}
 
                         {/* Status: Completed */}
                         {img?.status === 'completed' && (
-                          <div className="w-full h-full relative animate-in fade-in duration-1000">
-                            <img src={img.url} alt={meta.title} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" />
-                            {img.modelUsed && (
-                              <div title={img.modelUsed} className="absolute left-4 top-4 max-w-[calc(100%-5.5rem)] truncate rounded-full border border-emerald-200/40 bg-slate-950/70 px-3 py-1.5 text-[9px] font-black tracking-wide text-emerald-200 backdrop-blur-md">
-                                AI: {img.modelUsed}
-                              </div>
-                            )}
-                            {img.isManualScale && (
-                              <div className="absolute bottom-4 left-4 rounded-full border border-orange-200/40 bg-orange-500/90 px-3 py-1.5 text-[9px] font-black tracking-wide text-white shadow-lg backdrop-blur-md">
-                                <Ruler className="mr-1 inline h-3 w-3" />ล็อกสเกลจริง
-                              </div>
-                            )}
+                          <div className="w-full h-full relative">
+                            <img
+                              src={img.url}
+                              alt={meta.title}
+                              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                            />
 
-                            {/* Results-only image controls. These change only generatedImages. */}
-                            <div className="absolute right-4 top-4 z-20 flex gap-2 opacity-0 transition-all group-hover:opacity-100">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openPreview(img.url);
-                                }}
-                                className="rounded-full bg-black/35 p-2.5 text-white backdrop-blur-md transition-all hover:scale-110 hover:bg-black/55 active:scale-95"
-                                title="ดูภาพขนาดใหญ่"
-                              >
-                                <Eye className="h-5 w-5" />
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setEditingResultImage({ id: img.id, url: img.url, title: meta.title });
-                                }}
-                                className="rounded-full bg-orange-500/90 p-2.5 text-white shadow-lg shadow-orange-950/30 backdrop-blur-md transition-all hover:scale-110 hover:bg-orange-600 active:scale-95"
-                                title="แก้ไขภาพนี้ใน Results"
-                              >
-                                <Edit2 className="h-5 w-5" />
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  deleteResultImage(img.id, meta.title);
-                                }}
-                                className="rounded-full bg-rose-600/90 p-2.5 text-white shadow-lg shadow-rose-950/30 backdrop-blur-md transition-all hover:scale-110 hover:bg-rose-700 active:scale-95"
-                                title="ลบภาพนี้จาก Results"
-                              >
-                                <Trash2 className="h-5 w-5" />
-                              </button>
-                            </div>
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end p-10">
-                              <div className="flex flex-col gap-4 w-full">
-                                <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/20">
-                                  {img.modelUsed && (
-                                    <p className="text-emerald-200 text-[10px] font-black uppercase tracking-widest mb-2">
-                                      MODEL USED: {img.modelUsed}
-                                    </p>
-                                  )}
-                                  <p className="text-white text-[10px] font-black uppercase tracking-widest mb-1">PROMPT USED</p>
-                                  {!editingPrompt[catKey] ? (
-                                    <>
-                                      <p className="text-white/70 text-[10px] italic line-clamp-2">"High-quality commercial render, ${img.visualStyle || cardVisualStyles[catKey] || (catKey === 'COVER' ? selectedCoverStyle || selectedStyle : selectedStyle)} style, master lighting..."</p>
+                            {/* Hover Overlay with sleek, non-crowded controls */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3.5 sm:p-4 z-20">
+                              <div className="flex flex-col gap-2 w-full">
+                                
+                                {/* If editing prompt */}
+                                {editingPrompt[catKey] ? (
+                                  <div className="bg-black/80 backdrop-blur-md p-2.5 rounded-xl border border-white/20 flex flex-col gap-1.5 animate-in fade-in">
+                                    <textarea
+                                      value={promptInputs[catKey] || `High-quality commercial render, ${currentCardStyle} style, master lighting..., ${meta.title}`}
+                                      onChange={(e) => handlePromptInputChange(catKey, e.target.value)}
+                                      className="w-full text-[10px] p-2 rounded-lg bg-white/20 text-white placeholder:text-white/50 border border-white/30 focus:outline-none"
+                                      rows={2}
+                                    />
+                                    <div className="flex items-center justify-end gap-2">
                                       <button
-                                        onClick={() => startEditingPrompt(catKey)}
-                                        className="mt-2 text-[9px] text-blue-300 hover:text-white font-black underline"
+                                        onClick={() => cancelEditingPrompt(catKey)}
+                                        className="text-[10px] text-red-300 hover:text-white font-bold"
                                       >
-                                        Edit Prompt
+                                        ยกเลิก
                                       </button>
-                                    </>
-                                  ) : (
-                                    <div className="flex flex-col gap-2">
-                                      <textarea
-                                        value={promptInputs[catKey] || `High-quality commercial render, ${selectedStyle} style, master lighting..., ${meta.title}`}
-                                        onChange={(e) => handlePromptInputChange(catKey, e.target.value)}
-                                        className="w-full text-[10px] p-2 rounded bg-white/20 text-white placeholder:text-white/50 border border-white/30"
-                                        rows={3}
-                                      />
-                                      <div className="flex gap-2">
-                                        <button
-                                          onClick={() => saveEditedPrompt(catKey as ImageCategory)}
-                                          className="text-[9px] text-green-300 hover:text-white font-black underline"
-                                        >
-                                          Save & Regenerate
-                                        </button>
-                                        <button
-                                          onClick={() => cancelEditingPrompt(catKey)}
-                                          className="text-[9px] text-red-300 hover:text-white font-black underline ml-2"
-                                        >
-                                          Cancel
-                                        </button>
-                                      </div>
+                                      <button
+                                        onClick={() => saveEditedPrompt(catKey as ImageCategory)}
+                                        className="px-2.5 py-1 bg-green-500 hover:bg-green-600 text-white text-[10px] font-black rounded-lg transition-all"
+                                      >
+                                        บันทึกและสร้างใหม่
+                                      </button>
                                     </div>
-                                  )}
-                                </div>
-                                 {/* Visual direction / Cover mode dropdown is displayed ONLY on COVER card */}
-                                 {catKey === 'COVER' && (
-                                   <div className="mb-2">
-                                     <label className="mb-1 block text-[9px] font-black uppercase tracking-wider text-white/80">🖼️ แนวคิดภาพปก & แบรนด์แอมบาสเดอร์</label>
-                                     <select
-                                       value={cardVisualStyles[catKey] || selectedCoverStyle || selectedStyle}
-                                       onChange={(e) => {
-                                         const value = e.target.value;
-                                         setCardVisualStyles(prev => ({ ...prev, [catKey]: value }));
-                                         setSelectedCoverStyle(value);
-                                       }}
-                                       className="w-full text-[10px] p-2 rounded-xl bg-white/20 text-white border border-white/30 backdrop-blur-md font-bold"
-                                     >
-                                       {STYLES.map(style => <option key={style.id} value={style.id} className="bg-slate-800 text-white">{style.name} — {style.desc}</option>)}
-                                     </select>
-                                   </div>
-                                  )}
-
-                                {/* Social Proof Dropdown - แสดงเฉพาะ Social Proof category */}
-                                {catKey === 'SOCIAL_PROOF' && (
-                                  <div className="mb-2">
-                                    <select
-                                      value={selectedSocialProof[catKey] || 'unboxing-moment'}
-                                      onChange={(e) => setSelectedSocialProof(prev => ({
-                                        ...prev,
-                                        [catKey]: e.target.value
-                                      }))}
-                                      className="w-full text-[10px] p-2 rounded-xl bg-white/20 text-white border border-white/30 backdrop-blur-md font-bold"
-                                    >
-                                      {SOCIAL_PROOF_OPTIONS.map(opt => (
-                                        <option key={opt.id} value={opt.id} className="bg-slate-800 text-white">
-                                          {opt.name} - {opt.desc}
-                                        </option>
-                                      ))}
-                                    </select>
                                   </div>
-                                )}
-
-                                {/* Infographic Style Dropdown - แสดงเฉพาะ INFOGRAPHIC */}
-                                {catKey === 'INFOGRAPHIC' && (
-                                  <div className="mb-2">
-                                    <select
-                                      value={selectedInfographicStyle[catKey] || '0'}
-                                      onChange={(e) => setSelectedInfographicStyle(prev => ({
-                                        ...prev,
-                                        [catKey]: e.target.value
-                                      }))}
-                                      className="w-full text-[10px] p-2 rounded-xl bg-white/20 text-white border border-white/30 backdrop-blur-md font-bold"
-                                    >
-                                      {INFOGRAPHIC_STYLE_OPTIONS.map(opt => (
-                                        <option key={opt.id} value={opt.id} className="bg-slate-800 text-white">
-                                          {opt.name}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </div>
-                                )}
-
-                                {/* Size Chart Style Dropdown - แสดงเฉพาะ SIZE_CHART */}
-                                {catKey === 'SIZE_CHART' && (
-                                  <div className="mb-3 space-y-2">
-                                    <select
-                                      value={selectedSizeChartStyle[catKey] || '0'}
-                                      onChange={(e) => setSelectedSizeChartStyle(prev => ({
-                                        ...prev,
-                                        [catKey]: e.target.value
-                                      }))}
-                                      className="w-full text-[10px] p-2 rounded-xl bg-white/20 text-white border border-white/30 backdrop-blur-md font-bold"
-                                    >
-                                      {SIZE_CHART_STYLE_OPTIONS.map(opt => (
-                                        <option key={opt.id} value={opt.id} className="bg-slate-800 text-white">
-                                          {opt.name}
-                                        </option>
-                                      ))}
-                                    </select>
-                                    <button
-                                      onClick={(event) => { event.stopPropagation(); openManualScaleCorrection(); }}
-                                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-orange-300 bg-orange-500/90 px-3 py-2 text-[10px] font-black text-white shadow-lg transition hover:bg-orange-600"
-                                    >
-                                      <Ruler className="h-3.5 w-3.5" />{img.isManualScale ? 'ปรับสเกลจริงอีกครั้ง' : 'ขนาดไม่ตรง? ปรับสเกลจริง'}
-                                    </button>
-                                    {img.isManualScale && img.originalUrl && (
-                                      <button
-                                        onClick={(event) => { event.stopPropagation(); restoreOriginalSizeChart(); }}
-                                        className="w-full rounded-xl border border-white/30 bg-white/10 px-3 py-2 text-[10px] font-black text-white transition hover:bg-white/20"
+                                ) : (
+                                  <>
+                                    {/* Category Specific Sub-options (Only shown when applicable) */}
+                                    {catKey === 'INFOGRAPHIC' && (
+                                      <select
+                                        value={selectedInfographicStyle[catKey] || '0'}
+                                        onChange={(e) => setSelectedInfographicStyle(prev => ({ ...prev, [catKey]: e.target.value }))}
+                                        className="w-full text-[10px] py-1 px-2 rounded-lg bg-black/60 text-white border border-white/20 backdrop-blur-md font-bold"
                                       >
-                                        กลับไปใช้ภาพ AI เดิม
-                                      </button>
+                                        {INFOGRAPHIC_STYLE_OPTIONS.map(opt => (
+                                          <option key={opt.id} value={opt.id} className="bg-slate-800 text-white">{opt.name}</option>
+                                        ))}
+                                      </select>
                                     )}
-                                  </div>
-                                )}
 
-                                {/* Tutorial Style Dropdown - แสดงเฉพาะ TUTORIAL (ก่อน Step Editor) */}
-                                {catKey === 'TUTORIAL' && (
-                                  <div className="mb-2">
-                                    <select
-                                      value={selectedTutorialStyle[catKey] || '0'}
-                                      onChange={(e) => setSelectedTutorialStyle(prev => ({
-                                        ...prev,
-                                        [catKey]: e.target.value
-                                      }))}
-                                      className="w-full text-[10px] p-2 rounded-xl bg-white/20 text-white border border-white/30 backdrop-blur-md font-bold"
-                                    >
-                                      {TUTORIAL_STYLE_OPTIONS.map(opt => (
-                                        <option key={opt.id} value={opt.id} className="bg-slate-800 text-white">
-                                          {opt.name}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </div>
-                                )}
-
-                                {/* Lifestyle Dropdown - แสดงเฉพาะ Lifestyle categories */}
-                                {catKey.startsWith('LIFESTYLE_') && (
-                                  <div className="mb-2">
-                                    <select
-                                      value={selectedLifestyle[catKey] || catKey}
-                                      onChange={(e) => setSelectedLifestyle(prev => ({
-                                        ...prev,
-                                        [catKey]: e.target.value as ImageCategory
-                                      }))}
-                                      className="w-full text-[10px] p-2 rounded-xl bg-white/20 text-white border border-white/30 backdrop-blur-md font-bold"
-                                    >
-                                      {LIFESTYLE_OPTIONS.map(opt => (
-                                        <option key={opt.id} value={opt.id} className="bg-slate-800 text-white">
-                                          {opt.name} - {opt.desc}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </div>
-                                )}
-                                {/* Tutorial Step Editor - แสดงเฉพาะ TUTORIAL */}
-                                {catKey === 'TUTORIAL' && (
-                                  <div className="mb-3 bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/20">
-                                    <p className="text-white text-[9px] font-black uppercase tracking-wider mb-2 flex items-center gap-1">
-                                      <LayoutGrid className="w-3 h-3" />
-                                      แก้ไข 4 ขั้นตอน
-                                    </p>
-                                    <div className="grid grid-cols-2 gap-2">
-                                      {tutorialStepPrompts.map((prompt, idx) => (
-                                        <input
-                                          key={idx}
-                                          type="text"
-                                          value={prompt}
-                                          onChange={(e) => {
-                                            const newPrompts = [...tutorialStepPrompts];
-                                            newPrompts[idx] = e.target.value;
-                                            setTutorialStepPrompts(newPrompts);
-                                          }}
-                                          className="w-full text-[9px] p-2 rounded-lg bg-white/20 text-white border border-white/30 placeholder:text-white/50"
-                                          placeholder={`Step ${idx + 1}`}
-                                        />
-                                      ))}
-                                    </div>
-                                    <button
-                                      onClick={() => regenerateImage(ImageCategory.TUTORIAL, JSON.stringify(tutorialStepPrompts))}
-                                      className="w-full mt-2 py-2 bg-green-500 hover:bg-green-600 text-white text-[10px] font-black rounded-lg transition-all flex items-center justify-center gap-1"
-                                    >
-                                      <RotateCcw className="w-3 h-3" />
-                                      สร้างใหม่ตาม Steps
-                                    </button>
-                                  </div>
-                                )}
-                                {/* Per-image Aspect Ratio Selector */}
-                                <div className="mb-3 bg-white/10 backdrop-blur-md p-3 rounded-2xl border border-white/20">
-                                  <p className="text-white text-[9px] font-black uppercase tracking-widest mb-2 flex items-center gap-1">
-                                    <LayoutGrid className="w-3 h-3" />
-                                    Ratio ภาพนี้ {imageAspectRatios[catKey] && imageAspectRatios[catKey] !== selectedAspectRatio ? <span className="text-orange-300 ml-1">(Override)</span> : ''}
-                                  </p>
-                                  <div className="flex gap-1.5">
-                                    {ASPECT_RATIOS.map(r => {
-                                      const currentRatio = imageAspectRatios[catKey] || selectedAspectRatio;
-                                      const isActiveRatio = currentRatio === r.id;
-                                      return (
-                                        <button
-                                          key={r.id}
-                                          onClick={() => setImageAspectRatios(prev => ({ ...prev, [catKey]: r.id }))}
-                                          title={`${r.name} — ${r.desc}`}
-                                          className={`flex-1 py-1.5 rounded-lg text-[9px] font-black transition-all ${isActiveRatio
-                                              ? 'bg-orange-500 text-white shadow-md'
-                                              : 'bg-white/20 text-white/80 hover:bg-white/30'
-                                            }`}
+                                    {catKey === 'SIZE_CHART' && (
+                                      <div className="flex items-center gap-1.5">
+                                        <select
+                                          value={selectedSizeChartStyle[catKey] || '0'}
+                                          onChange={(e) => setSelectedSizeChartStyle(prev => ({ ...prev, [catKey]: e.target.value }))}
+                                          className="flex-1 text-[10px] py-1 px-2 rounded-lg bg-black/60 text-white border border-white/20 backdrop-blur-md font-bold"
                                         >
-                                          {r.label}
+                                          {SIZE_CHART_STYLE_OPTIONS.map(opt => (
+                                            <option key={opt.id} value={opt.id} className="bg-slate-800 text-white">{opt.name}</option>
+                                          ))}
+                                        </select>
+                                        <button
+                                          onClick={(event) => { event.stopPropagation(); openManualScaleCorrection(); }}
+                                          className="flex items-center gap-1 rounded-lg border border-orange-300 bg-orange-500/90 px-2 py-1 text-[9px] font-black text-white hover:bg-orange-600 transition"
+                                          title="ปรับสเกลจริง"
+                                        >
+                                          <Ruler className="h-3 w-3" /> สเกล
                                         </button>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
+                                        {img.isManualScale && img.originalUrl && (
+                                          <button
+                                            onClick={(event) => { event.stopPropagation(); restoreOriginalSizeChart(); }}
+                                            className="rounded-lg border border-white/30 bg-white/10 px-2 py-1 text-[9px] font-black text-white hover:bg-white/20 transition"
+                                            title="กลับไปใช้ภาพ AI เดิม"
+                                          >
+                                            ภาพเดิม
+                                          </button>
+                                        )}
+                                      </div>
+                                    )}
 
-                                <div className="flex gap-3">
+                                    {catKey === 'TUTORIAL' && (
+                                      <div className="flex flex-col gap-1.5">
+                                        <div className="flex items-center gap-1.5">
+                                          <select
+                                            value={selectedTutorialStyle[catKey] || '0'}
+                                            onChange={(e) => setSelectedTutorialStyle(prev => ({ ...prev, [catKey]: e.target.value }))}
+                                            className="flex-1 text-[10px] py-1 px-2 rounded-lg bg-black/60 text-white border border-white/20 backdrop-blur-md font-bold"
+                                          >
+                                            {TUTORIAL_STYLE_OPTIONS.map(opt => (
+                                              <option key={opt.id} value={opt.id} className="bg-slate-800 text-white">{opt.name}</option>
+                                            ))}
+                                          </select>
+                                          <button
+                                            onClick={(e) => { e.stopPropagation(); setShowTutorialEditor(!showTutorialEditor); }}
+                                            className="px-2 py-1 rounded-lg bg-white/20 hover:bg-white/30 text-white text-[9px] font-bold transition-all"
+                                          >
+                                            {showTutorialEditor ? 'ซ่อน Steps' : 'แก้ 4 Steps'}
+                                          </button>
+                                        </div>
+                                        {showTutorialEditor && (
+                                          <div className="bg-black/80 backdrop-blur-md p-2 rounded-xl border border-white/20 flex flex-col gap-1">
+                                            <div className="grid grid-cols-2 gap-1">
+                                              {tutorialStepPrompts.map((p, idx) => (
+                                                <input
+                                                  key={idx}
+                                                  type="text"
+                                                  value={p}
+                                                  onChange={(e) => {
+                                                    const updated = [...tutorialStepPrompts];
+                                                    updated[idx] = e.target.value;
+                                                    setTutorialStepPrompts(updated);
+                                                  }}
+                                                  className="w-full text-[9px] p-1 rounded bg-white/20 text-white border border-white/30"
+                                                  placeholder={`Step ${idx + 1}`}
+                                                />
+                                              ))}
+                                            </div>
+                                            <button
+                                              onClick={() => regenerateImage(ImageCategory.TUTORIAL, JSON.stringify(tutorialStepPrompts))}
+                                              className="w-full mt-1 py-1 bg-green-500 hover:bg-green-600 text-white text-[9px] font-black rounded-lg transition-all"
+                                            >
+                                              สร้างใหม่ตาม Steps
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+
+                                    {catKey === 'SOCIAL_PROOF' && (
+                                      <select
+                                        value={selectedSocialProof[catKey] || 'unboxing-moment'}
+                                        onChange={(e) => setSelectedSocialProof(prev => ({ ...prev, [catKey]: e.target.value }))}
+                                        className="w-full text-[10px] py-1 px-2 rounded-lg bg-black/60 text-white border border-white/20 backdrop-blur-md font-bold"
+                                      >
+                                        {SOCIAL_PROOF_OPTIONS.map(opt => (
+                                          <option key={opt.id} value={opt.id} className="bg-slate-800 text-white">{opt.name} - {opt.desc}</option>
+                                        ))}
+                                      </select>
+                                    )}
+
+                                    {catKey.startsWith('LIFESTYLE_') && (
+                                      <select
+                                        value={selectedLifestyle[catKey] || catKey}
+                                        onChange={(e) => setSelectedLifestyle(prev => ({ ...prev, [catKey]: e.target.value as ImageCategory }))}
+                                        className="w-full text-[10px] py-1 px-2 rounded-lg bg-black/60 text-white border border-white/20 backdrop-blur-md font-bold"
+                                      >
+                                        {LIFESTYLE_OPTIONS.map(opt => (
+                                          <option key={opt.id} value={opt.id} className="bg-slate-800 text-white">{opt.name} - {opt.desc}</option>
+                                        ))}
+                                      </select>
+                                    )}
+
+                                    {/* Per-image Aspect Ratio Selector */}
+                                    <div className="flex items-center justify-between gap-1 bg-black/50 backdrop-blur-md p-1 rounded-xl border border-white/15">
+                                      {ASPECT_RATIOS.map(r => {
+                                        const currentRatio = imageAspectRatios[catKey] || selectedAspectRatio;
+                                        const isActiveRatio = currentRatio === r.id;
+                                        return (
+                                          <button
+                                            key={r.id}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setImageAspectRatios(prev => ({ ...prev, [catKey]: r.id }));
+                                            }}
+                                            title={`${r.name} (${r.desc})`}
+                                            className={`flex-1 py-1 rounded-lg text-[9px] font-black transition-all ${
+                                              isActiveRatio
+                                                ? 'bg-orange-500 text-white shadow-sm'
+                                                : 'text-white/70 hover:text-white hover:bg-white/10'
+                                            }`}
+                                          >
+                                            {r.label}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </>
+                                )}
+
+                                {/* Main Action Bar: Download, Edit Prompt, Regenerate */}
+                                <div className="flex items-center gap-1.5">
                                   <button
                                     onClick={() => downloadSingleImage(img.url, meta.title)}
-                                    className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-black py-4 rounded-2xl text-[12px] shadow-2xl flex items-center justify-center gap-3 transition-all active:scale-95"
+                                    className="flex-1 py-2 px-3 bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-black rounded-xl text-[11px] shadow-lg flex items-center justify-center gap-1.5 transition-all"
                                   >
-                                    <Download className="w-5 h-5" /> บันทึกภาพ
+                                    <Download className="w-3.5 h-3.5" /> บันทึกภาพ
                                   </button>
+
+                                  {!editingPrompt[catKey] && (
+                                    <button
+                                      onClick={() => startEditingPrompt(catKey)}
+                                      className="p-2 bg-white/20 hover:bg-white/30 active:scale-95 text-white rounded-xl text-[10px] backdrop-blur-md transition-all font-bold"
+                                      title="แก้ไข Prompt"
+                                    >
+                                      Prompt
+                                    </button>
+                                  )}
+
                                   <button
-                                    onClick={(e) => {
-                                      // คำนวณ styleIndex สำหรับหมวดที่รองรับการเลือกสไตล์
+                                    onClick={() => {
                                       let styleIdx: number | undefined;
                                       if (catKey === 'INFOGRAPHIC') {
                                         const val = selectedInfographicStyle[catKey] || '0';
@@ -4184,25 +4185,19 @@ const App: React.FC = () => {
                                         const val = selectedTutorialStyle[catKey] || '0';
                                         styleIdx = parseInt(val) || undefined;
                                       }
-
                                       regenerateImage(
                                         catKey as ImageCategory,
                                         catKey === 'TUTORIAL' ? JSON.stringify(tutorialStepPrompts) : undefined,
-                                        catKey === 'COVER' ? (cardVisualStyles[catKey] || selectedCoverStyle || selectedStyle) : (catKey === 'SOCIAL_PROOF' ? (selectedSocialProof[catKey] || 'unboxing-moment') : undefined),
+                                        currentCardStyle,
                                         styleIdx
                                       );
                                     }}
-                                    className="p-4 bg-blue-500 hover:bg-blue-600 text-white font-black rounded-2xl text-[12px] shadow-2xl flex items-center justify-center transition-all active:scale-95"
+                                    className="p-2 bg-blue-500 hover:bg-blue-600 active:scale-95 text-white rounded-xl shadow-lg flex items-center justify-center transition-all"
                                     title={`Regenerate (${imageAspectRatios[catKey] || selectedAspectRatio})`}
                                   >
-                                    <RotateCcw className="w-5 h-5" />
+                                    <RotateCcw className="w-3.5 h-3.5" />
                                   </button>
                                 </div>
-                              </div>
-                            </div>
-                            <div className="absolute top-6 right-6">
-                              <div className="bg-white/90 backdrop-blur shadow-xl p-2 rounded-2xl text-green-500 ring-4 ring-green-50">
-                                <CheckCircle2 className="w-6 h-6" />
                               </div>
                             </div>
                           </div>
@@ -4210,18 +4205,18 @@ const App: React.FC = () => {
 
                         {/* Status: Generating */}
                         {img?.status === 'generating' && (
-                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 p-12 text-center">
+                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center">
                             <div className="relative">
-                              <div className="w-20 h-20 border-8 border-orange-50 rounded-[2rem] animate-spin border-t-orange-500"></div>
-                              <Sparkles className="absolute inset-0 m-auto w-8 h-8 text-orange-400 animate-pulse" />
+                              <div className="w-14 h-14 border-4 border-orange-100 rounded-2xl animate-spin border-t-orange-500" />
+                              <Sparkles className="absolute inset-0 m-auto w-6 h-6 text-orange-400 animate-pulse" />
                             </div>
                             <div>
-                              <p className={`text-lg font-black tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>กำลังรังสรรค์ภาพ...</p>
-                              <p className={`text-[10px] font-black uppercase mt-2 tracking-[0.2em] ${theme === 'dark' ? 'text-gray-400' : 'text-slate-400'}`}>{meta.title}</p>
+                              <p className={`text-sm font-black tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>กำลังรังสรรค์ภาพ...</p>
+                              <p className={`text-[9px] font-bold uppercase mt-1 tracking-wider ${theme === 'dark' ? 'text-gray-400' : 'text-slate-400'}`}>{meta.title}</p>
                             </div>
                             <button
                               onClick={(event) => { event.stopPropagation(); stopResultsGeneration(); }}
-                              className="rounded-xl border border-rose-300 bg-rose-50 px-4 py-2 text-xs font-black text-rose-700 shadow-sm transition hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-200"
+                              className="mt-1 rounded-lg border border-rose-300 bg-rose-50 px-3 py-1 text-[10px] font-black text-rose-700 shadow-sm transition hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-200"
                             >
                               หยุดการสร้าง
                             </button>
@@ -4233,110 +4228,112 @@ const App: React.FC = () => {
                           <div
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (!isGenerating) regenerateImage(catKey as ImageCategory);
+                              if (!isGenerating) {
+                                let styleIdx: number | undefined;
+                                if (catKey === 'INFOGRAPHIC') {
+                                  const val = selectedInfographicStyle[catKey] || '0';
+                                  styleIdx = parseInt(val) || undefined;
+                                } else if (catKey === 'SIZE_CHART') {
+                                  const val = selectedSizeChartStyle[catKey] || '0';
+                                  styleIdx = parseInt(val) || undefined;
+                                } else if (catKey === 'TUTORIAL') {
+                                  const val = selectedTutorialStyle[catKey] || '0';
+                                  styleIdx = parseInt(val) || undefined;
+                                }
+                                regenerateImage(
+                                  catKey as ImageCategory,
+                                  catKey === 'TUTORIAL' ? JSON.stringify(tutorialStepPrompts) : undefined,
+                                  currentCardStyle,
+                                  styleIdx
+                                );
+                              }
                             }}
-                            className="absolute inset-0 flex flex-col items-center justify-center gap-6 p-12 text-center opacity-40 group-hover:opacity-100 transition-all cursor-pointer hover:bg-white/5 hover:backdrop-blur-sm active:scale-95 duration-300 z-10"
+                            className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center cursor-pointer hover:bg-orange-500/5 transition-all group/idle"
                           >
-                            <div className={`w-24 h-24 rounded-[2.5rem] ${theme === 'dark' ? 'bg-gray-700' : 'bg-white'} flex items-center justify-center text-slate-200 group-hover:bg-orange-50 group-hover:text-orange-400 transition-all border-4 border-dashed ${theme === 'dark' ? 'border-gray-600' : 'border-slate-100'} shadow-inner group-hover:rotate-12`}>
-                              <ImageIcon className="w-12 h-12" />
-                            </div>
-                            <div>
-                              <p className={`text-sm font-black uppercase tracking-widest mb-2 ${theme === 'dark' ? 'text-white' : 'text-slate-500'}`}>โครงสร้างภาพที่ {meta.order}</p>
-                              <p className={`text-[10px] font-bold leading-relaxed px-6 italic ${theme === 'dark' ? 'text-gray-400' : 'text-slate-400'}`}>พิมพ์เขียวพร้อมใช้งาน <br />คลิกเพื่อสร้างภาพทันที</p>
-                            </div>
-
-                            <div onClick={(e) => e.stopPropagation()} className="w-full max-w-xs opacity-0 group-hover:opacity-100 transition-opacity">
-                              <label className={`mb-1 block text-[9px] font-black uppercase tracking-wider ${theme === 'dark' ? 'text-white/80' : 'text-slate-600'}`}>{catKey === 'COVER' ? 'แนวคิดภาพปก' : 'เลือกรูปแบบภาพการ์ดนี้'}</label>
-                              <select
-                                value={cardVisualStyles[catKey] || (catKey === 'COVER' ? selectedCoverStyle || selectedStyle : selectedStyle)}
-                                onChange={(e) => {
-                                  const value = e.target.value;
-                                  setCardVisualStyles(prev => ({ ...prev, [catKey]: value }));
-                                  if (catKey === 'COVER') setSelectedCoverStyle(value);
-                                }}
-                                className={`w-full rounded-xl border px-3 py-2 text-[10px] font-bold outline-none ${theme === 'dark' ? 'border-gray-600 bg-gray-800 text-white' : 'border-slate-200 bg-white text-slate-700'}`}
-                              >
-                                {STYLES.map(style => <option key={style.id} value={style.id}>{style.name} — {style.desc}</option>)}
-                              </select>
+                            <div className={`w-14 h-14 rounded-2xl ${
+                              theme === 'dark' ? 'bg-gray-700/80 text-gray-400' : 'bg-slate-100 text-slate-400'
+                            } flex items-center justify-center transition-all border-2 border-dashed ${
+                              theme === 'dark' ? 'border-gray-600' : 'border-slate-200'
+                            } group-hover/idle:scale-110 group-hover/idle:bg-orange-50 group-hover/idle:text-orange-500 group-hover/idle:border-orange-400 shadow-sm`}>
+                              <ImageIcon className="w-7 h-7" />
                             </div>
 
-                            <div className="absolute bottom-10 opacity-0 group-hover:opacity-100 transition-opacity animate-in slide-in-from-bottom-2">
-                              <span className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full shadow-lg ${theme === 'dark' ? 'bg-orange-500 text-white' : 'bg-slate-900 text-white'}`}>
-                                <Sparkles className="w-3 h-3 inline mr-1" /> Click to Generate
-                              </span>
+                            <div className="mt-1">
+                              <p className={`text-xs font-black uppercase tracking-wider ${theme === 'dark' ? 'text-white' : 'text-slate-700'}`}>
+                                โครงสร้างภาพที่ {meta.order}
+                              </p>
+                              <p className={`text-[9px] font-bold mt-0.5 ${theme === 'dark' ? 'text-gray-400' : 'text-slate-400'}`}>
+                                พิมพ์เขียวพร้อมใช้งาน
+                              </p>
                             </div>
+
+                            <button
+                              type="button"
+                              className="mt-2 px-3.5 py-1.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-[10px] font-black shadow-md flex items-center gap-1.5 transition-all group-hover/idle:scale-105 active:scale-95"
+                            >
+                              <Sparkles className="w-3 h-3" /> สร้างภาพนี้
+                            </button>
                           </div>
                         )}
 
                         {/* Status: Error */}
                         {img?.status === 'error' && (
-                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-12 text-center bg-red-50/30">
-                            <div className="bg-white p-4 rounded-3xl shadow-xl">
-                              <AlertCircle className="w-10 h-10 text-red-400" />
+                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 p-4 text-center bg-rose-500/10">
+                            <div className="bg-white/90 dark:bg-gray-800 p-2.5 rounded-2xl shadow-md">
+                              <AlertCircle className="w-7 h-7 text-rose-500" />
                             </div>
-                            <p className={`text-sm font-black leading-tight ${theme === 'dark' ? 'text-red-300' : 'text-red-500'}`}>เกิดข้อผิดพลาดในการสร้างภาพ</p>
-                            {img.error && (
-                              <p className="text-xs text-red-300 text-center px-4" title={img.error}>
-                                {img.error.length > 50 ? `${img.error.substring(0, 50)}...` : img.error}
-                              </p>
-                            )}
-                            {/* Lifestyle Dropdown ใน Error state */}
-                            {catKey.startsWith('LIFESTYLE_') && (
-                              <select
-                                value={selectedLifestyle[catKey] || catKey}
-                                onChange={(e) => setSelectedLifestyle(prev => ({
-                                  ...prev,
-                                  [catKey]: e.target.value as ImageCategory
-                                }))}
-                                className={`w-4/5 text-[10px] p-2 rounded-xl ${theme === 'dark' ? 'bg-gray-700 text-white border-gray-600' : 'bg-white text-slate-800 border-slate-200'} border font-bold`}
-                              >
-                                {LIFESTYLE_OPTIONS.map(opt => (
-                                  <option key={opt.id} value={opt.id}>
-                                    {opt.name} - {opt.desc}
-                                  </option>
-                                ))}
-                              </select>
-                            )}
+                            <p className="text-[11px] font-bold text-rose-600 dark:text-rose-400 max-w-full px-2 truncate" title={img.error}>
+                              {img.error || 'เกิดข้อผิดพลาดในการสร้างภาพ'}
+                            </p>
                             <button
-                              onClick={() => regenerateImage(
-                                catKey as ImageCategory,
-                                catKey === 'TUTORIAL' ? JSON.stringify(tutorialStepPrompts) : undefined
-                              )}
-                              className="px-6 py-2 bg-blue-500 text-white text-[10px] font-black rounded-xl hover:bg-blue-600 transition-all flex items-center gap-2"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                regenerateImage(
+                                  catKey as ImageCategory,
+                                  catKey === 'TUTORIAL' ? JSON.stringify(tutorialStepPrompts) : undefined,
+                                  currentCardStyle
+                                );
+                              }}
+                              className="px-3.5 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-[10px] font-black rounded-xl transition-all flex items-center gap-1.5 shadow"
                             >
-                              <RotateCcw className="w-4 h-4" /> สร้างภาพใหม่ ({(regenerationAttempts[catKey] || 0) + 1} ครั้ง)
+                              <RotateCcw className="w-3 h-3" /> ลองใหม่อีกครั้ง
                             </button>
                           </div>
                         )}
-
-                        {/* Slot Strategy Badge */}
-                        <div className="absolute top-6 left-6 flex flex-col gap-2">
-                          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-white text-[9px] font-black uppercase tracking-widest shadow-lg ${strategy.color}`}>
-                            {strategy.icon}
-                            {strategy.text}
-                          </div>
-                          {isHero && (
-                            <div className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-lg flex items-center gap-2 ${theme === 'dark' ? 'bg-gray-700 text-white' : 'bg-slate-900 text-white'}`}>
-                              <Target className="w-3 h-3 text-orange-400" /> HERO
-                            </div>
-                          )}
-                        </div>
                       </div>
 
-                      {/* Card Info Footer */}
-                      <div className="mt-8 px-4 text-center md:text-left">
-                        <div className="flex items-center justify-center md:justify-start gap-3 mb-2">
-                          <h4 className={`font-black text-lg group-hover:text-orange-600 transition-colors uppercase tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{meta.title}</h4>
-                        </div>
-                        <p className={`text-xs font-bold leading-relaxed line-clamp-2 h-10 italic ${theme === 'dark' ? 'text-gray-400' : 'text-slate-400'}`}>
-                          " {STYLES.find(s => s.id === (img?.visualStyle || cardVisualStyles[catKey] || (catKey === 'COVER' ? selectedCoverStyle || selectedStyle : selectedStyle)))?.name || meta.desc} "
-                        </p>
-                        <div className="mt-6 flex items-center gap-4">
-                          <div className={`w-2 h-2 rounded-full ${strategy.color} shadow-sm`}></div>
-                          <div className={`${theme === 'dark' ? 'bg-gray-700' : 'bg-slate-100'} h-[1px] flex-1`}></div>
-                          <span className={`text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 ${theme === 'dark' ? 'text-gray-500' : 'text-slate-300'}`}>
+                      {/* Card Info Footer: Title, Slot badge, and Card Style Selector */}
+                      <div className="mt-4 px-1.5 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <h4 className={`font-black text-sm uppercase tracking-tight truncate ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`} title={meta.title}>
+                            {meta.title}
+                          </h4>
+                          <span className={`text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${strategy.color} text-white flex-shrink-0`}>
                             SLOT {meta.order}
                           </span>
+                        </div>
+
+                        {/* Card Style Selector Dropdown */}
+                        <div className="relative">
+                          <select
+                            value={currentCardStyle}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setCardVisualStyles(prev => ({ ...prev, [catKey]: val }));
+                            }}
+                            className={`w-full text-[11px] font-bold px-2.5 py-1.5 rounded-xl border transition-all cursor-pointer ${
+                              theme === 'dark'
+                                ? 'bg-gray-800 text-gray-200 border-gray-700 hover:border-gray-500 focus:border-orange-500'
+                                : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 shadow-sm focus:border-orange-500'
+                            }`}
+                            title="เลือกสไตล์สำหรับการ์ดนี้"
+                          >
+                            {STYLES.map(s => (
+                              <option key={s.id} value={s.id} className={theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-slate-800'}>
+                                {s.emoji} {s.name}
+                              </option>
+                            ))}
+                          </select>
                         </div>
                       </div>
                     </div>
