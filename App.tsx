@@ -499,6 +499,62 @@ const App: React.FC = () => {
   const [isManualScaleOpen, setIsManualScaleOpen] = useState(false);
   const [manualScaleDraft, setManualScaleDraft] = useState<ManualScaleDraft>(createManualScaleDraft);
 
+  // Floating hover preview สำหรับภาพตัวเลือกสินค้าในหน้า ANALYZE
+  const [hoveredVariantThumbnail, setHoveredVariantThumbnail] = useState<{
+    url: string;
+    label: string;
+    top: number;
+    left: number;
+  } | null>(null);
+
+  const handleVariantThumbnailMouseEnter = (
+    e: React.MouseEvent<HTMLElement>,
+    url?: string,
+    label?: string
+  ) => {
+    if (!url) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const previewWidth = 300;
+    const previewHeight = 340;
+
+    // เลือกตำแหน่งบน thumbnail ก่อน ถ้าพื้นที่ข้างบนไม่พอให้แสดงข้างล่าง
+    let top = rect.top - previewHeight - 12;
+    if (top < 16) {
+      top = rect.bottom + 12;
+    }
+    if (top + previewHeight > window.innerHeight - 16) {
+      top = Math.max(16, window.innerHeight - previewHeight - 16);
+    }
+
+    let left = rect.left + rect.width / 2 - previewWidth / 2;
+    if (left < 16) left = 16;
+    if (left + previewWidth > window.innerWidth - 16) {
+      left = window.innerWidth - previewWidth - 16;
+    }
+
+    setHoveredVariantThumbnail({
+      url,
+      label: label || 'รูปตัวเลือก',
+      top,
+      left,
+    });
+  };
+
+  const handleVariantThumbnailMouseLeave = () => {
+    setHoveredVariantThumbnail(null);
+  };
+
+  useEffect(() => {
+    if (!hoveredVariantThumbnail) return;
+    const dismiss = () => setHoveredVariantThumbnail(null);
+    window.addEventListener('scroll', dismiss, true);
+    window.addEventListener('resize', dismiss);
+    return () => {
+      window.removeEventListener('scroll', dismiss, true);
+      window.removeEventListener('resize', dismiss);
+    };
+  }, [hoveredVariantThumbnail]);
+
   const resetPreviewView = () => {
     previewDragStart.current = null;
     setIsPreviewDragging(false);
@@ -2677,35 +2733,79 @@ const App: React.FC = () => {
                           <div key={option.id} className={`flex items-center gap-2 rounded-xl border px-2.5 py-1.5 text-xs transition-all ${selectedVariantOptionIds.includes(option.id) ? 'border-orange-500/50 bg-orange-500/10' : theme === 'dark' ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'}`}>
                             <input type="checkbox" checked={selectedVariantOptionIds.includes(option.id)} onChange={() => toggleVariantOption(option.id)} className="accent-orange-500 cursor-pointer" />
                             
-                            {/* Variant image preview / upload button */}
+                            {/* Variant image preview (with hover full-size preview) & upload button */}
                             <div className="relative group/optimg shrink-0">
                               {option.imageUrl ? (
-                                <img src={option.imageUrl} alt={option.label} className="h-8 w-8 rounded-lg object-cover border border-slate-200 dark:border-slate-700 shadow-2xs" />
-                              ) : (
-                                <div className="h-8 w-8 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center text-slate-400 bg-slate-50 dark:bg-slate-800" title="ไม่มีรูปตัวเลือก">
-                                  <ImageIcon className="w-3.5 h-3.5" />
-                                </div>
-                              )}
-                              <label className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center opacity-0 group-hover/optimg:opacity-100 cursor-pointer transition-opacity text-white" title="เปลี่ยนหรือเพิ่มรูปตัวเลือกนี้">
-                                <ImagePlus className="w-3.5 h-3.5" />
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  className="hidden"
-                                  onChange={e => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                      const reader = new FileReader();
-                                      reader.onloadend = () => {
-                                        if (typeof reader.result === 'string') {
-                                          updateVariantOption(group.id, option.id, { imageUrl: reader.result });
-                                        }
-                                      };
-                                      reader.readAsDataURL(file);
-                                    }
+                                <div
+                                  className="relative cursor-zoom-in"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openPreview(option.imageUrl!);
                                   }}
-                                />
-                              </label>
+                                  onMouseEnter={(e) => handleVariantThumbnailMouseEnter(e, option.imageUrl, option.label)}
+                                  onMouseLeave={handleVariantThumbnailMouseLeave}
+                                  title="ชี้เพื่อดูภาพขนาดใหญ่ · คลิกเพื่อเปิดดูเต็มจอ"
+                                >
+                                  <img
+                                    src={option.imageUrl}
+                                    alt={option.label}
+                                    className="h-8 w-8 rounded-lg object-cover border border-slate-200 dark:border-slate-700 shadow-2xs hover:border-orange-500 hover:ring-2 hover:ring-orange-500/20 transition-all"
+                                  />
+                                  <div className="absolute inset-0 rounded-lg bg-black/0 group-hover/optimg:bg-black/20 transition-colors flex items-center justify-center">
+                                    <Eye className="w-3.5 h-3.5 text-white opacity-0 group-hover/optimg:opacity-90 drop-shadow transition-opacity" />
+                                  </div>
+                                </div>
+                              ) : (
+                                <label
+                                  className="h-8 w-8 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center text-slate-400 bg-slate-50 dark:bg-slate-800 hover:border-orange-500 hover:text-orange-500 cursor-pointer transition-colors"
+                                  title="คลิกเพื่อเพิ่มรูปตัวเลือกนี้"
+                                >
+                                  <ImageIcon className="w-3.5 h-3.5" />
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={e => {
+                                      const file = e.target.files?.[0];
+                                      if (file) {
+                                        const reader = new FileReader();
+                                        reader.onloadend = () => {
+                                          if (typeof reader.result === 'string') {
+                                            updateVariantOption(group.id, option.id, { imageUrl: reader.result });
+                                          }
+                                        };
+                                        reader.readAsDataURL(file);
+                                      }
+                                    }}
+                                  />
+                                </label>
+                              )}
+                              {option.imageUrl && (
+                                <label
+                                  className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-orange-500 hover:bg-orange-600 text-white flex items-center justify-center shadow-md cursor-pointer opacity-0 group-hover/optimg:opacity-100 hover:scale-110 active:scale-95 transition-all z-10"
+                                  title="เปลี่ยนรูปตัวเลือกนี้"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <ImagePlus className="w-2.5 h-2.5" />
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={e => {
+                                      const file = e.target.files?.[0];
+                                      if (file) {
+                                        const reader = new FileReader();
+                                        reader.onloadend = () => {
+                                          if (typeof reader.result === 'string') {
+                                            updateVariantOption(group.id, option.id, { imageUrl: reader.result });
+                                          }
+                                        };
+                                        reader.readAsDataURL(file);
+                                      }
+                                    }}
+                                  />
+                                </label>
+                              )}
                             </div>
 
                             <input value={option.label} onChange={e => updateVariantOption(group.id, option.id, { label: e.target.value })} className={`min-w-0 flex-1 bg-transparent text-xs font-bold outline-none ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`} />
@@ -4320,6 +4420,46 @@ const App: React.FC = () => {
             <div className={`mt-5 rounded-xl border px-4 py-3 text-xs leading-5 ${theme === 'dark' ? 'border-slate-700 bg-slate-800 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-600'}`}><b>ผลลัพธ์:</b> เป็น Technical Size Chart แบบมุมบนที่ล็อก footprint กว้าง×ยาวและ reference ตามมิติที่กรอก ภาพนี้ไม่บิดสินค้าเพื่อให้ดูใหญ่หรือเล็กเกินจริง</div>
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button onClick={() => setIsManualScaleOpen(false)} className={`rounded-xl px-5 py-3 text-sm font-black ${theme === 'dark' ? 'bg-slate-800 text-slate-200' : 'bg-slate-100 text-slate-600'}`}>ยกเลิก</button><button onClick={createManualScaleChart} className="flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-5 py-3 text-sm font-black text-white shadow-lg shadow-orange-500/25 transition hover:bg-orange-600"><Ruler className="h-4 w-4" />สร้าง Size Chart สเกลจริง</button></div>
           </section>
+        </div>
+      )}
+
+      {/* Floating Variant Image Hover Preview Tooltip */}
+      {hoveredVariantThumbnail && (
+        <div
+          className="fixed pointer-events-none z-[9999] transition-all duration-150 animate-in fade-in zoom-in-95 ease-out"
+          style={{
+            top: `${hoveredVariantThumbnail.top}px`,
+            left: `${hoveredVariantThumbnail.left}px`,
+            width: '300px',
+          }}
+        >
+          <div className={`overflow-hidden rounded-2xl border p-3 shadow-2xl backdrop-blur-2xl ${
+            theme === 'dark'
+              ? 'border-slate-700 bg-slate-900/95 shadow-black/80'
+              : 'border-slate-200/90 bg-white/95 shadow-slate-900/25'
+          }`}>
+            <div className="flex items-center justify-between gap-2 mb-2 pb-1.5 border-b border-slate-200/60 dark:border-slate-800">
+              <span className="truncate text-xs font-black text-orange-500">
+                {hoveredVariantThumbnail.label}
+              </span>
+              <span className={`text-[10px] font-bold shrink-0 rounded-md px-1.5 py-0.5 ${
+                theme === 'dark' ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-600'
+              }`}>
+                🔍 ภาพตัวเลือก
+              </span>
+            </div>
+            <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-white dark:bg-slate-950 border border-slate-100 dark:border-slate-800 flex items-center justify-center p-1.5 shadow-inner">
+              <img
+                src={hoveredVariantThumbnail.url}
+                alt={hoveredVariantThumbnail.label}
+                className="h-full w-full object-contain"
+              />
+            </div>
+            <div className="mt-2 flex items-center justify-between px-1 text-[10px] font-bold text-slate-400">
+              <span>💡 คลิกที่รูปเพื่อดูเต็มจอ</span>
+              <span className="text-orange-500 font-extrabold">ขนาดใหญ่</span>
+            </div>
+          </div>
         </div>
       )}
 
